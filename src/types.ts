@@ -97,6 +97,7 @@ export interface PendingQuotationRequest {
   cliente_nombre: string;
   cliente_empresa?: string;
   cliente_celular: string;
+  cliente_correo?: string;
   cliente_ciudad?: string;
   vallas_ids: string[];
   vallas_nombres: string[];
@@ -105,6 +106,10 @@ export interface PendingQuotationRequest {
   estado: 'Pendiente' | 'En atención' | 'Cotizado' | 'Cancelado';
   vendedor_asignado?: string; // Name of the seller who claimed this request
   observaciones?: string;
+  sugerencia_cotizacion?: string;
+  imagenes_referencia?: string[];
+  dispositivo_detectado?: string;
+  presupuesto_estimado_usd?: number;
 }
 
 export type QuotationState = 'Borrador' | 'Enviada' | 'Vista por cliente' | 'Negociación' | 'Aceptada' | 'Rechazada' | 'Vencida';
@@ -292,6 +297,9 @@ export interface UserSession {
   usuario: string;
   rol: UserRole;
   estado: 'Activo' | 'Inactivo' | 'Bloqueado';
+  empresa?: string;
+  celular?: string;
+  email?: string;
 }
 
 export interface BackupRecord {

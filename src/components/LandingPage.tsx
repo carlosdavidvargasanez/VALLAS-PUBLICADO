@@ -1,7 +1,9 @@
-import React from 'react';
-import { Presentation, Shield, Lock, MapPin, Sparkles, CheckCircle2, Phone, Star, Building2, ArrowRight, Eye, Smartphone, Zap, FileText } from 'lucide-react';
+import React, { useState } from 'react';
+import { Presentation, Shield, Lock, MapPin, Sparkles, CheckCircle2, Phone, Star, Building2, ArrowRight, Eye, Smartphone, Zap, FileText, MessageSquare, Upload } from 'lucide-react';
 import { motion } from 'motion/react';
 import oohBannerImage from '../assets/images/publi_x_ooh_banner_1786328834763.jpg';
+import Logo from './Logo';
+import OOHInquiryModal from './OOHInquiryModal';
 
 interface LandingPageProps {
   onOpenLogin: () => void;
@@ -9,6 +11,16 @@ interface LandingPageProps {
 }
 
 export default function LandingPage({ onOpenLogin, onExploreCatalog }: LandingPageProps) {
+  const [showInquiryModal, setShowInquiryModal] = useState<boolean>(false);
+  const [inquiryTitle, setInquiryTitle] = useState<string>('Soluciones OOH Bolivia');
+  const [inquiryType, setInquiryType] = useState<string>('Vallas Monumentales & Pantallas LED');
+
+  const handleOpenInquiry = (title: string, type: string) => {
+    setInquiryTitle(title);
+    setInquiryType(type);
+    setShowInquiryModal(true);
+  };
+
   return (
     <div className="min-h-screen bg-[#0a111e] text-white font-sans selection:bg-[#ff8c00] selection:text-white">
       
@@ -20,36 +32,26 @@ export default function LandingPage({ onOpenLogin, onExploreCatalog }: LandingPa
       </div>
 
       {/* Top Header Bar */}
-      <header className="sticky top-0 z-40 bg-[#0a111e]/90 backdrop-blur-xl border-b border-[#0fa0e6]/30 shadow-xl shadow-black/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      <header className="sticky top-0 z-40 bg-[#0a111e]/95 backdrop-blur-xl border-b border-[#0fa0e6]/30 shadow-2xl shadow-black/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center justify-between">
           
-          {/* Brand Logo - PUBLI (Blue) + X (Orange #ff8c00) */}
-          <div className="flex items-center space-x-3">
-            <div className="w-11 h-11 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-[#0fa0e6]/20 font-black tracking-tighter text-xl">
-              <span className="text-[#0fa0e6]">P</span>
-              <span className="text-[#ff8c00]">X</span>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-black text-xl tracking-tight text-white uppercase">
-                  PUBLI<span className="text-[#ff8c00]">-X</span>
-                </span>
-                <span className="bg-[#ff8c00] text-white font-extrabold text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
-                  Bolivia
-                </span>
-              </div>
-              <span className="text-[11px] font-bold text-[#0fa0e6] tracking-wider block -mt-0.5">
-                Publicidad Exterior OOH & LED
-              </span>
-            </div>
+          {/* Brand Logo - Top Left Header (PROMINENT & LARGER) */}
+          <div className="flex items-center -ml-2 py-1">
+            <Logo size="md" />
           </div>
 
           {/* Quick Nav Links */}
-          <nav className="flex items-center space-x-8 text-xs font-bold uppercase tracking-wider text-gray-200">
-            <a href="#inicio" className="hover:text-[#0fa0e6] transition py-1">Inicio</a>
-            <a href="#cobertura" className="hover:text-[#0fa0e6] transition py-1">Cobertura Nacional</a>
-            <a href="#soluciones" className="hover:text-[#0fa0e6] transition py-1">Soluciones OOH</a>
-            <a href="#contacto" className="hover:text-[#0fa0e6] transition py-1">Contacto</a>
+          <nav className="flex items-center space-x-6 sm:space-x-8 text-xs font-bold uppercase tracking-wider text-gray-200">
+            <a href="#inicio" className="hover:text-[#0fa0e6] transition py-1 hidden sm:inline">Inicio</a>
+            <a href="#cobertura" className="hover:text-[#0fa0e6] transition py-1 hidden md:inline">Cobertura Nacional</a>
+            <button 
+              onClick={() => handleOpenInquiry('Soluciones OOH Bolivia', 'Servicios Integrales Vallas y LEDs')}
+              className="text-[#ff8c00] hover:text-amber-300 font-extrabold transition py-1 flex items-center gap-1.5 cursor-pointer"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>Soluciones OOH</span>
+            </button>
+            <a href="#contacto" className="hover:text-[#0fa0e6] transition py-1 hidden sm:inline">Contacto</a>
           </nav>
         </div>
       </header>
@@ -80,18 +82,16 @@ export default function LandingPage({ onOpenLogin, onExploreCatalog }: LandingPa
                     Vallas Monumentales & Pantallas LED
                   </h3>
                   <p className="text-gray-300 text-xs sm:text-sm mt-1.5 max-w-xl leading-relaxed">
-                    Ubicaciones estratégicas de alto tráfico en Santa Cruz, La Paz y Cochabamba.
+                    Ubicaciones estratégicas de alto tráfico en La Paz, Santa Cruz, Cochabamba y Provincias.
                   </p>
                 </div>
-                
-                {/* HIGH VISIBILITY "VER PUNTOS DISPONIBLES" BUTTON */}
+
                 <button
-                  onClick={onExploreCatalog}
-                  className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-[#ff8c00] via-[#ffa024] to-[#ff7300] hover:from-[#ff7300] hover:to-[#e06600] text-white font-black rounded-2xl text-sm sm:text-base uppercase tracking-wider transition cursor-pointer shadow-2xl shadow-[#ff8c00]/50 flex items-center justify-center gap-3 shrink-0 transform hover:scale-105 active:scale-95 border-2 border-amber-300/40"
+                  onClick={() => handleOpenInquiry('Vallas & Pantallas LED Banner', 'Solución OOH Destacada')}
+                  className="px-6 py-3.5 bg-gradient-to-r from-[#ff8c00] to-[#e06600] hover:from-[#e06600] hover:to-[#c45300] text-white font-black rounded-xl text-xs sm:text-sm uppercase tracking-wider transition cursor-pointer shadow-lg shadow-[#ff8c00]/40 flex items-center gap-2 border border-amber-300/30 whitespace-nowrap"
                 >
-                  <Eye className="w-5 h-5 stroke-[2.5]" />
-                  <span>VER PUNTOS DISPONIBLES</span>
-                  <ArrowRight className="w-5 h-5 stroke-[3]" />
+                  <Upload className="w-4 h-4" />
+                  <span>Cotizar / Adjuntar Imagen</span>
                 </button>
               </div>
             </div>
@@ -129,59 +129,148 @@ export default function LandingPage({ onOpenLogin, onExploreCatalog }: LandingPa
         </div>
       </section>
 
-      {/* PLATFORM FEATURES */}
+      {/* PLATFORM FEATURES - SOLUCIONES OOH SECTION */}
       <section id="soluciones" className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-xs font-black text-[#ff8c00] uppercase tracking-widest mb-2 bg-[#ff8c00]/10 border border-[#ff8c00]/30 inline-block px-3.5 py-1 rounded-full">Servicios Integrales</h2>
           <p className="text-3xl sm:text-4xl font-black uppercase text-white mt-3">
             ¿Por qué elegir PUBLI-X para su marca?
           </p>
+          <p className="text-xs sm:text-sm text-gray-300 mt-2">
+            Haga clic en cualquiera de nuestras soluciones para enviarnos sus sugerencias, cotizar su espacio o adjuntar imágenes de referencia.
+          </p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
           
-          <div className="bg-[#0d182b] border border-[#0fa0e6]/30 rounded-3xl p-8 hover:border-[#ff8c00]/60 transition shadow-xl group">
-            <div className="w-12 h-12 bg-gradient-to-br from-[#0fa0e6] to-[#0873b0] text-white rounded-2xl flex items-center justify-center mb-6 shadow-md group-hover:scale-110 transition">
-              <MapPin className="w-6 h-6" />
+          {/* Card 1: Ubicaciones */}
+          <div 
+            onClick={() => handleOpenInquiry('Ubicaciones de Alto Impacto', 'Vallas Monumentales & Estratégicas')}
+            className="bg-[#0d182b] border border-[#0fa0e6]/30 hover:border-[#ff8c00] rounded-3xl p-8 transition shadow-xl group cursor-pointer flex flex-col justify-between"
+          >
+            <div>
+              <div className="w-12 h-12 bg-gradient-to-br from-[#0fa0e6] to-[#0873b0] text-white rounded-2xl flex items-center justify-center mb-6 shadow-md group-hover:scale-110 transition">
+                <MapPin className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-black text-white uppercase mb-2 group-hover:text-[#ff8c00] transition">Ubicaciones de Alto Impacto</h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Vallas estratégicas en anillos principales de Santa Cruz, avenidas troncales de La Paz, Cochabamba y accesos interdepartamentales.
+              </p>
             </div>
-            <h3 className="text-lg font-black text-white uppercase mb-2">Ubicaciones de Alto Impacto</h3>
-            <p className="text-xs text-gray-300 leading-relaxed">
-              Vallas estratégicas en anillos principales de Santa Cruz, avenidas troncales de La Paz, Cochabamba y accesos interdepartamentales.
+
+            <button className="mt-6 w-full py-3 bg-[#0a111e] group-hover:bg-[#ff8c00] text-gray-200 group-hover:text-white font-bold rounded-xl text-xs uppercase transition border border-gray-700 group-hover:border-[#ff8c00] flex items-center justify-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              <span>Cotizar / Enviar Sugerencia</span>
+            </button>
+          </div>
+
+          {/* Card 2: Pantallas LED */}
+          <div 
+            onClick={() => handleOpenInquiry('Pantallas Digitales LED 4K', 'Publicidad Exterior Digital')}
+            className="bg-[#0d182b] border border-[#0fa0e6]/30 hover:border-[#ff8c00] rounded-3xl p-8 transition shadow-xl group cursor-pointer flex flex-col justify-between"
+          >
+            <div>
+              <div className="w-12 h-12 bg-gradient-to-br from-[#ff8c00] to-[#e67e00] text-white rounded-2xl flex items-center justify-center mb-6 shadow-md group-hover:scale-110 transition">
+                <Zap className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-black text-white uppercase mb-2 group-hover:text-[#ff8c00] transition">Pantallas Digitales LED</h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Spots publicitarios dinámicos en alta resolución 4K exterior con rotación constante y cambios de arte en tiempo real.
+              </p>
+            </div>
+
+            <button className="mt-6 w-full py-3 bg-[#0a111e] group-hover:bg-[#ff8c00] text-gray-200 group-hover:text-white font-bold rounded-xl text-xs uppercase transition border border-gray-700 group-hover:border-[#ff8c00] flex items-center justify-center gap-2">
+              <Upload className="w-4 h-4" />
+              <span>Adjuntar Arte / Presupuesto</span>
+            </button>
+          </div>
+
+          {/* Card 3: Portal CRM */}
+          <div 
+            onClick={() => handleOpenInquiry('Proyectos Especiales OOH', 'Desarrollo de Estructuras & Letreros')}
+            className="bg-[#0d182b] border border-[#0fa0e6]/30 hover:border-[#ff8c00] rounded-3xl p-8 transition shadow-xl group cursor-pointer flex flex-col justify-between"
+          >
+            <div>
+              <div className="w-12 h-12 bg-gradient-to-br from-[#0fa0e6] to-[#0873b0] text-white rounded-2xl flex items-center justify-center mb-6 shadow-md group-hover:scale-110 transition">
+                <FileText className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-black text-white uppercase mb-2 group-hover:text-[#ff8c00] transition">Proyectos Especiales & CRM</h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Acceda a sus cotizaciones en PDF, contratos firmados con código QR y envíe requerimientos especiales para ingeniería metálica.
+              </p>
+            </div>
+
+            <button className="mt-6 w-full py-3 bg-[#0a111e] group-hover:bg-[#ff8c00] text-gray-200 group-hover:text-white font-bold rounded-xl text-xs uppercase transition border border-gray-700 group-hover:border-[#ff8c00] flex items-center justify-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              <span>Solicitar Cotización</span>
+            </button>
+          </div>
+
+        </div>
+
+        {/* Banner CTA Box within Soluciones */}
+        <div className="mt-12 bg-gradient-to-r from-[#0d182b] via-[#0f213d] to-[#0d182b] border-2 border-[#0fa0e6]/40 rounded-3xl p-6 sm:p-10 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-2xl">
+          <div className="space-y-2 text-center sm:text-left">
+            <span className="text-xs font-black text-[#0fa0e6] uppercase tracking-wider">¿Tiene una foto o boceto de su proyecto?</span>
+            <h3 className="text-xl sm:text-2xl font-black text-white uppercase">
+              Reciba una cotización estimada con sus imágenes de referencia
+            </h3>
+            <p className="text-xs text-gray-300 max-w-xl">
+              Si no está registrado aún, nuestro sistema capturará su solicitud para darle respuesta inmediata con la ficha técnica y costo estimado.
             </p>
           </div>
 
-          <div className="bg-[#0d182b] border border-[#0fa0e6]/30 rounded-3xl p-8 hover:border-[#ff8c00]/60 transition shadow-xl group">
-            <div className="w-12 h-12 bg-gradient-to-br from-[#ff8c00] to-[#e67e00] text-white rounded-2xl flex items-center justify-center mb-6 shadow-md group-hover:scale-110 transition">
-              <Zap className="w-6 h-6" />
-            </div>
-            <h3 className="text-lg font-black text-white uppercase mb-2">Pantallas Digitales LED</h3>
-            <p className="text-xs text-gray-300 leading-relaxed">
-              Spots publicitarios dinámicos en alta resolución 4K exterior con rotación constante y cambios de arte en tiempo real.
-            </p>
-          </div>
+          <button
+            onClick={() => handleOpenInquiry('Cotización Personalizada con Imagen', 'Solicitud Directa con Referencias')}
+            className="px-8 py-4 bg-gradient-to-r from-[#ff8c00] via-[#ffa024] to-[#ff7300] hover:from-[#ff7300] hover:to-[#e06600] text-white font-black rounded-2xl text-xs sm:text-sm uppercase tracking-wider transition cursor-pointer shadow-xl shadow-[#ff8c00]/40 flex items-center gap-3 border border-amber-300/40 whitespace-nowrap"
+          >
+            <Upload className="w-5 h-5" />
+            <span>Abrir Formulario & Adjuntar</span>
+          </button>
+        </div>
+      </section>
 
-          <div className="bg-[#0d182b] border border-[#0fa0e6]/30 rounded-3xl p-8 hover:border-[#ff8c00]/60 transition shadow-xl group">
-            <div className="w-12 h-12 bg-gradient-to-br from-[#0fa0e6] to-[#0873b0] text-white rounded-2xl flex items-center justify-center mb-6 shadow-md group-hover:scale-110 transition">
-              <FileText className="w-6 h-6" />
-            </div>
-            <h3 className="text-lg font-black text-white uppercase mb-2">Portal CRM de Contratos</h3>
-            <p className="text-xs text-gray-300 leading-relaxed">
-              Acceda a sus cotizaciones en PDF, contratos firmados con código QR y reportes de exhibición directamente desde la plataforma.
-            </p>
-          </div>
+      {/* CALL TO ACTION AT THE VERY BOTTOM OF THE PRESENTATION PAGE */}
+      <section className="py-16 px-4 bg-gradient-to-b from-[#0d182b] to-[#0a111e] border-t border-[#0fa0e6]/20 relative overflow-hidden">
+        <div className="max-w-4xl mx-auto text-center space-y-6 relative z-10">
+          <span className="bg-[#ff8c00]/15 text-[#ff8c00] border border-[#ff8c00]/40 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest inline-block shadow-sm">
+            Catálogo OOH Bolivia 2026
+          </span>
+          
+          <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight leading-tight">
+            ¿Listo para destacar su marca en las mejores ubicaciones?
+          </h2>
+          
+          <p className="text-gray-300 text-sm sm:text-base max-w-xl mx-auto leading-relaxed font-medium">
+            Explore nuestro mapa interactivo de vallas monumentales e impresas y pantallas digitales LED disponibles en todo el país.
+          </p>
 
+          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button
+              onClick={onExploreCatalog}
+              className="w-full sm:w-auto px-10 py-5 bg-gradient-to-r from-[#ff8c00] via-[#ffa024] to-[#ff7300] hover:from-[#ff7300] hover:to-[#e06600] text-white font-black rounded-2xl text-base sm:text-lg uppercase tracking-wider transition cursor-pointer shadow-2xl shadow-[#ff8c00]/50 flex items-center justify-center gap-4 transform hover:scale-105 active:scale-95 border-2 border-amber-300/40"
+            >
+              <Eye className="w-6 h-6 stroke-[2.5]" />
+              <span>VER PUNTOS DISPONIBLES</span>
+              <ArrowRight className="w-6 h-6 stroke-[3]" />
+            </button>
+
+            <button
+              onClick={() => handleOpenInquiry('Atención Directa OOH', 'Atención Comercial Rápida')}
+              className="w-full sm:w-auto px-8 py-5 bg-[#0d182b] hover:bg-[#12223c] text-white font-black rounded-2xl text-base uppercase tracking-wider transition cursor-pointer border-2 border-[#0fa0e6]/40 flex items-center justify-center gap-3"
+            >
+              <MessageSquare className="w-5 h-5 text-[#0fa0e6]" />
+              <span>Cotización Rápida / Sugerencias</span>
+            </button>
+          </div>
         </div>
       </section>
 
       {/* FOOTER */}
       <footer id="contacto" className="bg-[#070d18] border-t border-[#0fa0e6]/20 py-12 text-center text-xs text-gray-400">
         <div className="max-w-7xl mx-auto px-4 space-y-4">
-          <div className="flex items-center justify-center space-x-2">
-            <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center font-black text-sm shadow-md">
-              <span className="text-[#0fa0e6]">P</span>
-              <span className="text-[#ff8c00]">X</span>
-            </div>
-            <span className="font-extrabold text-white text-base">PUBLI-X BOLIVIA</span>
+          <div className="flex items-center justify-center">
+            <Logo size="md" />
           </div>
           <p className="text-gray-300 max-w-md mx-auto leading-relaxed">
             Oficina Central: Av. San Martín #450, Equipetrol, Santa Cruz - Bolivia. <br />
@@ -192,6 +281,14 @@ export default function LandingPage({ onOpenLogin, onExploreCatalog }: LandingPa
           </div>
         </div>
       </footer>
+
+      {/* OOH INQUIRY & SUGGESTIONS MODAL */}
+      <OOHInquiryModal
+        isOpen={showInquiryModal}
+        onClose={() => setShowInquiryModal(false)}
+        solutionTitle={inquiryTitle}
+        solutionType={inquiryType}
+      />
 
     </div>
   );

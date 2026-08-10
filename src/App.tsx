@@ -14,6 +14,7 @@ import AuditLogs from './components/AuditLogs';
 import SettingsConfig from './components/SettingsConfig';
 import LoginModal from './components/LoginModal';
 import LandingPage from './components/LandingPage';
+import Logo from './components/Logo';
 
 import { 
   Users, 
@@ -819,16 +820,7 @@ export default function App() {
           </button>
           
           <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center font-black text-sm shadow-sm tracking-tight">
-              <span className="text-[#0fa0e6]">P</span>
-              <span className="text-[#ff8c00]">X</span>
-            </div>
-            <div>
-              <h1 className="text-sm font-extrabold tracking-tight uppercase leading-tight text-white">
-                PUBLI<span className="text-[#ff8c00]">-X</span> Bolivia <span className="text-[#ff8c00] font-mono text-[10px] lowercase font-normal">v1.0</span>
-              </h1>
-              <p className="text-[10px] text-gray-400 font-medium leading-none">PUBLICIDAD EXTERIOR OOH & LED</p>
-            </div>
+            <Logo size="sm" />
           </div>
 
           {/* Direct Return to Home / Landing Button in Header */}

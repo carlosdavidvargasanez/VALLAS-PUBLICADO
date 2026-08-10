@@ -3,6 +3,7 @@ import { UserSession, Client } from '../types';
 import { generateClientCredentials } from '../utils/credentials';
 import { Lock, User, Key, CheckCircle, AlertCircle, X, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
+import Logo from './Logo';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -135,8 +136,8 @@ export default function LoginModal({ isOpen, onClose, users, clients, onLoginSuc
           >
             <X className="w-5 h-5" />
           </button>
-          <div className="w-12 h-12 bg-white/20 backdrop-blur-xs rounded-2xl flex items-center justify-center mb-3">
-            <Lock className="w-6 h-6 text-white" />
+          <div className="mb-3">
+            <Logo size="sm" />
           </div>
           <h2 className="text-xl font-black uppercase tracking-tight">Acceso al Sistema</h2>
           <p className="text-xs font-semibold text-white/90 mt-1">

@@ -1435,8 +1435,42 @@ export default function Vehicles({
                         ))}
                       </div>
 
+                      {req.sugerencia_cotizacion && (
+                        <div className="bg-amber-500/10 border border-amber-500/30 p-2.5 rounded-xl text-[11px] text-gray-800">
+                          <b className="text-amber-900 block font-bold">💡 Requerimiento / Sugerencia del Cliente:</b>
+                          <p className="italic mt-0.5">"{req.sugerencia_cotizacion}"</p>
+                        </div>
+                      )}
+
+                      {req.imagenes_referencia && req.imagenes_referencia.length > 0 && (
+                        <div className="space-y-1">
+                          <span className="font-bold text-gray-500 uppercase tracking-wider block text-[9px]">🖼️ Imágenes de Referencia Adjuntas ({req.imagenes_referencia.length}):</span>
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {req.imagenes_referencia.map((img, idx) => (
+                              <a
+                                key={idx}
+                                href={img}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block w-14 h-14 rounded-lg border border-amber-300 overflow-hidden hover:scale-105 transition shadow-xs"
+                                title="Ver imagen de referencia"
+                              >
+                                <img src={img} alt="Referencia" className="w-full h-full object-cover" />
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {req.observaciones && (
                         <p className="text-gray-500 italic text-[11px]">"{req.observaciones}"</p>
+                      )}
+
+                      {req.dispositivo_detectado && (
+                        <div className="text-[10px] text-gray-400 font-mono flex items-center gap-1">
+                          <span>📱 Capturado desde:</span>
+                          <span className="text-gray-600 font-semibold">{req.dispositivo_detectado}</span>
+                        </div>
                       )}
 
                       {/* Actions */}
