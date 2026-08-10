@@ -337,6 +337,20 @@ export default function App() {
     }
   };
 
+  const handleUpdateQuotation = (updatedQuote: Quotation) => {
+    const list = mockDb.getQuotations();
+    const updated = list.map(q => q.id === updatedQuote.id ? updatedQuote : q);
+    mockDb.saveQuotations(updated);
+    setQuotations(updated);
+
+    mockDb.addAuditLog(
+      currentUser.nombre,
+      'Edición Cotización',
+      `Se modificó con éxito la proforma / cotización ${updatedQuote.numero} por un monto total de $${updatedQuote.total.toLocaleString()} USD.`
+    );
+    setAuditLogs(mockDb.getAuditLogs());
+  };
+
   const handleDeleteQuotation = (id: string) => {
     const list = mockDb.getQuotations();
     const quote = list.find(q => q.id === id);
@@ -1217,6 +1231,7 @@ export default function App() {
                   settings={settings}
                   currentUserNombre={currentUser.nombre}
                   onAddQuotation={handleAddQuotation}
+                  onUpdateQuotation={handleUpdateQuotation}
                   onUpdateQuotationStatus={handleUpdateQuotationStatus}
                   onDeleteQuotation={handleDeleteQuotation}
                   onSaveContract={handleAddContract}

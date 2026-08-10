@@ -21,7 +21,8 @@ import {
   Mail,
   MessageSquare,
   Share2,
-  FileCheck
+  FileCheck,
+  Edit3
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ContractModal from './ContractModal';
@@ -33,6 +34,7 @@ interface QuotationsProps {
   settings: Settings;
   currentUserNombre?: string;
   onAddQuotation: (quote: Omit<Quotation, 'id' | 'numero' | 'fecha'>) => void;
+  onUpdateQuotation?: (quote: Quotation) => void;
   onUpdateQuotationStatus: (id: string, status: QuotationState) => void;
   onDeleteQuotation: (id: string) => void;
   onSaveContract?: (contract: Contract) => void;
@@ -49,6 +51,7 @@ export default function Quotations({
   settings,
   currentUserNombre = 'Asesor Comercial V&L',
   onAddQuotation,
+  onUpdateQuotation,
   onUpdateQuotationStatus,
   onDeleteQuotation,
   onSaveContract,
@@ -62,6 +65,11 @@ export default function Quotations({
   const [search, setSearch] = useState('');
   const [showCreateForm, setShowForm] = useState(false);
   const [selectedPrintQuote, setSelectedPrintQuote] = useState<Quotation | null>(null);
+
+  // Proforma Preview & Edit State
+  const [isEditingPreview, setIsEditingPreview] = useState<boolean>(false);
+  const [editingQuote, setEditingQuote] = useState<Quotation | null>(null);
+  const [previewSuccessMsg, setPreviewSuccessMsg] = useState<string>('');
 
   // Contract Generation Modal State
   const [contractModalQuote, setContractModalQuote] = useState<Quotation | null>(null);
@@ -109,6 +117,83 @@ export default function Quotations({
   const logisticaNum = Number(gastosLogistica) || 0;
   const seguroNum = Number(gastosSeguro) || 0;
   const totalQuotePrice = basePriceNum + importNum + aduanaNum + logisticaNum + seguroNum;
+
+  // Open Proforma Preview Modal
+  const handleOpenPreview = (quote: Quotation, editMode: boolean = false) => {
+    setSelectedPrintQuote(quote);
+    setEditingQuote({ ...quote });
+    setIsEditingPreview(editMode);
+    setPreviewSuccessMsg('');
+  };
+
+  // Preview Draft before saving
+  const handlePreviewDraft = () => {
+    setFormError('');
+    if (!activeClient) return setFormError('Debe seleccionar un cliente destinatario.');
+    if (!activeVehicle) return setFormError('Debe seleccionar un vehículo a cotizar.');
+    if (!precioVehiculo || isNaN(Number(precioVehiculo))) return setFormError('Proporcione un precio base válido.');
+
+    const draftQuote: Quotation = {
+      id: 'DRAFT-' + Date.now(),
+      numero: `COT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      cliente_id: activeClient.id,
+      vehiculo_id: activeVehicle.id,
+      precio_vehiculo: basePriceNum,
+      gastos_importacion: importNum,
+      gastos_aduana: aduanaNum,
+      gastos_logistica: logisticaNum,
+      gastos_seguro: seguroNum,
+      total: totalQuotePrice,
+      fecha: new Date().toISOString(),
+      estado: 'Borrador',
+      observaciones: observaciones.trim()
+    };
+
+    handleOpenPreview(draftQuote, false);
+  };
+
+  // Save changes made inside the Preview/Edit Modal
+  const handleSaveEditedQuote = () => {
+    if (!editingQuote) return;
+    
+    // Recalculate total sum
+    const newTotal = (editingQuote.precio_vehiculo || 0) +
+      (editingQuote.gastos_importacion || 0) +
+      (editingQuote.gastos_aduana || 0) +
+      (editingQuote.gastos_logistica || 0) +
+      (editingQuote.gastos_seguro || 0);
+
+    const updated = {
+      ...editingQuote,
+      total: newTotal
+    };
+
+    if (updated.id.startsWith('DRAFT-')) {
+      onAddQuotation({
+        cliente_id: updated.cliente_id,
+        vehiculo_id: updated.vehiculo_id,
+        precio_vehiculo: updated.precio_vehiculo,
+        gastos_importacion: updated.gastos_importacion,
+        gastos_aduana: updated.gastos_aduana,
+        gastos_logistica: updated.gastos_logistica,
+        gastos_seguro: updated.gastos_seguro,
+        total: updated.total,
+        estado: updated.estado,
+        observaciones: updated.observaciones
+      });
+      setPreviewSuccessMsg('¡Proforma creada y guardada con éxito en el sistema!');
+    } else {
+      if (onUpdateQuotation) {
+        onUpdateQuotation(updated);
+      }
+      setSelectedPrintQuote(updated);
+      setEditingQuote(updated);
+      setPreviewSuccessMsg('¡Proforma actualizada y guardada con éxito!');
+    }
+
+    setIsEditingPreview(false);
+    setTimeout(() => setPreviewSuccessMsg(''), 3500);
+  };
 
   // Handle submit quote
   const handleSubmit = (e: React.FormEvent) => {
@@ -405,17 +490,25 @@ export default function Quotations({
                     </div>
                   </div>
 
-                  <div className="pt-6 flex space-x-2">
+                  <div className="pt-6 flex flex-wrap gap-2">
                     <button
                       type="button"
                       onClick={() => setShowForm(false)}
-                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-xs font-bold transition flex-1"
+                      className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-xs font-bold transition cursor-pointer"
                     >
                       Cerrar
                     </button>
                     <button
+                      type="button"
+                      onClick={handlePreviewDraft}
+                      className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-extrabold transition shadow-xs flex items-center justify-center space-x-1 cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Previsualizar</span>
+                    </button>
+                    <button
                       type="submit"
-                      className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-extrabold transition flex-1 shadow-sm uppercase"
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-extrabold transition shadow-xs uppercase flex-1 cursor-pointer"
                     >
                       Generar Documento
                     </button>
@@ -501,13 +594,23 @@ export default function Quotations({
                       <td className="py-3.5 px-4">
                         <div className="flex items-center justify-center space-x-1">
                           
+                          {/* Previsualizar y Editar Proforma */}
+                          <button
+                            onClick={() => handleOpenPreview(quote, false)}
+                            className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 font-extrabold text-[10px] rounded-md transition flex items-center space-x-1 border border-indigo-200 cursor-pointer"
+                            title="Previsualizar, revisar y modificar la proforma / cotización"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-indigo-600 hover:text-white" />
+                            <span>Previsualizar</span>
+                          </button>
+
                           {/* Generar Contrato Directo */}
                           <button
                             onClick={() => {
                               setContractModalQuote(quote);
                               setShowContractModal(true);
                             }}
-                            className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-amber-400 font-black text-[10px] rounded-md transition uppercase flex items-center space-x-1 shadow-2xs"
+                            className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-amber-400 font-black text-[10px] rounded-md transition uppercase flex items-center space-x-1 shadow-2xs cursor-pointer"
                             title="Generar y Emitir Contrato Comercial con Descuento y Lona"
                           >
                             <FileCheck className="w-3.5 h-3.5 text-amber-400" />
@@ -590,18 +693,19 @@ export default function Quotations({
         </div>
       </div>
 
-      {/* PRINT PREVIEW / OFICIAL QUOTATION PDF SHEET GENERATOR */}
+      {/* PRINT PREVIEW / OFFICIAL QUOTATION PDF SHEET & EDITOR */}
       <AnimatePresence>
         {selectedPrintQuote && (() => {
-          const client = clients.find(c => c.id === selectedPrintQuote.cliente_id);
-          const vehicle = vehicles.find(v => v.id === selectedPrintQuote.vehiculo_id);
+          const displayQuote = editingQuote || selectedPrintQuote;
+          const client = clients.find(c => c.id === displayQuote.cliente_id);
+          const vehicle = vehicles.find(v => v.id === displayQuote.vehiculo_id);
           
           return (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto no-print"
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto no-print"
             >
               <motion.div
                 initial={{ scale: 0.95, y: 15 }}
@@ -610,15 +714,28 @@ export default function Quotations({
                 className="bg-white rounded-2xl border border-gray-200 shadow-2xl max-w-3xl w-full overflow-hidden flex flex-col my-8"
               >
                 {/* Controls toolbar */}
-                <div className="bg-gray-950 text-white p-4 flex flex-wrap gap-2 justify-between items-center no-print">
-                  <span className="text-xs font-semibold flex items-center space-x-1 text-gray-300">
-                    <FileText className="w-4 h-4 text-amber-500" />
-                    <span>Visualizador de Cotización - Vallas & LED</span>
-                  </span>
+                <div className="bg-gray-950 text-white p-4 flex flex-wrap gap-2 justify-between items-center no-print border-b border-gray-800">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setIsEditingPreview(!isEditingPreview)}
+                      className={`px-3 py-1.5 font-bold text-xs rounded-xl flex items-center space-x-1.5 transition cursor-pointer shadow-xs ${
+                        isEditingPreview 
+                          ? 'bg-amber-500 text-slate-950 font-black hover:bg-amber-400' 
+                          : 'bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold'
+                      }`}
+                    >
+                      {isEditingPreview ? <Eye className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
+                      <span>{isEditingPreview ? '👁️ Ver Vista Previa Sheet' : '✏️ Modificar Proforma'}</span>
+                    </button>
+                    <span className="text-[11px] text-gray-400 font-mono hidden sm:inline">
+                      Nº {displayQuote.numero}
+                    </span>
+                  </div>
+
                   <div className="flex flex-wrap items-center gap-2">
                     <button
-                      onClick={() => handleSendWhatsApp(selectedPrintQuote)}
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg flex items-center space-x-1 transition"
+                      onClick={() => handleSendWhatsApp(displayQuote)}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg flex items-center space-x-1 transition cursor-pointer"
                       title="Enviar por WhatsApp"
                     >
                       <MessageSquare className="w-3.5 h-3.5" />
@@ -626,8 +743,8 @@ export default function Quotations({
                     </button>
 
                     <button
-                      onClick={() => handleSendEmail(selectedPrintQuote)}
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg flex items-center space-x-1 transition"
+                      onClick={() => handleSendEmail(displayQuote)}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg flex items-center space-x-1 transition cursor-pointer"
                       title="Enviar por Email"
                     >
                       <Mail className="w-3.5 h-3.5" />
@@ -635,8 +752,8 @@ export default function Quotations({
                     </button>
 
                     <button
-                      onClick={() => handleSendBoth(selectedPrintQuote)}
-                      className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-gray-950 font-extrabold text-xs rounded-lg flex items-center space-x-1 transition"
+                      onClick={() => handleSendBoth(displayQuote)}
+                      className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-gray-950 font-extrabold text-xs rounded-lg flex items-center space-x-1 transition cursor-pointer"
                       title="Enviar por WhatsApp y Email"
                     >
                       <Send className="w-3.5 h-3.5" />
@@ -645,171 +762,333 @@ export default function Quotations({
 
                     <button
                       onClick={() => window.print()}
-                      className="px-3.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-white font-bold text-xs rounded-lg flex items-center space-x-1.5 transition active:scale-98"
+                      className="px-3.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-white font-bold text-xs rounded-lg flex items-center space-x-1.5 transition active:scale-98 cursor-pointer"
                     >
-                      <Printer className="w-4 h-4" />
+                      <Printer className="w-4 h-4 text-amber-400" />
                       <span>PDF / Imprimir</span>
                     </button>
                     
                     <button
-                      onClick={() => setSelectedPrintQuote(null)}
-                      className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition ml-1"
+                      onClick={() => {
+                        setSelectedPrintQuote(null);
+                        setEditingQuote(null);
+                        setIsEditingPreview(false);
+                      }}
+                      className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition ml-1 cursor-pointer"
                     >
                       <X className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
 
-                {/* Printable sheet area */}
-                <div className="p-8 bg-white text-gray-800 space-y-6 overflow-y-auto" id="printable-area">
-                  
-                  {/* Letterhead */}
-                  <div className="flex justify-between items-start pb-5 border-b border-gray-100">
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 rounded bg-gray-900 flex items-center justify-center font-bold text-white text-xs">
-                          V&L
-                        </div>
-                        <h2 className="text-xl font-extrabold font-display tracking-tight text-gray-900">
-                          {settings.nombre_empresa}
-                        </h2>
-                      </div>
-                      <p className="text-[10px] text-amber-600 font-bold tracking-wider uppercase">
-                        Publicidad Exterior • Vallas Gigantes & Pantallas LED en Bolivia
-                      </p>
-                      <div className="text-[10px] text-gray-400 leading-normal pt-1.5">
-                        <p>{settings.direccion}</p>
-                        <p>{settings.ciudad}, {settings.departamento}, {settings.pais}</p>
-                        <p>Tel: {settings.telefono} • WhatsApp: {settings.whatsapp}</p>
-                        <p>Email: {settings.correo} • Web: {settings.web}</p>
-                      </div>
-                    </div>
-
-                    <div className="text-right space-y-2">
-                      <div className="inline-block px-3.5 py-1 bg-amber-50 border border-amber-100 rounded text-[11px] font-bold text-amber-800">
-                        COTIZACIÓN FORMAL
-                      </div>
-                      <div className="font-mono text-xs">
-                        <p className="text-gray-400">Nº de Control:</p>
-                        <p className="font-bold text-gray-900 text-sm">{selectedPrintQuote.numero}</p>
-                      </div>
-                      <div className="font-mono text-[10px] text-gray-400">
-                        <p>Fecha Emisión: {new Date(selectedPrintQuote.fecha).toLocaleDateString()}</p>
-                        <p>Validez: 15 días calendario</p>
-                      </div>
-                    </div>
+                {/* Success Banner */}
+                {previewSuccessMsg && (
+                  <div className="bg-emerald-600 text-white p-3 font-extrabold text-xs text-center border-b border-emerald-500 flex items-center justify-center space-x-2">
+                    <Check className="w-4 h-4 text-amber-300" />
+                    <span>{previewSuccessMsg}</span>
                   </div>
+                )}
 
-                  {/* Client and destination details */}
-                  <div className="grid grid-cols-2 gap-6 bg-gray-50 p-4 rounded-xl border border-gray-100 text-xs">
-                    <div className="space-y-1">
-                      <p className="font-bold uppercase tracking-wider text-gray-400 text-[9px]">Cliente Destinatario:</p>
-                      <p className="font-extrabold text-gray-800 text-sm">{client ? client.nombre : 'Cliente Desconocido'}</p>
-                      <p className="text-gray-500">Ubicación: {client ? `${client.ciudad}, ${client.departamento}` : 'Bolivia'}</p>
-                      <p className="text-gray-500">Teléfono: {client ? client.celular : 'N/A'}</p>
+                {/* EDIT MODE FORM vs PRINTABLE SHEET */}
+                {isEditingPreview ? (
+                  <div className="p-6 bg-slate-50 text-slate-800 space-y-5 overflow-y-auto max-h-[80vh]">
+                    <div className="bg-indigo-900 text-white rounded-xl p-3.5 flex justify-between items-center text-xs">
+                      <span className="font-extrabold uppercase tracking-wider text-amber-400 flex items-center space-x-2">
+                        <Edit3 className="w-4 h-4 text-amber-400" />
+                        <span>Edición Interactiva de Proforma N° {displayQuote.numero}</span>
+                      </span>
+                      <span className="font-mono text-indigo-200 text-[11px]">Modifique cualquier parámetro y presione Guardar</span>
                     </div>
 
-                    <div className="space-y-1">
-                      <p className="font-bold uppercase tracking-wider text-gray-400 text-[9px]">Ubicación y Cobertura Comercial:</p>
-                      <p className="font-bold text-gray-800">Bolivia (Ejes Urbanos Principales)</p>
-                      <p className="text-gray-500">Puntos de Alto Flujo Vehicular y Peatonal</p>
-                      <p className="text-gray-500">Garantía de Iluminación y Mantenimiento Incluido</p>
-                    </div>
-                  </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded-xl border border-slate-200">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Cliente Destinatario</label>
+                        <select
+                          value={displayQuote.cliente_id}
+                          onChange={(e) => setEditingQuote(prev => prev ? { ...prev, cliente_id: e.target.value } : prev)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-semibold focus:ring-2 focus:ring-amber-500"
+                        >
+                          {clients.map((c) => (
+                            <option key={c.id} value={c.id}>{c.nombre} ({c.empresa || c.departamento})</option>
+                          ))}
+                        </select>
+                      </div>
 
-                  {/* Vehicle / Valla details */}
-                  {vehicle && (
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest pb-1 border-b border-gray-50">
-                        Especificaciones de la Valla / Estructura Cotizada
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Vehículo / Valla Cotizada</label>
+                        <select
+                          value={displayQuote.vehiculo_id}
+                          onChange={(e) => setEditingQuote(prev => prev ? { ...prev, vehiculo_id: e.target.value } : prev)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-semibold focus:ring-2 focus:ring-amber-500"
+                        >
+                          {vehicles.map((v) => (
+                            <option key={v.id} value={v.id}>{v.modelo} - {v.ciudad} ({v.tipo})</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 border-b pb-2">
+                        Desglose de Montos y Servicios (USD)
                       </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                        <div className="space-y-1.5 text-xs">
-                          <p className="text-sm font-extrabold text-gray-800">{vehicle.tipo_valla || vehicle.tipo} - {vehicle.avenida_calle || vehicle.modelo}</p>
-                          <p className="text-gray-500"><b className="font-medium text-gray-700">Medidas:</b> {vehicle.medidas || '10 x 4 m'}</p>
-                          <p className="text-gray-500"><b className="font-medium text-gray-700">Ubicación:</b> {vehicle.ciudad} - {vehicle.zona || 'Centro'}</p>
-                          <p className="text-gray-500"><b className="font-medium text-gray-700">Orientación / Cara:</b> {vehicle.cara || 'Cara A'} • <b className="font-medium text-gray-700">Iluminación:</b> {vehicle.iluminacion || 'LED Nocturna'}</p>
-                          <p className="text-gray-500"><b className="font-medium text-gray-700">Estado:</b> {vehicle.estado}</p>
-                        </div>
-                        <div className="h-32 rounded-lg bg-gray-50 border border-gray-100 overflow-hidden shadow-2xs">
-                          <img
-                            src={vehicle.imagen_principal}
-                            alt={vehicle.modelo}
-                            referrerPolicy="no-referrer"
-                            className="w-full h-full object-cover"
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Alquiler Base Mensual ($)</label>
+                          <input
+                            type="number"
+                            value={displayQuote.precio_vehiculo}
+                            onChange={(e) => setEditingQuote(prev => prev ? { ...prev, precio_vehiculo: parseFloat(e.target.value) || 0 } : prev)}
+                            className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold"
                           />
                         </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Impresión Lona ($)</label>
+                          <input
+                            type="number"
+                            value={displayQuote.gastos_importacion}
+                            onChange={(e) => setEditingQuote(prev => prev ? { ...prev, gastos_importacion: parseFloat(e.target.value) || 0 } : prev)}
+                            className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Montaje / Estructura ($)</label>
+                          <input
+                            type="number"
+                            value={displayQuote.gastos_aduana}
+                            onChange={(e) => setEditingQuote(prev => prev ? { ...prev, gastos_aduana: parseFloat(e.target.value) || 0 } : prev)}
+                            className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Mantenimiento / Luz ($)</label>
+                          <input
+                            type="number"
+                            value={displayQuote.gastos_logistica}
+                            onChange={(e) => setEditingQuote(prev => prev ? { ...prev, gastos_logistica: parseFloat(e.target.value) || 0 } : prev)}
+                            className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Seguro / Garantía ($)</label>
+                          <input
+                            type="number"
+                            value={displayQuote.gastos_seguro}
+                            onChange={(e) => setEditingQuote(prev => prev ? { ...prev, gastos_seguro: parseFloat(e.target.value) || 0 } : prev)}
+                            className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Estado Proforma</label>
+                          <select
+                            value={displayQuote.estado}
+                            onChange={(e) => setEditingQuote(prev => prev ? { ...prev, estado: e.target.value as QuotationState } : prev)}
+                            className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-bold"
+                          >
+                            <option value="Borrador">Borrador</option>
+                            <option value="Enviada">Enviada</option>
+                            <option value="Aceptada">Aceptada</option>
+                            <option value="Rechazada">Rechazada</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-900 text-white p-3 rounded-xl flex justify-between items-center font-mono text-xs mt-2">
+                        <span>TOTAL RECALCULADO:</span>
+                        <span className="text-amber-400 font-bold text-sm">
+                          ${((displayQuote.precio_vehiculo||0)+(displayQuote.gastos_importacion||0)+(displayQuote.gastos_aduana||0)+(displayQuote.gastos_logistica||0)+(displayQuote.gastos_seguro||0)).toLocaleString()} USD
+                        </span>
                       </div>
                     </div>
-                  )}
 
-                  {/* Cost breakdown */}
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest pb-1 border-b border-gray-50">
-                      Desglose de Alquiler y Servicios Publicitarios
-                    </h4>
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-1">
+                      <label className="block text-xs font-bold text-slate-700">Observaciones y Notas Comerciales</label>
+                      <textarea
+                        rows={2}
+                        value={displayQuote.observaciones || ''}
+                        onChange={(e) => setEditingQuote(prev => prev ? { ...prev, observaciones: e.target.value } : prev)}
+                        className="w-full p-2.5 rounded-lg border border-slate-300 text-xs font-semibold"
+                        placeholder="Ingrese notas o acuerdos de la oferta..."
+                      />
+                    </div>
+
+                    <div className="flex justify-between items-center pt-2 border-t border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingPreview(false)}
+                        className="px-4 py-2 bg-slate-200 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-300 transition cursor-pointer"
+                      >
+                        Cancelar Edición
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleSaveEditedQuote}
+                        className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl transition flex items-center space-x-2 shadow-md cursor-pointer uppercase tracking-wider"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Guardar Cambios en Proforma</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Printable sheet area */
+                  <div className="p-8 bg-white text-gray-800 space-y-6 overflow-y-auto" id="printable-area">
                     
-                    <div className="border border-gray-100 rounded-xl overflow-hidden text-xs">
-                      <div className="grid grid-cols-3 bg-gray-50 p-2.5 font-bold border-b border-gray-100 text-gray-600">
-                        <span>Concepto / Servicio Publicitario</span>
-                        <span className="text-right">Monto (USD)</span>
-                        <span className="text-right">Equivalente (Bs)</span>
-                      </div>
-                      
-                      <div className="divide-y divide-gray-50">
-                        {[
-                          { name: 'Alquiler Base Mensual de Valla Publicitaria / Pantalla', val: selectedPrintQuote.precio_vehiculo },
-                          { name: 'Impresión de Lona Vinílica de Alta Durabilidad', val: selectedPrintQuote.gastos_importacion },
-                          { name: 'Montaje, Colocado e Instalación de Estructura', val: selectedPrintQuote.gastos_aduana },
-                          { name: 'Mantenimiento, Iluminación LED Nocturna y Limpieza', val: selectedPrintQuote.gastos_logistica },
-                          { name: 'Seguro de Estructura y Garantía de Espacio Exclusivo', val: selectedPrintQuote.gastos_seguro },
-                        ].map((row, i) => (
-                          <div key={i} className="grid grid-cols-3 p-2.5 text-gray-600">
-                            <span>{row.name}</span>
-                            <span className="text-right font-mono font-medium">${row.val.toLocaleString()}</span>
-                            <span className="text-right font-mono text-gray-400">Bs. {(row.val * settings.tipo_cambio).toLocaleString('es-BO', {maximumFractionDigits:0})}</span>
+                    {/* Letterhead */}
+                    <div className="flex justify-between items-start pb-5 border-b border-gray-100">
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-8 h-8 rounded bg-gray-900 flex items-center justify-center font-bold text-white text-xs">
+                            V&L
                           </div>
-                        ))}
+                          <h2 className="text-xl font-extrabold font-display tracking-tight text-gray-900">
+                            {settings.nombre_empresa}
+                          </h2>
+                        </div>
+                        <p className="text-[10px] text-amber-600 font-bold tracking-wider uppercase">
+                          Publicidad Exterior • Vallas Gigantes & Pantallas LED en Bolivia
+                        </p>
+                        <div className="text-[10px] text-gray-400 leading-normal pt-1.5">
+                          <p>{settings.direccion}</p>
+                          <p>{settings.ciudad}, {settings.departamento}, {settings.pais}</p>
+                          <p>Tel: {settings.telefono} • WhatsApp: {settings.whatsapp}</p>
+                          <p>Email: {settings.correo} • Web: {settings.web}</p>
+                        </div>
                       </div>
 
-                      {/* Total row */}
-                      <div className="grid grid-cols-3 bg-gray-950 text-white p-3 font-bold border-t border-gray-100 items-center">
-                        <span className="text-sm font-extrabold uppercase tracking-wider text-amber-400 font-display">VALOR TOTAL COTIZADO:</span>
-                        <span className="text-right font-mono text-base">${selectedPrintQuote.total.toLocaleString()} USD</span>
-                        <span className="text-right font-mono text-sm text-gray-300">Bs. {(selectedPrintQuote.total * settings.tipo_cambio).toLocaleString('es-BO', {maximumFractionDigits:0})} BOB</span>
+                      <div className="text-right space-y-2">
+                        <div className="inline-block px-3.5 py-1 bg-amber-50 border border-amber-100 rounded text-[11px] font-bold text-amber-800">
+                          COTIZACIÓN FORMAL / PROFORMA
+                        </div>
+                        <div className="font-mono text-xs">
+                          <p className="text-gray-400">Nº de Control:</p>
+                          <p className="font-bold text-gray-900 text-sm">{displayQuote.numero}</p>
+                        </div>
+                        <div className="font-mono text-[10px] text-gray-400">
+                          <p>Fecha Emisión: {new Date(displayQuote.fecha).toLocaleDateString()}</p>
+                          <p>Validez: 15 días calendario</p>
+                        </div>
                       </div>
                     </div>
+
+                    {/* Client and destination details */}
+                    <div className="grid grid-cols-2 gap-6 bg-gray-50 p-4 rounded-xl border border-gray-100 text-xs">
+                      <div className="space-y-1">
+                        <p className="font-bold uppercase tracking-wider text-gray-400 text-[9px]">Cliente Destinatario:</p>
+                        <p className="font-extrabold text-gray-800 text-sm">{client ? client.nombre : 'Cliente Desconocido'}</p>
+                        <p className="text-gray-500">Ubicación: {client ? `${client.ciudad}, ${client.departamento}` : 'Bolivia'}</p>
+                        <p className="text-gray-500">Teléfono: {client ? client.celular : 'N/A'}</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="font-bold uppercase tracking-wider text-gray-400 text-[9px]">Ubicación y Cobertura Comercial:</p>
+                        <p className="font-bold text-gray-800">Bolivia (Ejes Urbanos Principales)</p>
+                        <p className="text-gray-500">Puntos de Alto Flujo Vehicular y Peatonal</p>
+                        <p className="text-gray-500">Garantía de Iluminación y Mantenimiento Incluido</p>
+                      </div>
+                    </div>
+
+                    {/* Vehicle / Valla details */}
+                    {vehicle && (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest pb-1 border-b border-gray-50">
+                          Especificaciones de la Valla / Estructura Cotizada
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                          <div className="space-y-1.5 text-xs">
+                            <p className="text-sm font-extrabold text-gray-800">{vehicle.tipo_valla || vehicle.tipo} - {vehicle.avenida_calle || vehicle.modelo}</p>
+                            <p className="text-gray-500"><b className="font-medium text-gray-700">Medidas:</b> {vehicle.medidas || '10 x 4 m'}</p>
+                            <p className="text-gray-500"><b className="font-medium text-gray-700">Ubicación:</b> {vehicle.ciudad} - {vehicle.zona || 'Centro'}</p>
+                            <p className="text-gray-500"><b className="font-medium text-gray-700">Orientación / Cara:</b> {vehicle.cara || 'Cara A'} • <b className="font-medium text-gray-700">Iluminación:</b> {vehicle.iluminacion || 'LED Nocturna'}</p>
+                            <p className="text-gray-500"><b className="font-medium text-gray-700">Estado:</b> {vehicle.estado}</p>
+                          </div>
+                          <div className="h-32 rounded-lg bg-gray-50 border border-gray-100 overflow-hidden shadow-2xs">
+                            <img
+                              src={vehicle.imagen_principal}
+                              alt={vehicle.modelo}
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Cost breakdown */}
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest pb-1 border-b border-gray-50">
+                        Desglose de Alquiler y Servicios Publicitarios
+                      </h4>
+                      
+                      <div className="border border-gray-100 rounded-xl overflow-hidden text-xs">
+                        <div className="grid grid-cols-3 bg-gray-50 p-2.5 font-bold border-b border-gray-100 text-gray-600">
+                          <span>Concepto / Servicio Publicitario</span>
+                          <span className="text-right">Monto (USD)</span>
+                          <span className="text-right">Equivalente (Bs)</span>
+                        </div>
+                        
+                        <div className="divide-y divide-gray-50">
+                          {[
+                            { name: 'Alquiler Base Mensual de Valla Publicitaria / Pantalla', val: displayQuote.precio_vehiculo },
+                            { name: 'Impresión de Lona Vinílica de Alta Durabilidad', val: displayQuote.gastos_importacion },
+                            { name: 'Montaje, Colocado e Instalación de Estructura', val: displayQuote.gastos_aduana },
+                            { name: 'Mantenimiento, Iluminación LED Nocturna y Limpieza', val: displayQuote.gastos_logistica },
+                            { name: 'Seguro de Estructura y Garantía de Espacio Exclusivo', val: displayQuote.gastos_seguro },
+                          ].map((row, i) => (
+                            <div key={i} className="grid grid-cols-3 p-2.5 text-gray-600">
+                              <span>{row.name}</span>
+                              <span className="text-right font-mono font-medium">${row.val.toLocaleString()}</span>
+                              <span className="text-right font-mono text-gray-400">Bs. {(row.val * settings.tipo_cambio).toLocaleString('es-BO', {maximumFractionDigits:0})}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Total row */}
+                        <div className="grid grid-cols-3 bg-gray-950 text-white p-3 font-bold border-t border-gray-100 items-center">
+                          <span className="text-sm font-extrabold uppercase tracking-wider text-amber-400 font-display">VALOR TOTAL COTIZADO:</span>
+                          <span className="text-right font-mono text-base">${displayQuote.total.toLocaleString()} USD</span>
+                          <span className="text-right font-mono text-sm text-gray-300">Bs. {(displayQuote.total * settings.tipo_cambio).toLocaleString('es-BO', {maximumFractionDigits:0})} BOB</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Observations */}
+                    {displayQuote.observaciones && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Notas Particulares de la Oferta:</p>
+                        <p className="text-xs text-gray-600 leading-normal italic bg-gray-50 p-3 rounded-lg border border-gray-100">
+                          "{displayQuote.observaciones}"
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Conditions & Signatures */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-5 border-t border-gray-100 text-[10px]">
+                      <div className="space-y-1 text-gray-400">
+                        <p className="font-bold text-gray-600 uppercase tracking-wider text-[9px]">Términos y Cláusulas del Servicio:</p>
+                        <div className="whitespace-pre-line leading-relaxed italic">
+                          {settings.terminos_cotizacion}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col justify-end items-center text-center space-y-3 pt-8">
+                        <div className="w-40 border-b border-gray-300 pb-1" />
+                        <div>
+                          <p className="font-bold text-gray-700 text-[10px]">MLA AUTOMOTORS BOLIVIA</p>
+                          <p className="text-gray-400">Firma Autorizada y Sello Comercial</p>
+                        </div>
+                      </div>
+                    </div>
+
                   </div>
-
-                  {/* Observations */}
-                  {selectedPrintQuote.observaciones && (
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Notas Particulares de la Oferta:</p>
-                      <p className="text-xs text-gray-600 leading-normal italic bg-gray-50 p-3 rounded-lg border border-gray-100">
-                        "{selectedPrintQuote.observaciones}"
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Conditions & Signatures */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-5 border-t border-gray-100 text-[10px]">
-                    <div className="space-y-1 text-gray-400">
-                      <p className="font-bold text-gray-600 uppercase tracking-wider text-[9px]">Términos y Cláusulas del Servicio:</p>
-                      <div className="whitespace-pre-line leading-relaxed italic">
-                        {settings.terminos_cotizacion}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col justify-end items-center text-center space-y-3 pt-8">
-                      <div className="w-40 border-b border-gray-300 pb-1" />
-                      <div>
-                        <p className="font-bold text-gray-700 text-[10px]">MLA AUTOMOTORS BOLIVIA</p>
-                        <p className="text-gray-400">Firma Autorizada y Sello Comercial</p>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
+                )}
               </motion.div>
             </motion.div>
           );

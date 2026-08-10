@@ -50,6 +50,7 @@ export default function Contracts({
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('TODOS');
   const [showModal, setShowModal] = useState(false);
+  const [modalStep, setModalStep] = useState<1 | 2 | 3>(1);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [viewDetailContract, setViewDetailContract] = useState<Contract | null>(null);
 
@@ -75,11 +76,19 @@ export default function Contracts({
 
   const handleOpenCreateModal = () => {
     setSelectedContract(null);
+    setModalStep(1);
     setShowModal(true);
   };
 
   const handleEditContract = (contract: Contract) => {
     setSelectedContract(contract);
+    setModalStep(1);
+    setShowModal(true);
+  };
+
+  const handlePreviewContract = (contract: Contract) => {
+    setSelectedContract(contract);
+    setModalStep(3);
     setShowModal(true);
   };
 
@@ -247,8 +256,25 @@ export default function Contracts({
                     <td className="p-3.5 text-center">
                       <div className="flex items-center justify-center space-x-1">
                         <button
+                          onClick={() => handlePreviewContract(c)}
+                          title="Previsualizar y revisar el documento de contrato en PDF"
+                          className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 font-extrabold text-[11px] transition cursor-pointer flex items-center space-x-1 border border-indigo-200"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Previsualizar</span>
+                        </button>
+
+                        <button
                           onClick={() => handleEditContract(c)}
-                          title="Ver / Imprimir Contrato en PDF"
+                          title="Editar variables y cláusulas del contrato"
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-900 hover:text-white text-slate-700 transition cursor-pointer"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          onClick={() => handlePreviewContract(c)}
+                          title="Imprimir Contrato Oficial"
                           className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-900 hover:text-white text-slate-700 transition cursor-pointer"
                         >
                           <Printer className="w-3.5 h-3.5" />
@@ -295,6 +321,7 @@ export default function Contracts({
       {showModal && (
         <ContractModal
           initialContract={selectedContract}
+          initialStep={modalStep}
           clients={clients}
           vehicles={vehicles}
           settings={settings}

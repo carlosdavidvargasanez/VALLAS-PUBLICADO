@@ -45,6 +45,7 @@ import { motion, AnimatePresence } from 'motion/react';
 interface ContractModalProps {
   quotation?: Quotation | null;
   initialContract?: Contract | null;
+  initialStep?: 1 | 2 | 3;
   clients: Client[];
   vehicles: Vehicle[];
   settings: Settings;
@@ -56,6 +57,7 @@ interface ContractModalProps {
 export default function ContractModal({
   quotation,
   initialContract,
+  initialStep = 1,
   clients,
   vehicles,
   settings,
@@ -63,7 +65,7 @@ export default function ContractModal({
   onSaveContract,
   onClose
 }: ContractModalProps) {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(initialStep);
 
   // Template Design Selection
   const [disenoPlantilla, setDisenoPlantilla] = useState<ContractTemplateDesign>('OFICIAL_VALLAS');
@@ -793,10 +795,18 @@ export default function ContractModal({
                 </div>
               </div>
 
-              <div className="flex justify-end pt-4">
+              <div className="flex flex-wrap justify-between items-center gap-3 pt-4 border-t border-slate-200">
+                <button
+                  onClick={() => setStep(3)}
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl transition flex items-center space-x-1.5 cursor-pointer shadow-md"
+                >
+                  <Eye className="w-4 h-4 text-indigo-200" />
+                  <span>👁️ Previsualizar Contrato (Paso 3)</span>
+                </button>
+
                 <button
                   onClick={() => setStep(2)}
-                  className="px-6 py-2.5 bg-slate-900 text-amber-400 font-extrabold text-xs rounded-xl hover:bg-slate-800 transition flex items-center space-x-2 cursor-pointer shadow-md"
+                  className="px-6 py-2.5 bg-slate-900 text-amber-400 font-extrabold text-xs rounded-xl hover:bg-slate-800 transition flex items-center space-x-2 cursor-pointer shadow-md ml-auto"
                 >
                   <span>Siguiente: Tablas Vallas & Lonas</span>
                   <ChevronRight className="w-4 h-4" />
@@ -1048,10 +1058,41 @@ export default function ContractModal({
             </motion.div>
           )}
 
-          {/* STEP 3: VISTA PREVIA DEL DOCUMENTO Y SELECCIÓN DE DISEÑO */}
+              {/* STEP 3: VISTA PREVIA DEL DOCUMENTO Y SELECCIÓN DE DISEÑO */}
           {step === 3 && (
             <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
               
+              {/* Revision Banner before saving */}
+              <div className="bg-indigo-900 text-white rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 no-print shadow-md border border-indigo-700">
+                <div className="flex items-center space-x-3">
+                  <div className="w-9 h-9 rounded-xl bg-indigo-500/30 flex items-center justify-center text-indigo-200 border border-indigo-400/30 shrink-0">
+                    <Eye className="w-5 h-5 text-indigo-300" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-indigo-200 tracking-wider">Modo Previsualización & Revisión Previa al Guardado:</h4>
+                    <p className="text-[11px] text-indigo-100 leading-snug">
+                      Examine el documento legal generado. Puede modificar datos o tablas volviendo a los pasos anteriores antes de confirmar y guardar.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setStep(1)}
+                    className="px-3 py-1.5 bg-indigo-800 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl border border-indigo-600 transition flex items-center space-x-1 cursor-pointer"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Modificar Datos</span>
+                  </button>
+                  <button
+                    onClick={() => setStep(2)}
+                    className="px-3 py-1.5 bg-indigo-800 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl border border-indigo-600 transition flex items-center space-x-1 cursor-pointer"
+                  >
+                    <Layers className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Modificar Tablas</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Plantilla Selector Banner */}
               <div className="bg-slate-900 text-white rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 no-print shadow-md border border-slate-800">
                 <div className="flex items-center space-x-3">
