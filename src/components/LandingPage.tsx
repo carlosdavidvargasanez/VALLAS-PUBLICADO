@@ -45,31 +45,12 @@ export default function LandingPage({ onOpenLogin, onExploreCatalog }: LandingPa
           </div>
 
           {/* Quick Nav Links */}
-          <nav className="hidden md:flex items-center space-x-8 text-xs font-bold uppercase tracking-wider text-gray-200">
+          <nav className="flex items-center space-x-8 text-xs font-bold uppercase tracking-wider text-gray-200">
             <a href="#inicio" className="hover:text-[#0fa0e6] transition py-1">Inicio</a>
             <a href="#cobertura" className="hover:text-[#0fa0e6] transition py-1">Cobertura Nacional</a>
             <a href="#soluciones" className="hover:text-[#0fa0e6] transition py-1">Soluciones OOH</a>
             <a href="#contacto" className="hover:text-[#0fa0e6] transition py-1">Contacto</a>
           </nav>
-
-          {/* Top Header Interactive Action Buttons (PROMINENT HIGH CONTRAST) */}
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={onExploreCatalog}
-              className="hidden sm:flex items-center space-x-2 px-4 py-2.5 bg-[#0fa0e6]/20 hover:bg-[#0fa0e6]/30 border border-[#0fa0e6] text-white font-bold rounded-xl text-xs uppercase tracking-wider transition cursor-pointer shadow-md"
-            >
-              <Eye className="w-4 h-4 text-[#0fa0e6]" />
-              <span>Ver Puntos</span>
-            </button>
-
-            <button
-              onClick={onOpenLogin}
-              className="flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-[#ff8c00] via-[#ffa024] to-[#ff7300] hover:from-[#ff7300] hover:to-[#e06600] text-white font-black rounded-xl text-xs uppercase tracking-wider transition cursor-pointer shadow-lg shadow-[#ff8c00]/30 transform hover:scale-105 active:scale-95 border border-amber-300/40"
-            >
-              <Lock className="w-3.5 h-3.5 text-white" />
-              <span>Ingresar al Portal</span>
-            </button>
-          </div>
         </div>
       </header>
 
