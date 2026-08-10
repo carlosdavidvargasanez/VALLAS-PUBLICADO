@@ -13,6 +13,7 @@ import ImportExport from './components/ImportExport';
 import AuditLogs from './components/AuditLogs';
 import SettingsConfig from './components/SettingsConfig';
 import LoginModal from './components/LoginModal';
+import LandingPage from './components/LandingPage';
 
 import { 
   Users, 
@@ -36,7 +37,8 @@ import {
   RefreshCw,
   FolderSync,
   UserPlus,
-  Shield
+  Shield,
+  Home
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -59,6 +61,11 @@ export default function App() {
   // Selected commercial context states across tabs (extremely premium convenience)
   const [activeClient, setActiveClient] = useState<Client | null>(null);
   const [activeVehicle, setActiveVehicle] = useState<Vehicle | null>(null);
+
+  // Authentication & Landing state
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    return localStorage.getItem('publix_is_logged_in') === 'true';
+  });
 
   // Responsive Sidebar Menu for mobile & Top User Switcher
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -84,11 +91,23 @@ export default function App() {
     setAuditLogs(mockDb.getAuditLogs());
   };
 
-  // Switch Active user session
+  // Switch Active user session or Login
   const handleUserChange = (user: UserSession) => {
     mockDb.setCurrentUser(user);
     setCurrentUser(user);
+    setIsLoggedIn(true);
+    localStorage.setItem('publix_is_logged_in', 'true');
+    if (user.rol === 'Cliente') {
+      setActiveTab('vehiculos');
+    } else {
+      setActiveTab('dashboard');
+    }
     loadAllStates(); // Refresh logs
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    localStorage.removeItem('publix_is_logged_in');
   };
 
   // CRM Client Mutations
@@ -767,6 +786,25 @@ export default function App() {
     setActiveTab('agenda');
   };
 
+  // Welcome / Landing Page view if not authenticated
+  if (!isLoggedIn) {
+    return (
+      <>
+        <LandingPage
+          onOpenLogin={() => setShowLoginModal(true)}
+          onExploreCatalog={() => setShowLoginModal(true)}
+        />
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          users={users}
+          clients={clients}
+          onLoginSuccess={handleUserChange}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans select-none antialiased text-gray-800">
       
@@ -786,11 +824,21 @@ export default function App() {
             </div>
             <div>
               <h1 className="text-sm font-extrabold tracking-tight font-display uppercase leading-tight">
-                Vallas & LED Bolivia <span className="text-amber-500 font-mono text-[10px] lowercase font-normal">v1.0</span>
+                PUBLI-X Bolivia <span className="text-amber-500 font-mono text-[10px] lowercase font-normal">v1.0</span>
               </h1>
-              <p className="text-[10px] text-gray-400 font-medium leading-none">SISTEMA CRM & PUBLICIDAD EXTERIOR</p>
+              <p className="text-[10px] text-gray-400 font-medium leading-none">PUBLICIDAD EXTERIOR OOH & LED</p>
             </div>
           </div>
+
+          {/* Direct Return to Home / Landing Button in Header */}
+          <button
+            onClick={handleLogout}
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-xl text-xs font-bold transition cursor-pointer"
+            title="Volver a la pantalla principal de bienvenida"
+          >
+            <Home className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline font-black uppercase text-[11px] tracking-wider">Volver al Inicio</span>
+          </button>
         </div>
 
         {/* Top Active User Dropdown Panel */}
@@ -945,7 +993,7 @@ export default function App() {
                     })}
                   </div>
 
-                  {/* Explicit Login Modal Button */}
+                  {/* Explicit Login Modal & Logout Buttons */}
                   <div className="pt-2 border-t border-gray-800 space-y-1.5">
                     <button
                       onClick={() => {
@@ -956,6 +1004,17 @@ export default function App() {
                     >
                       <User className="w-3.5 h-3.5" />
                       <span>Ingresar con Usuario y Clave</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        handleLogout();
+                      }}
+                      className="w-full py-1.5 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 text-rose-300 font-bold rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Cerrar Sesión (Página Principal)</span>
                     </button>
 
                     <div className="flex justify-between items-center text-[10px] text-gray-400 px-1 pt-1">
@@ -975,6 +1034,16 @@ export default function App() {
               )}
             </AnimatePresence>
           </div>
+
+          {/* Quick Logout Button */}
+          <button
+            onClick={handleLogout}
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-gray-900 hover:bg-rose-950/40 border border-gray-800 hover:border-rose-800/80 text-gray-300 hover:text-rose-300 rounded-xl text-xs font-bold transition cursor-pointer"
+            title="Cerrar sesión y volver a la página de bienvenida"
+          >
+            <LogOut className="w-3.5 h-3.5 text-rose-400" />
+            <span className="hidden sm:inline uppercase text-[11px] tracking-wider">Inicio</span>
+          </button>
         </div>
       </header>
 
@@ -1046,9 +1115,22 @@ export default function App() {
           </nav>
 
           {/* Sidebar Footer info */}
-          <div className="p-4 border-t border-gray-900 text-[10px] text-gray-500 text-center flex flex-col space-y-1">
-            <span>© 2026 VALLAS & LED BOLIVIA</span>
-            <span className="font-mono">CRM & Publicidad Exterior</span>
+          <div className="p-4 border-t border-gray-900 space-y-3">
+            <button
+              onClick={() => {
+                setSidebarOpen(false);
+                handleLogout();
+              }}
+              className="w-full py-2.5 bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent hover:from-amber-500 hover:to-amber-600 hover:text-gray-950 border border-amber-500/30 text-amber-300 font-black rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center space-x-2 cursor-pointer shadow-sm"
+            >
+              <Home className="w-4 h-4" />
+              <span>Volver a Inicio</span>
+            </button>
+
+            <div className="text-[10px] text-gray-500 text-center flex flex-col space-y-0.5">
+              <span className="font-bold text-gray-400">PUBLI-X BOLIVIA</span>
+              <span className="font-mono text-gray-500">Publicidad Exterior OOH & LED</span>
+            </div>
           </div>
         </aside>
 
