@@ -819,12 +819,13 @@ export default function App() {
           </button>
           
           <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#f552b0] to-[#d21482] flex items-center justify-center font-extrabold text-white text-sm shadow-sm tracking-tight">
-              PX
+            <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center font-black text-sm shadow-sm tracking-tight">
+              <span className="text-[#0fa0e6]">P</span>
+              <span className="text-[#ff8c00]">X</span>
             </div>
             <div>
               <h1 className="text-sm font-extrabold tracking-tight uppercase leading-tight text-white">
-                PUBLI-X Bolivia <span className="text-[#f552b0] font-mono text-[10px] lowercase font-normal">v1.0</span>
+                PUBLI<span className="text-[#ff8c00]">-X</span> Bolivia <span className="text-[#ff8c00] font-mono text-[10px] lowercase font-normal">v1.0</span>
               </h1>
               <p className="text-[10px] text-gray-400 font-medium leading-none">PUBLICIDAD EXTERIOR OOH & LED</p>
             </div>
@@ -833,10 +834,10 @@ export default function App() {
           {/* Direct Return to Home / Landing Button in Header */}
           <button
             onClick={handleLogout}
-            className="flex items-center space-x-1.5 px-3 py-1.5 bg-[#d21482]/15 hover:bg-[#d21482]/30 border border-[#d21482]/40 text-[#f552b0] rounded-xl text-xs font-bold transition cursor-pointer"
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-[#ff8c00]/15 hover:bg-[#ff8c00]/30 border border-[#ff8c00]/40 text-[#ff8c00] rounded-xl text-xs font-bold transition cursor-pointer"
             title="Volver a la pantalla principal de bienvenida"
           >
-            <Home className="w-3.5 h-3.5 text-[#f552b0]" />
+            <Home className="w-3.5 h-3.5 text-[#ff8c00]" />
             <span className="hidden sm:inline font-black uppercase text-[11px] tracking-wider">Volver al Inicio</span>
           </button>
         </div>
@@ -1121,7 +1122,7 @@ export default function App() {
                 setSidebarOpen(false);
                 handleLogout();
               }}
-              className="w-full py-2.5 bg-gradient-to-r from-[#d21482] via-[#e01a8f] to-[#be1074] hover:from-[#b00f6c] hover:to-[#a00c61] border border-[#d21482]/40 text-white font-black rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center space-x-2 cursor-pointer shadow-lg shadow-[#d21482]/20"
+              className="w-full py-2.5 bg-gradient-to-r from-[#ff8c00] via-[#ffa024] to-[#ff7300] hover:from-[#ff7300] hover:to-[#e06600] border border-[#ff8c00]/40 text-white font-black rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center space-x-2 cursor-pointer shadow-lg shadow-[#ff8c00]/20"
             >
               <Home className="w-4 h-4" />
               <span>Volver a Inicio</span>

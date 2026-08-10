@@ -126,8 +126,8 @@ export default function LoginModal({ isOpen, onClose, users, clients, onLoginSuc
         exit={{ opacity: 0, scale: 0.95, y: 15 }}
         className="bg-gray-900 border border-gray-800 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden text-white"
       >
-        {/* Header - Pantone Magenta (#d21482) */}
-        <div className="bg-gradient-to-r from-[#d21482] via-[#e01a8f] to-[#b00f6c] p-6 text-white relative">
+        {/* Header - Bright Blue (#0fa0e6) */}
+        <div className="bg-gradient-to-r from-[#0fa0e6] via-[#0284c7] to-[#0369a1] p-6 text-white relative">
           <button
             type="button"
             onClick={onClose}
@@ -165,7 +165,7 @@ export default function LoginModal({ isOpen, onClose, users, clients, onLoginSuc
                 value={usuarioInput}
                 onChange={(e) => setUsuarioInput(e.target.value)}
                 placeholder=""
-                className="w-full pl-10 pr-4 py-3 bg-gray-950 border border-gray-800 rounded-xl text-sm text-white focus:outline-none focus:border-[#d21482] font-mono font-bold"
+                className="w-full pl-10 pr-4 py-3 bg-gray-950 border border-gray-800 rounded-xl text-sm text-white focus:outline-none focus:border-[#ff8c00] font-mono font-bold"
                 autoComplete="off"
               />
             </div>
@@ -182,7 +182,7 @@ export default function LoginModal({ isOpen, onClose, users, clients, onLoginSuc
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
                 placeholder=""
-                className="w-full pl-10 pr-4 py-3 bg-gray-950 border border-gray-800 rounded-xl text-sm text-white focus:outline-none focus:border-[#d21482] font-mono font-bold"
+                className="w-full pl-10 pr-4 py-3 bg-gray-950 border border-gray-800 rounded-xl text-sm text-white focus:outline-none focus:border-[#ff8c00] font-mono font-bold"
                 autoComplete="off"
               />
             </div>
@@ -190,7 +190,7 @@ export default function LoginModal({ isOpen, onClose, users, clients, onLoginSuc
 
           <button
             type="submit"
-            className="w-full py-3.5 bg-gradient-to-r from-[#d21482] via-[#e01a8f] to-[#be1074] hover:from-[#b00f6c] hover:to-[#a00c61] text-white font-black rounded-xl text-xs uppercase tracking-wider transition shadow-lg shadow-[#d21482]/25 cursor-pointer flex items-center justify-center space-x-2 transform active:scale-98"
+            className="w-full py-3.5 bg-gradient-to-r from-[#ff8c00] via-[#ffa024] to-[#ff7300] hover:from-[#ff7300] hover:to-[#e06600] text-white font-black rounded-xl text-xs uppercase tracking-wider transition shadow-lg shadow-[#ff8c00]/25 cursor-pointer flex items-center justify-center space-x-2 transform active:scale-98"
           >
             <span>INGRESAR AL SISTEMA</span>
             <ArrowRight className="w-4 h-4 stroke-[3]" />
