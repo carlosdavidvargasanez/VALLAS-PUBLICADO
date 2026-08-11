@@ -11,9 +11,10 @@ interface LoginModalProps {
   users: UserSession[];
   clients: Client[];
   onLoginSuccess: (user: UserSession) => void;
+  logoUrl?: string;
 }
 
-export default function LoginModal({ isOpen, onClose, users, clients, onLoginSuccess }: LoginModalProps) {
+export default function LoginModal({ isOpen, onClose, users, clients, onLoginSuccess, logoUrl }: LoginModalProps) {
   const [usuarioInput, setUsuarioInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -137,7 +138,7 @@ export default function LoginModal({ isOpen, onClose, users, clients, onLoginSuc
             <X className="w-5 h-5" />
           </button>
           <div className="mb-3">
-            <Logo size="sm" />
+            <Logo size="sm" logoUrl={logoUrl} />
           </div>
           <h2 className="text-xl font-black uppercase tracking-tight">Acceso al Sistema</h2>
           <p className="text-xs font-semibold text-white/90 mt-1">

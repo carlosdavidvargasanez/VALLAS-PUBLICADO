@@ -121,7 +121,7 @@ const DEFAULT_SETTINGS: Settings = {
   whatsapp: '+591 70000000',
   correo: 'ventas@vallasyledbolivia.com',
   web: 'www.vallasyledbolivia.com',
-  logo: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=100',
+  logo: '',
   tipo_cambio: 6.96,
   terminos_cotizacion: '1. Los precios de alquiler de Vallas y Pantallas LED son expresados en USD y se facturan al tipo de cambio acordado.\n2. La cotización de trabajos especiales (Estructuras Metálicas, Corpóreos, Lonas) incluye materiales de primera calidad, corte CNC e instalación autorizada.\n3. Plazo de instalación e impresión: 3 a 7 días hábiles tras aprobación del diseño y pago del anticipo (60%).\n4. Mantenimiento técnico e iluminación LED garantizado durante la vigencia del contrato de alquiler.',
 };
@@ -626,7 +626,12 @@ export const mockDb = {
 
   getSettings(): Settings {
     this.initialize();
-    return JSON.parse(localStorage.getItem(DB_KEYS.SETTINGS) || '{}');
+    const settings: Settings = JSON.parse(localStorage.getItem(DB_KEYS.SETTINGS) || '{}');
+    if (settings.logo && (settings.logo.includes('photo-') || settings.logo.includes('unsplash'))) {
+      settings.logo = '';
+      this.saveSettings(settings);
+    }
+    return settings;
   },
 
   saveSettings(settings: Settings) {

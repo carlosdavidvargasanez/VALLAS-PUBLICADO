@@ -261,28 +261,44 @@ export default function SettingsConfig({
               )}
 
               {/* Logo customization panel inside Settings */}
-              <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-3">
-                <div className="flex items-center space-x-2">
-                  <ImageIcon className="w-4 h-4 text-amber-500" />
-                  <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Logotipo Corporativo</span>
+              <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <div className="flex items-center space-x-2">
+                    <ImageIcon className="w-4 h-4 text-amber-500" />
+                    <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Logotipo Corporativo de la Empresa</span>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                    {logoUrl ? 'Logotipo Personalizado' : 'Logotipo Predeterminado'}
+                  </span>
                 </div>
                 
-                <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4">
-                  <div className="w-16 h-16 rounded-full border border-gray-200 overflow-hidden bg-white flex items-center justify-center p-1 shrink-0">
+                <div className="flex flex-col md:flex-row items-center gap-5">
+                  {/* Logo Preview Box */}
+                  <div className="flex flex-col items-center justify-center p-3 bg-slate-900 rounded-2xl border border-slate-700 w-full md:w-56 h-32 shrink-0 shadow-sm relative group overflow-hidden">
                     {logoUrl ? (
-                      <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                      <img 
+                        src={logoUrl} 
+                        alt="Vista Previa Logotipo" 
+                        className="max-h-24 max-w-full object-contain filter drop-shadow-md" 
+                        referrerPolicy="no-referrer" 
+                      />
                     ) : (
-                      <span className="text-[10px] text-gray-400 font-bold">Sin Logo</span>
+                      <div className="text-center space-y-1">
+                        <span className="text-2xl">🏢</span>
+                        <p className="text-[11px] text-amber-400 font-extrabold uppercase">Logo Oficial por Defecto</p>
+                      </div>
                     )}
+                    <span className="absolute bottom-1 right-2 text-[9px] font-mono text-slate-400">Vista previa</span>
                   </div>
                   
-                  <div className="flex-1 w-full space-y-2">
-                    {isDueno ? (
+                  {/* Controls */}
+                  <div className="flex-1 w-full space-y-3">
+                    {(isDueno || isJefe) ? (
                       <>
-                        <div className="flex space-x-2">
-                          <label className="px-4 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer shadow-3xs uppercase">
-                            <Upload className="w-3.5 h-3.5 text-amber-500" />
-                            <span>Cargar Logotipo (.png / .jpg)</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold rounded-xl text-xs transition flex items-center space-x-2 cursor-pointer shadow-sm uppercase tracking-wider">
+                            <Upload className="w-4 h-4 text-slate-950" />
+                            <span>Subir Archivo de Imagen</span>
                             <input
                               type="file"
                               accept="image/*"
@@ -290,22 +306,51 @@ export default function SettingsConfig({
                               className="hidden"
                             />
                           </label>
+
                           {logoUrl && (
                             <button
                               type="button"
                               onClick={() => setLogoUrl('')}
-                              className="px-3 py-2 border border-transparent hover:border-gray-200 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-semibold transition"
+                              className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition cursor-pointer"
                             >
-                              Eliminar
+                              Usar Logo Predeterminado
                             </button>
                           )}
                         </div>
-                        <p className="text-[10px] text-gray-400">
-                          Seleccione una imagen cuadrada de su computadora (máximo 1.5MB). Se codificará en la base de datos local y se aplicará en todo el sistema.
+
+                        {/* URL input option */}
+                        <div className="space-y-1 pt-1">
+                          <label className="block text-[11px] font-bold text-slate-600">
+                            O Ingrese la URL Web Directa del Logotipo:
+                          </label>
+                          <div className="flex space-x-2">
+                            <input
+                              type="url"
+                              value={logoUrl}
+                              onChange={(e) => setLogoUrl(e.target.value)}
+                              placeholder="https://ejemplo.com/mi-logotipo.png"
+                              className="flex-1 px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-amber-500 font-mono"
+                            />
+                            {logoUrl && (
+                              <button
+                                type="button"
+                                onClick={() => setLogoUrl('')}
+                                className="px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-800 font-bold"
+                              >
+                                Limpiar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <p className="text-[10px] text-slate-500 leading-snug">
+                          💡 <strong>Consejo:</strong> Puede subir una imagen en formato PNG, JPG o WEBP desde su equipo o pegar un enlace web directo. Este logotipo se aplicará automáticamente en la barra superior del sistema, catálogo, proformas en PDF y contratos.
                         </p>
                       </>
                     ) : (
-                      <p className="text-xs text-gray-500 italic">Logotipo corporativo configurado en la plataforma.</p>
+                      <p className="text-xs text-slate-500 italic">
+                        Logotipo corporativo configurado en la plataforma. Solo administradores pueden modificarlo.
+                      </p>
                     )}
                   </div>
                 </div>

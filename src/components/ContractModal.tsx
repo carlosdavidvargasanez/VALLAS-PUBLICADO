@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Logo from './Logo';
 import { 
   Client, 
   Vehicle, 
@@ -1344,14 +1345,17 @@ export default function ContractModal({
                 {/* 2. PLANTILLA MODERNO EJECUTIVO */}
                 {disenoPlantilla === 'MODERNO_EJECUTIVO' && (
                   <div className="space-y-6 font-sans">
-                    <div className="bg-slate-900 text-white p-6 rounded-xl flex justify-between items-center">
-                      <div>
-                        <div className="text-amber-400 font-black text-lg tracking-wider">VALLAS & LED BOLIVIA</div>
-                        <h1 className="text-sm font-bold text-slate-200 uppercase mt-1">
-                          CONTRATO DE ALQUILER PUBLICITARIO N° {savedContract?.numero || 'CON-2026-0091'}
-                        </h1>
+                    <div className="bg-slate-900 text-white p-6 rounded-xl flex justify-between items-center gap-4">
+                      <div className="flex items-center space-x-3">
+                        <Logo size="sm" logoUrl={settings.logo} />
+                        <div>
+                          <div className="text-amber-400 font-black text-lg tracking-wider">{settings.nombre_empresa}</div>
+                          <h1 className="text-sm font-bold text-slate-200 uppercase mt-1">
+                            CONTRATO DE ALQUILER PUBLICITARIO N° {savedContract?.numero || 'CON-2026-0091'}
+                          </h1>
+                        </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right shrink-0">
                         <span className="px-3 py-1 bg-amber-500 text-slate-950 font-black text-xs rounded-full uppercase">
                           DOCUMENTO VIGENTE
                         </span>

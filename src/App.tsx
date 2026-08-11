@@ -808,6 +808,7 @@ export default function App() {
         <LandingPage
           onOpenLogin={() => setShowLoginModal(true)}
           onExploreCatalog={() => setShowLoginModal(true)}
+          settings={settings}
         />
         <LoginModal
           isOpen={showLoginModal}
@@ -815,6 +816,7 @@ export default function App() {
           users={users}
           clients={clients}
           onLoginSuccess={handleUserChange}
+          logoUrl={settings.logo}
         />
       </>
     );
@@ -834,7 +836,7 @@ export default function App() {
           </button>
           
           <div className="flex items-center space-x-2.5">
-            <Logo size="sm" />
+            <Logo size="sm" logoUrl={settings.logo} />
           </div>
 
           {/* Direct Return to Home / Landing Button in Header */}
@@ -1312,6 +1314,7 @@ export default function App() {
         users={users}
         clients={clients}
         onLoginSuccess={handleUserChange}
+        logoUrl={settings.logo}
       />
 
     </div>

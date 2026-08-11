@@ -6,7 +6,6 @@ import {
   Send, 
   CheckCircle2, 
   Sparkles, 
-  Smartphone, 
   Laptop, 
   User, 
   Building2, 
@@ -33,6 +32,7 @@ interface OOHInquiryModalProps {
   solutionType?: string;
   currentUser?: UserSession | null;
   activeClient?: Client | null;
+  logoUrl?: string;
 }
 
 export default function OOHInquiryModal({
@@ -41,7 +41,8 @@ export default function OOHInquiryModal({
   solutionTitle = 'Soluciones OOH - Cotización & Sugerencia',
   solutionType = 'Vallas Monumentales & Pantallas LED',
   currentUser,
-  activeClient
+  activeClient,
+  logoUrl
 }: OOHInquiryModalProps) {
   // Device & browser detection state
   const [deviceInfo, setDeviceInfo] = useState<string>('');
@@ -273,7 +274,7 @@ export default function OOHInquiryModal({
 
             <div className="flex items-start gap-4">
               <div className="p-3 bg-[#0fa0e6]/10 border border-[#0fa0e6]/40 rounded-2xl hidden sm:flex items-center justify-center">
-                <Logo size="sm" />
+                <Logo size="sm" logoUrl={logoUrl} />
               </div>
 
               <div>
@@ -290,26 +291,6 @@ export default function OOHInquiryModal({
                   Envíenos su sugerencia, idea o requerimiento de cotización junto a sus imágenes de referencia. Le responderemos a la brevedad con una propuesta comercial adaptada a su presupuesto.
                 </p>
               </div>
-            </div>
-
-            {/* Device Info Badge */}
-            <div className="mt-4 pt-3 border-t border-gray-800/80 flex items-center justify-between text-[11px] text-gray-400">
-              <div className="flex items-center gap-2">
-                <Smartphone className="w-3.5 h-3.5 text-[#0fa0e6]" />
-                <span>
-                  <strong>Dispositivo detectado:</strong> {deviceInfo || 'Detectando dispositivo...'}
-                </span>
-              </div>
-              
-              {activeClient ? (
-                <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-2.5 py-0.5 rounded-full font-bold">
-                  ✓ Cliente Registrado ({activeClient.nombre})
-                </span>
-              ) : (
-                <span className="bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-medium">
-                  Solicitud para Nuevo Cliente
-                </span>
-              )}
             </div>
           </div>
 

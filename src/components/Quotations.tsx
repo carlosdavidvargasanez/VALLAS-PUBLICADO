@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Logo from './Logo';
 import { Client, Vehicle, Quotation, QuotationState, Settings, Contract } from '../types';
 import { 
   FileText, 
@@ -945,9 +946,7 @@ export default function Quotations({
                     <div className="flex justify-between items-start pb-5 border-b border-gray-100">
                       <div className="space-y-1">
                         <div className="flex items-center space-x-2">
-                          <div className="w-8 h-8 rounded bg-gray-900 flex items-center justify-center font-bold text-white text-xs">
-                            V&L
-                          </div>
+                          <Logo size="sm" logoUrl={settings.logo} />
                           <h2 className="text-xl font-extrabold font-display tracking-tight text-gray-900">
                             {settings.nombre_empresa}
                           </h2>

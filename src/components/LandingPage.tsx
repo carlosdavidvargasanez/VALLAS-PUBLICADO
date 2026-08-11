@@ -5,12 +5,16 @@ import oohBannerImage from '../assets/images/publi_x_ooh_banner_1786328834763.jp
 import Logo from './Logo';
 import OOHInquiryModal from './OOHInquiryModal';
 
+import { Settings } from '../types';
+
 interface LandingPageProps {
   onOpenLogin: () => void;
   onExploreCatalog: () => void;
+  settings?: Settings;
 }
 
-export default function LandingPage({ onOpenLogin, onExploreCatalog }: LandingPageProps) {
+export default function LandingPage({ onOpenLogin, onExploreCatalog, settings }: LandingPageProps) {
+  const logoUrl = settings?.logo;
   const [showInquiryModal, setShowInquiryModal] = useState<boolean>(false);
   const [inquiryTitle, setInquiryTitle] = useState<string>('Soluciones OOH Bolivia');
   const [inquiryType, setInquiryType] = useState<string>('Vallas Monumentales & Pantallas LED');
@@ -33,11 +37,11 @@ export default function LandingPage({ onOpenLogin, onExploreCatalog }: LandingPa
 
       {/* Top Header Bar */}
       <header className="sticky top-0 z-40 bg-[#0a111e]/95 backdrop-blur-xl border-b border-[#0fa0e6]/30 shadow-2xl shadow-black/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-28 sm:h-32 flex items-center justify-between">
           
           {/* Brand Logo - Top Left Header (PROMINENT & LARGER) */}
-          <div className="flex items-center -ml-2 py-1">
-            <Logo size="md" />
+          <div className="flex items-center -ml-2 py-2">
+            <Logo size="lg" logoUrl={logoUrl} />
           </div>
 
           {/* Quick Nav Links */}
@@ -85,14 +89,6 @@ export default function LandingPage({ onOpenLogin, onExploreCatalog }: LandingPa
                     Ubicaciones estratégicas de alto tráfico en La Paz, Santa Cruz, Cochabamba y Provincias.
                   </p>
                 </div>
-
-                <button
-                  onClick={() => handleOpenInquiry('Vallas & Pantallas LED Banner', 'Solución OOH Destacada')}
-                  className="px-6 py-3.5 bg-gradient-to-r from-[#ff8c00] to-[#e06600] hover:from-[#e06600] hover:to-[#c45300] text-white font-black rounded-xl text-xs sm:text-sm uppercase tracking-wider transition cursor-pointer shadow-lg shadow-[#ff8c00]/40 flex items-center gap-2 border border-amber-300/30 whitespace-nowrap"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>Cotizar / Adjuntar Imagen</span>
-                </button>
               </div>
             </div>
           </motion.div>
@@ -134,7 +130,7 @@ export default function LandingPage({ onOpenLogin, onExploreCatalog }: LandingPa
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-xs font-black text-[#ff8c00] uppercase tracking-widest mb-2 bg-[#ff8c00]/10 border border-[#ff8c00]/30 inline-block px-3.5 py-1 rounded-full">Servicios Integrales</h2>
           <p className="text-3xl sm:text-4xl font-black uppercase text-white mt-3">
-            ¿Por qué elegir PUBLI-X para su marca?
+            ¿Por qué elegir <span className="text-[#0fa0e6]">PUBLI</span>-<span className="text-[#ff8c00]">X</span> para su marca?
           </p>
           <p className="text-xs sm:text-sm text-gray-300 mt-2">
             Haga clic en cualquiera de nuestras soluciones para enviarnos sus sugerencias, cotizar su espacio o adjuntar imágenes de referencia.
@@ -254,23 +250,15 @@ export default function LandingPage({ onOpenLogin, onExploreCatalog }: LandingPa
               <span>VER PUNTOS DISPONIBLES</span>
               <ArrowRight className="w-6 h-6 stroke-[3]" />
             </button>
-
-            <button
-              onClick={() => handleOpenInquiry('Atención Directa OOH', 'Atención Comercial Rápida')}
-              className="w-full sm:w-auto px-8 py-5 bg-[#0d182b] hover:bg-[#12223c] text-white font-black rounded-2xl text-base uppercase tracking-wider transition cursor-pointer border-2 border-[#0fa0e6]/40 flex items-center justify-center gap-3"
-            >
-              <MessageSquare className="w-5 h-5 text-[#0fa0e6]" />
-              <span>Cotización Rápida / Sugerencias</span>
-            </button>
           </div>
         </div>
       </section>
 
       {/* FOOTER */}
       <footer id="contacto" className="bg-[#070d18] border-t border-[#0fa0e6]/20 py-12 text-center text-xs text-gray-400">
-        <div className="max-w-7xl mx-auto px-4 space-y-4">
-          <div className="flex items-center justify-center">
-            <Logo size="md" />
+        <div className="max-w-7xl mx-auto px-4 space-y-6">
+          <div className="flex items-center justify-center py-2">
+            <Logo size="xl" logoUrl={logoUrl} />
           </div>
           <p className="text-gray-300 max-w-md mx-auto leading-relaxed">
             Oficina Central: Av. San Martín #450, Equipetrol, Santa Cruz - Bolivia. <br />
