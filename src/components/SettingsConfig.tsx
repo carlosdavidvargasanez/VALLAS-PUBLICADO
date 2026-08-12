@@ -212,7 +212,7 @@ export default function SettingsConfig({
             setBackupSuccess('La base de datos fue restaurada con éxito. Recargando la vista...');
             setTimeout(() => window.location.reload(), 1500);
           } else {
-            setBackupError('El archivo no es una copia de seguridad válida para VALLAS & LED BOLIVIA.');
+            setBackupError('El archivo no es una copia de seguridad válida para PUBLI-X BOLIVIA.');
           }
         }
       };
@@ -246,7 +246,7 @@ export default function SettingsConfig({
             <div className="flex items-center space-x-2 pb-3 border-b border-gray-50 text-gray-700 mb-5 justify-between">
               <div className="flex items-center space-x-2">
                 <Building2 className="w-5 h-5 text-amber-500" />
-                <h3 className="text-base font-bold text-gray-800 font-display uppercase tracking-wider">Identidad y Parámetros VALLAS & LED BOLIVIA</h3>
+                <h3 className="text-base font-bold text-gray-800 font-display uppercase tracking-wider">Identidad y Parámetros PUBLI-X BOLIVIA</h3>
               </div>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-gray-100 text-gray-500">Solo Dueño</span>
             </div>
@@ -608,7 +608,7 @@ export default function SettingsConfig({
             </div>
 
             <p className="text-xs text-gray-400 leading-normal">
-              Simule el acceso de distintos asesores comerciales para comprobar las políticas de visualización de VALLAS & LED BOLIVIA:
+              Simule el acceso de distintos asesores comerciales para comprobar las políticas de visualización de PUBLI-X BOLIVIA:
             </p>
 
             <div className="space-y-2">
@@ -810,7 +810,7 @@ export default function SettingsConfig({
               {/* Hard reset */}
               <button
                 onClick={() => {
-                  if (confirm('¿ATENCIÓN: Está completamente seguro de restablecer de fábrica la base de datos de VALLAS & LED BOLIVIA? Esto borrará todas las cotizaciones, campos personalizados y usuarios nuevos, y re-generará la base de datos con 350 prospectos de clientes y 350 estructuras del catálogo.')) {
+                  if (confirm('¿ATENCIÓN: Está completamente seguro de restablecer de fábrica la base de datos de PUBLI-X BOLIVIA? Esto borrará todas las cotizaciones, campos personalizados y usuarios nuevos, y re-generará la base de datos con 350 prospectos de clientes y 350 estructuras del catálogo.')) {
                     onResetAll();
                   }
                 }}

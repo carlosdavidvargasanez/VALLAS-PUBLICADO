@@ -88,7 +88,7 @@ const DEFAULT_TEMPLATES: MessageTemplate[] = [
   {
     id: 'T001',
     nombre: 'Primer Contacto (Bienvenida)',
-    contenido: 'Hola {CLIENTE}, te saluda {VENDEDOR} de *VALLAS & LED BOLIVIA* 📢. Gracias por contactarte con nosotros. Somos especialistas en alquiler de Vallas Publicitarias, Pantallas LED Gigantes, Letreros, Lonas e Ingeniería en Estructuras Metálicas. He registrado tu presupuesto estimado de *USD {PRECIO}*. ¿Qué tipo de espacio publicitario o trabajo especial estás buscando?',
+    contenido: 'Hola {CLIENTE}, te saluda {VENDEDOR} de *PUBLI-X BOLIVIA* 📢. Gracias por contactarte con nosotros. Somos especialistas en alquiler de Vallas Publicitarias, Pantallas LED Gigantes, Letreros, Lonas e Ingeniería en Estructuras Metálicas. He registrado tu presupuesto estimado de *USD {PRECIO}*. ¿Qué tipo de espacio publicitario o trabajo especial estás buscando?',
     activa: true
   },
   {
@@ -100,7 +100,7 @@ const DEFAULT_TEMPLATES: MessageTemplate[] = [
   {
     id: 'T003',
     nombre: 'Envío de Cotización Formal',
-    contenido: 'Hola {CLIENTE}! Ya tenemos lista la cotización formal para el proyecto de *{MARCA} - {MODELO}*. Adjunto la cotización formal en PDF con el número *{COTIZACION_NUM}*.\n\nEn el documento verás el desglose de alquiler/fabricación, impresión de lonas, montaje en estructura y mantenimiento. Quedo atento a tus comentarios para reservar el espacio. Saludos, {VENDEDOR} - *VALLAS & LED BOLIVIA*.',
+    contenido: 'Hola {CLIENTE}! Ya tenemos lista la cotización formal para el proyecto de *{MARCA} - {MODELO}*. Adjunto la cotización formal en PDF con el número *{COTIZACION_NUM}*.\n\nEn el documento verás el desglose de alquiler/fabricación, impresión de lonas, montaje en estructura y mantenimiento. Quedo atento a tus comentarios para reservar el espacio. Saludos, {VENDEDOR} - *PUBLI-X BOLIVIA*.',
     activa: true
   },
   {
@@ -112,15 +112,15 @@ const DEFAULT_TEMPLATES: MessageTemplate[] = [
 ];
 
 const DEFAULT_SETTINGS: Settings = {
-  nombre_empresa: 'VALLAS & LED BOLIVIA',
+  nombre_empresa: 'PUBLI-X BOLIVIA',
   direccion: 'Av. Banzer y 4to Anillo, Torre Empresarial, Piso 6',
   ciudad: 'Santa Cruz de la Sierra',
   departamento: 'Santa Cruz',
   pais: 'Bolivia',
   telefono: '+591 3 3559988',
   whatsapp: '+591 70000000',
-  correo: 'ventas@vallasyledbolivia.com',
-  web: 'www.vallasyledbolivia.com',
+  correo: 'ventas@publix.bo',
+  web: 'www.publix.bo',
   logo: '',
   tipo_cambio: 6.96,
   terminos_cotizacion: '1. Los precios de alquiler de Vallas y Pantallas LED son expresados en USD y se facturan al tipo de cambio acordado.\n2. La cotización de trabajos especiales (Estructuras Metálicas, Corpóreos, Lonas) incluye materiales de primera calidad, corte CNC e instalación autorizada.\n3. Plazo de instalación e impresión: 3 a 7 días hábiles tras aprobación del diseño y pago del anticipo (60%).\n4. Mantenimiento técnico e iluminación LED garantizado durante la vigencia del contrato de alquiler.',
@@ -452,7 +452,7 @@ export const mockDb = {
       const initialContracts: Contract[] = [
         {
           id: 'CON-00025',
-          numero: '00025 VALLASDONDEVAYAS/2026',
+          numero: '00025 PUBLI-X/2026',
           cliente_id: 'C001',
           cliente_nombre: 'UNIVERSIDAD PRIVADA DOMINGO SAVIO – UPDS',
           cliente_empresa: 'UPDS',
@@ -468,7 +468,7 @@ export const mockDb = {
           cliente_direccion: 'Av. Beni y 3er anillo Externo',
           cliente_ciudad: 'Santa Cruz',
 
-          arrendador_empresa: 'VALLASDONDEVAYAS',
+          arrendador_empresa: 'PUBLI-X BOLIVIA',
           arrendador_nit: '4579387019',
           arrendador_direccion: 'Calle Los Tajibos 2185 Barrio Petrolero Norte UV 0016 MZA 14 entre 2do anillo y Av. Los Cusis',
           arrendador_representante: 'Sr. Carlos David Vargas Añez',

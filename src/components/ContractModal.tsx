@@ -88,7 +88,7 @@ export default function ContractModal({
   const [clienteCiudad, setClienteCiudad] = useState<string>('Santa Cruz');
 
   // Arrendador (Empresa)
-  const [arrendadorEmpresa, setArrendadorEmpresa] = useState<string>('VALLASDONDEVAYAS');
+  const [arrendadorEmpresa, setArrendadorEmpresa] = useState<string>('PUBLI-X BOLIVIA');
   const [arrendadorNit, setArrendadorNit] = useState<string>('4579387019');
   const [arrendadorDireccion, setArrendadorDireccion] = useState<string>('Calle Los Tajibos 2185 Barrio Petrolero Norte UV 0016 MZA 14 entre 2do anillo y Av. Los Cusis');
   const [arrendadorRepresentante, setArrendadorRepresentante] = useState<string>('Sr. Carlos David Vargas Añez');
@@ -346,7 +346,7 @@ export default function ContractModal({
   // Build complete Contract object
   const buildContractObject = (): Contract => {
     const year = new Date().getFullYear();
-    const contractNum = initialContract ? initialContract.numero : `000${Math.floor(Math.random() * 900 + 100)} VALLASDONDEVAYAS/${year}`;
+    const contractNum = initialContract ? initialContract.numero : `000${Math.floor(Math.random() * 900 + 100)} PUBLI-X/${year}`;
 
     return {
       id: initialContract ? initialContract.id : 'CON-' + Date.now(),
@@ -427,7 +427,7 @@ export default function ContractModal({
 
   const generateContractShareText = () => {
     const c = savedContract || buildContractObject();
-    return `*CONTRATO DE ARRENDAMIENTO DE ESPACIOS PUBLICITARIOS* 📢\n*${c.arrendador_empresa || 'VALLASDONDEVAYAS'}*\n\n📄 *Contrato N°:* ${c.numero}\n👤 *Cliente:* ${c.cliente_nombre}\n🆔 *NIT/CI:* ${c.cliente_nit_ci}\n📍 *Espacios Vallas (${c.vallas_lista.length}):*\n` +
+    return `*CONTRATO DE ARRENDAMIENTO DE ESPACIOS PUBLICITARIOS* 📢\n*${c.arrendador_empresa || 'PUBLI-X BOLIVIA'}*\n\n📄 *Contrato N°:* ${c.numero}\n👤 *Cliente:* ${c.cliente_nombre}\n🆔 *NIT/CI:* ${c.cliente_nit_ci}\n📍 *Espacios Vallas (${c.vallas_lista.length}):*\n` +
       c.vallas_lista.map(v => ` • ${v.direccion} - Bs. ${v.costo_neto_bs.toLocaleString('es-BO')}/mes`).join('\n') +
       `\n\n🖼️ *Impresión Lonas (${c.lonas_lista.length}):*\n` +
       c.lonas_lista.map(l => ` • ${l.direccion} (${l.medidas}) - Bs. ${l.total_costo_bs.toLocaleString('es-BO')}`).join('\n') +
@@ -445,7 +445,7 @@ export default function ContractModal({
   const handleSendEmail = () => {
     const c = savedContract || buildContractObject();
     const email = c.cliente_correo || '';
-    const subject = encodeURIComponent(`Contrato ${c.numero} - VALLASDONDEVAYAS`);
+    const subject = encodeURIComponent(`Contrato ${c.numero} - PUBLI-X BOLIVIA`);
     const body = encodeURIComponent(generateContractShareText());
     window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
   };
@@ -466,7 +466,7 @@ export default function ContractModal({
             </div>
             <div>
               <h2 className="text-sm sm:text-base md:text-lg font-bold font-display uppercase tracking-wide leading-tight flex flex-wrap items-center gap-2">
-                Emisión de Contrato Comercial VALLASDONDEVAYAS
+                Emisión de Contrato Comercial PUBLI-X BOLIVIA
                 <span className="text-[10px] bg-amber-500/20 text-amber-300 font-mono px-2 py-0.5 rounded border border-amber-500/40">
                   {initialContract ? 'EDICIÓN' : 'AUTOMÁTICO'}
                 </span>
@@ -1153,7 +1153,7 @@ export default function ContractModal({
                     <div className="flex justify-between items-start border-b border-slate-300 pb-4 font-sans">
                       <div>
                         <h1 className="text-sm font-black tracking-wider uppercase text-slate-900">
-                          CONTRATO DE ARRENDAMIENTO DE ESPACIOS PUBLICITARIOS {savedContract?.numero || `00025 VALLASDONDEVAYAS/${new Date().getFullYear()}`}
+                          CONTRATO DE ARRENDAMIENTO DE ESPACIOS PUBLICITARIOS {savedContract?.numero || `00025 PUBLI-X/${new Date().getFullYear()}`}
                         </h1>
                         <p className="text-[11px] text-slate-600 mt-1 font-serif">
                           Conste por el presente Contrato Privado, el mismo que podrá ser elevado a instrumento público con el reconocimiento de firmas y rúbricas ante autoridad competente al tenor literal de las siguientes cláusulas:

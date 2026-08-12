@@ -231,7 +231,7 @@ export default function Clients({
   // Direct WhatsApp sending with prefilled message
   const handleDirectWhatsAppSend = (client: Client) => {
     const cleanPhone = client.celular.replace(/\+/g, '');
-    const message = `Hola ${client.nombre}, le saluda VALLAS & LED BOLIVIA 📢. Vemos que tiene un presupuesto de USD ${client.presupuesto_usd.toLocaleString()} para la difusión de su marca. ¿Qué tipo de Valla Publicitaria o Pantalla LED le gustaría cotizar hoy?`;
+    const message = `Hola ${client.nombre}, le saluda PUBLI-X BOLIVIA 📢. Vemos que tiene un presupuesto de USD ${client.presupuesto_usd.toLocaleString()} para la difusión de su marca. ¿Qué tipo de Valla Publicitaria o Pantalla LED le gustaría cotizar hoy?`;
     const url = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
   };
@@ -822,7 +822,7 @@ export default function Clients({
                       onClick={() => {
                         const u = selectedDetailClient.usuario_acceso || generateClientCredentials(selectedDetailClient.nombre, selectedDetailClient.celular).usuario_acceso;
                         const p = selectedDetailClient.password_acceso || generateClientCredentials(selectedDetailClient.nombre, selectedDetailClient.celular).password_acceso;
-                        navigator.clipboard.writeText(`Catálogo VALLAS & LED BOLIVIA:\nUsuario: ${u}\nContraseña: ${p}`);
+                        navigator.clipboard.writeText(`Catálogo PUBLI-X BOLIVIA:\nUsuario: ${u}\nContraseña: ${p}`);
                         alert('✅ Credenciales copiadas al portapapeles.');
                       }}
                       className="px-3 py-1.5 bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold rounded-xl flex items-center space-x-1.5 cursor-pointer transition shadow-2xs"

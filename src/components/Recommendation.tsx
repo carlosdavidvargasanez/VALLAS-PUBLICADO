@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
+import { formatDriveUrl } from './Vehicles';
+
 interface RecommendationProps {
   clients: Client[];
   vehicles: Vehicle[];
@@ -175,7 +177,7 @@ export default function Recommendation({
                 >
                   <div className="relative h-44">
                     <img 
-                      src={vehicle.imagen_principal} 
+                      src={formatDriveUrl(vehicle.imagen_principal)} 
                       alt={vehicle.modelo} 
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover" 
@@ -267,7 +269,7 @@ export default function Recommendation({
                 >
                   <div className="relative h-44">
                     <img 
-                      src={vehicle.imagen_principal} 
+                      src={formatDriveUrl(vehicle.imagen_principal)} 
                       alt={vehicle.modelo} 
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover" 

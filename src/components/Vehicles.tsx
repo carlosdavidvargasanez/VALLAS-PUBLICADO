@@ -27,8 +27,9 @@ import {
   Grid
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { generateCatalogPdf } from '../utils/pdfGenerator';
+import { generateCatalogPdf, generateSingleVallaPdf } from '../utils/pdfGenerator';
 import { mockDb } from '../data/mockDatabase';
+import OOHMapView from './OOHMapView';
 
 interface VehiclesProps {
   vehicles: Vehicle[];
@@ -146,6 +147,9 @@ export default function Vehicles({
   const [showPdfClientModal, setShowPdfClientModal] = useState(false);
   const [customPdfClientId, setCustomPdfClientId] = useState<string>('');
   const [pdfNotes, setPdfNotes] = useState('');
+
+  // View mode state (Catalog Grid vs Interactive Map)
+  const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
 
   // UI feedback
   const [formError, setFormError] = useState('');
@@ -269,6 +273,17 @@ export default function Vehicles({
     }
   };
 
+  // Download Single Ficha Técnica PDF for a Billboard/LED Screen
+  const handleDownloadSinglePdf = async (valla: Vehicle) => {
+    try {
+      await generateSingleVallaPdf(valla, exchangeRate, activeClient, undefined, settings);
+      mockDb.addAuditLog(currentUser.nombre, 'Ficha Técnica PDF', `Descargó Ficha Técnica OOH para COD-${valla.id}`);
+    } catch (err) {
+      console.error(err);
+      alert('Error al generar la ficha técnica en PDF.');
+    }
+  };
+
   // Reset Form fields
   const resetFormFields = () => {
     setIsEditing(false);
@@ -338,7 +353,7 @@ export default function Vehicles({
     const formattedImg = formatDriveUrl(imgUrl.trim());
 
     const vehicleData: Partial<Vehicle> = {
-      marca: 'VALLAS & LED',
+      marca: 'PUBLI-X',
       modelo: avenidaCalle.trim(),
       version: `${tipoValla} - ${zona || 'Sin Zona'} (${cara})`,
       anio: 2025,
@@ -441,6 +456,28 @@ export default function Vehicles({
 
         {/* Action Controls */}
         <div className="flex items-center flex-wrap gap-2.5">
+
+          {/* View Mode Switcher (Grid vs Interactive Map) */}
+          <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1 cursor-pointer ${
+                viewMode === 'grid' ? 'bg-white text-gray-900 shadow-2xs font-extrabold' : 'text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              <Grid className="w-3.5 h-3.5" />
+              <span>Catálogo</span>
+            </button>
+            <button
+              onClick={() => setViewMode('map')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1 cursor-pointer ${
+                viewMode === 'map' ? 'bg-amber-600 text-white shadow-2xs font-extrabold' : 'text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              <span>Mapa OOH</span>
+            </button>
+          </div>
           
           {/* Inbox Solicitudes Button (Only for Internal Staff) */}
           {!isCliente && (
@@ -788,8 +825,19 @@ export default function Vehicles({
         )}
       </AnimatePresence>
 
-      {/* MAIN CATALOG GRID + FILTERS */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      {/* MAP VIEW MODE vs CATALOG GRID MODE */}
+      {viewMode === 'map' ? (
+        <OOHMapView
+          vehicles={vehicles}
+          exchangeRate={exchangeRate}
+          onSelectVehicleSpec={(valla) => setSelectedSpecVehicle(valla)}
+          onSelectVehicleForWhatsApp={(valla) => onSelectVehicleForWhatsApp(valla)}
+          onSelectVehicleForQuote={(valla) => onSelectVehicleForQuote(valla)}
+          onDownloadSinglePdf={(valla) => handleDownloadSinglePdf(valla)}
+        />
+      ) : (
+        /* MAIN CATALOG GRID + FILTERS */
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         
         {/* Left Filter Sidebar */}
         <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs h-fit space-y-5">
@@ -1059,6 +1107,15 @@ export default function Vehicles({
                         <MessageSquare className="w-4 h-4" />
                       </button>
 
+                      {/* Direct Single PDF Ficha Técnica Download */}
+                      <button
+                        onClick={() => handleDownloadSinglePdf(valla)}
+                        className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl transition cursor-pointer"
+                        title="Descargar Ficha Técnica PDF"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+
                       {/* Direct Quote Generator (Staff Only) */}
                       {!isCliente && (
                         <button
@@ -1083,6 +1140,7 @@ export default function Vehicles({
           </div>
         </div>
       </div>
+      )}
 
       {/* DETAILED SPECIFICATIONS MODAL - EXPANDED WIDE VIEW */}
       <AnimatePresence>
@@ -1148,7 +1206,7 @@ export default function Vehicles({
                   </div>
 
                   {/* Quick Action Toolbar inside modal */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <button
                       onClick={() => {
                         const imageUrl = formatDriveUrl(selectedSpecVehicle.imagen_principal);
@@ -1161,7 +1219,7 @@ export default function Vehicles({
                       title="Enviar únicamente la foto/link a WhatsApp sin texto"
                     >
                       <MessageSquare className="w-4 h-4" />
-                      <span>Solo Foto (Fast)</span>
+                      <span>Solo Foto</span>
                     </button>
 
                     <button
@@ -1177,6 +1235,17 @@ export default function Vehicles({
 
                     <button
                       onClick={() => {
+                        handleDownloadSinglePdf(selectedSpecVehicle);
+                      }}
+                      className="py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl transition flex items-center justify-center space-x-1.5 text-xs cursor-pointer shadow-xs uppercase tracking-wider"
+                      title="Descargar Ficha Técnica en PDF para este espacio"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Ficha PDF</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
                         onSelectVehicleForQuote(selectedSpecVehicle);
                         setSelectedSpecVehicle(null);
                       }}
@@ -1184,7 +1253,7 @@ export default function Vehicles({
                       title="Generar cotización PDF formal"
                     >
                       <FileText className="w-4 h-4" />
-                      <span>Cotizar en PDF</span>
+                      <span>Cotizar PDF</span>
                     </button>
                   </div>
                 </div>
@@ -1262,7 +1331,7 @@ export default function Vehicles({
               {/* Modal Footer */}
               <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
                 <span className="text-[11px] text-gray-400 font-medium hidden sm:inline">
-                  VALLAS & LED BOLIVIA • Espacio publicitario de alta visibilidad
+                  PUBLI-X BOLIVIA • Espacio publicitario de alta visibilidad
                 </span>
                 <button
                   onClick={() => setSelectedSpecVehicle(null)}
@@ -1501,7 +1570,7 @@ export default function Vehicles({
                           <button
                             onClick={() => {
                               const cleanPhone = (req.cliente_celular || '').replace(/\+/g, '');
-                              const msg = `Hola ${req.cliente_nombre}, le contactamos de VALLAS & LED BOLIVIA 📢 en seguimiento a su solicitud de cotización para ${(req.vallas_nombres || []).length} espacios publicitarios. ¿En qué horario le podemos brindar detalles?`;
+                              const msg = `Hola ${req.cliente_nombre}, le contactamos de PUBLI-X BOLIVIA 📢 en seguimiento a su solicitud de cotización para ${(req.vallas_nombres || []).length} espacios publicitarios. ¿En qué horario le podemos brindar detalles?`;
                               window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`, '_blank');
                             }}
                             className="p-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl hover:bg-emerald-100"

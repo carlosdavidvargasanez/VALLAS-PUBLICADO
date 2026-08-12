@@ -1073,14 +1073,14 @@ export default function App() {
           <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
             {(currentUser.rol === 'Cliente'
               ? [
-                  { id: 'vehiculos', label: 'CATÁLOGO DE VALLAS & LED', icon: Presentation, badge: vehicles.length },
+                  { id: 'vehiculos', label: 'CATÁLOGO DE ESPACIOS PUBLI-X', icon: Presentation, badge: vehicles.length },
                   { id: 'cotizaciones', label: 'MIS COTIZACIONES', icon: FileText, badge: quotations.length },
                   { id: 'contratos', label: 'MIS CONTRATOS FIRMADOS', icon: FileCheck, badge: contracts.length },
                 ]
               : [
                   { id: 'dashboard', label: 'DASHBOARD PRINCIPAL', icon: Sliders, badge: null },
                   { id: 'clientes', label: 'CRM CLIENTES', icon: Users, badge: clients.length },
-                  { id: 'vehiculos', label: 'CATÁLOGO VALLAS & LED', icon: Presentation, badge: vehicles.length },
+                  { id: 'vehiculos', label: 'CATÁLOGO PUBLI-X OOH', icon: Presentation, badge: vehicles.length },
                   { id: 'recomendacion', label: 'RECOMENDADOR IA', icon: Sparkles, badge: null },
                   { id: 'whatsapp', label: 'WHATSAPP COMERCIAL', icon: MessageSquare, badge: null },
                   { id: 'cotizaciones', label: 'COTIZACIONES PDF', icon: FileText, badge: quotations.length },

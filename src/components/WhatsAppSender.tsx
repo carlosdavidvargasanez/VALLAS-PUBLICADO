@@ -111,7 +111,7 @@ export default function WhatsAppSender({
 
     // Corporate info
     result = result.replace(/{VENDEDOR}/g, currentUser || 'Asesor Comercial');
-    result = result.replace(/{EMPRESA}/g, 'VALLAS & LED BOLIVIA');
+    result = result.replace(/{EMPRESA}/g, 'PUBLI-X BOLIVIA');
 
     return result;
   };

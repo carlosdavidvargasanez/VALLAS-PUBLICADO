@@ -261,7 +261,7 @@ export default function Quotations({
     const totalUsd = quote.total.toLocaleString();
     const totalBob = (quote.total * settings.tipo_cambio).toLocaleString('es-BO', { maximumFractionDigits: 0 });
 
-    return `Hola ${clientName}, le compartimos la cotización oficial de VALLAS & LED BOLIVIA:\n\n📄 *Cotización N°:* ${quote.numero}\n📍 *Ubicación:* ${vallaName}\n📐 *Medidas:* ${vehicle?.medidas || '10 x 4 m'} (${vehicle?.cara || 'Cara A'})\n🌆 *Ciudad:* ${vehicle?.ciudad || 'Santa Cruz'}\n\n💰 *Total Mensual:* $${totalUsd} USD (Bs. ${totalBob} BOB - T/C ${settings.tipo_cambio})\n📅 *Validez:* 15 días calendario\n\nQuedamos atentos a sus comentarios para asegurar el espacio.`;
+    return `Hola ${clientName}, le compartimos la cotización oficial de PUBLI-X BOLIVIA:\n\n📄 *Cotización N°:* ${quote.numero}\n📍 *Ubicación:* ${vallaName}\n📐 *Medidas:* ${vehicle?.medidas || '10 x 4 m'} (${vehicle?.cara || 'Cara A'})\n🌆 *Ciudad:* ${vehicle?.ciudad || 'Santa Cruz'}\n\n💰 *Total Mensual:* $${totalUsd} USD (Bs. ${totalBob} BOB - T/C ${settings.tipo_cambio})\n📅 *Validez:* 15 días calendario\n\nQuedamos atentos a sus comentarios para asegurar el espacio.`;
   };
 
   const handleSendWhatsApp = (quote: Quotation) => {
@@ -275,7 +275,7 @@ export default function Quotations({
   const handleSendEmail = (quote: Quotation) => {
     const client = clients.find(c => c.id === quote.cliente_id);
     const email = client?.correo || '';
-    const subject = encodeURIComponent(`Cotización Formal ${quote.numero} - VALLAS & LED BOLIVIA`);
+    const subject = encodeURIComponent(`Cotización Formal ${quote.numero} - PUBLI-X BOLIVIA`);
     const body = encodeURIComponent(generateQuoteText(quote));
     window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
   };
