@@ -19,6 +19,8 @@ export interface Client {
   nit_ci?: string;
   usuario_acceso?: string;
   password_acceso?: string;
+  usuario_habilitado?: boolean; // true = enabled, false = disabled/restricted
+  acceso_bloqueado?: boolean;
 }
 
 export type VallaCategory = 

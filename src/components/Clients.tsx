@@ -982,6 +982,60 @@ export default function Clients({
                       <span>Enviar Credenciales por WhatsApp</span>
                     </button>
                   </div>
+
+                  {/* ACCESS STATUS TOGGLE CONTROL (ADMINISTRADOR / DUEÑO) */}
+                  <div className="mt-3 pt-3 border-t border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-[11px] font-extrabold text-gray-700 uppercase">Estado de Ingreso a Plataforma:</span>
+                      {selectedDetailClient.usuario_habilitado !== false ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center space-x-1">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                          <span>ACCESO HABILITADO</span>
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300 flex items-center space-x-1">
+                          <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                          <span>ACCESO DESHABILITADO / BLOQUEADO</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        const isCurrentlyEnabled = selectedDetailClient.usuario_habilitado !== false;
+                        const newStatus = !isCurrentlyEnabled;
+                        
+                        const updated = {
+                          ...selectedDetailClient,
+                          usuario_habilitado: newStatus,
+                          acceso_bloqueado: !newStatus
+                        };
+
+                        onUpdateClient(updated);
+                        setSelectedDetailClient(updated);
+                        mockDb.addAuditLog(
+                          currentUser?.nombre || 'Administrador',
+                          'Control Acceso Cliente',
+                          `El administrador ${newStatus ? 'HABILITÓ' : 'DESHABILITÓ/RESTRINGIÓ'} el acceso a la plataforma para el cliente ${selectedDetailClient.nombre}.`
+                        );
+
+                        alert(`✅ Acceso de ${selectedDetailClient.nombre} ${newStatus ? 'HABILITADO con éxito' : 'DESHABILITADO / BLOQUEADO con éxito'}.`);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl font-extrabold text-xs flex items-center space-x-1.5 transition cursor-pointer shadow-2xs ${
+                        selectedDetailClient.usuario_habilitado !== false
+                          ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                          : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      }`}
+                      title="Habilitar o restringir el inicio de sesión del cliente a la plataforma"
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>
+                        {selectedDetailClient.usuario_habilitado !== false
+                          ? 'Deshabilitar Acceso del Cliente'
+                          : 'Habilitar Acceso a Plataforma'}
+                      </span>
+                    </button>
+                  </div>
                 </div>
                 
                 {/* Specs cards */}

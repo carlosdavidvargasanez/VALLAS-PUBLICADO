@@ -90,6 +90,11 @@ export default function LoginModal({ isOpen, onClose, users, clients, onLoginSuc
     });
 
     if (clientMatch) {
+      if (clientMatch.usuario_habilitado === false || clientMatch.acceso_bloqueado === true) {
+        handleFailedAttempt('⛔ Su usuario ha sido deshabilitado por la administración de PUBLI-X. El acceso a la plataforma está restringido temporalmente.');
+        return;
+      }
+
       const creds = generateClientCredentials(clientMatch.nombre, clientMatch.celular);
       const expectedPass = clientMatch.password_acceso || creds.password_acceso;
       const cleanExpectedPass = expectedPass.replace(/\+591/g, '').replace(/\D/g, '');

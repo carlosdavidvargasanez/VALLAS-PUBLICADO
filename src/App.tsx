@@ -12,6 +12,7 @@ import Agenda from './components/Agenda';
 import ImportExport from './components/ImportExport';
 import AuditLogs from './components/AuditLogs';
 import SettingsConfig from './components/SettingsConfig';
+import PendingRequestsManager from './components/PendingRequestsManager';
 import LoginModal from './components/LoginModal';
 import LandingPage from './components/LandingPage';
 import Logo from './components/Logo';
@@ -39,7 +40,8 @@ import {
   FolderSync,
   UserPlus,
   Shield,
-  Home
+  Home,
+  Inbox
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -1110,6 +1112,7 @@ export default function App() {
                 ]
               : [
                   { id: 'dashboard', label: 'DASHBOARD PRINCIPAL', icon: Sliders, badge: null },
+                  { id: 'solicitudes', label: 'SOLICITUDES & NUEVOS CLIENTES WEB', icon: Inbox, badge: mockDb.getPendingRequests().filter(r => r.estado === 'Pendiente').length },
                   { id: 'clientes', label: 'CRM CLIENTES', icon: Users, badge: clients.length },
                   { id: 'vehiculos', label: 'CATÁLOGO PUBLI-X OOH', icon: Presentation, badge: vehicles.length },
                   { id: 'recomendacion', label: 'RECOMENDADOR IA', icon: Sparkles, badge: null },
@@ -1194,6 +1197,16 @@ export default function App() {
                   onTabChange={setActiveTab}
                   onSelectClient={setActiveClient}
                   exchangeRate={settings.tipo_cambio || 6.96}
+                />
+              )}
+
+              {activeTab === 'solicitudes' && (
+                <PendingRequestsManager
+                  clients={clients}
+                  currentUser={currentUser}
+                  onAddClient={handleAddClient}
+                  onSelectActiveClient={setActiveClient}
+                  onRegisterLog={mockDb.addAuditLog.bind(mockDb)}
                 />
               )}
 
