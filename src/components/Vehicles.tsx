@@ -24,7 +24,8 @@ import {
   Eye,
   ExternalLink,
   Calculator,
-  Grid
+  Grid,
+  ArrowLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { generateCatalogPdf, generateSingleVallaPdf } from '../utils/pdfGenerator';
@@ -1486,12 +1487,20 @@ export default function Vehicles({
             >
               <div className="flex justify-between items-center pb-3 border-b border-gray-100">
                 <div className="flex items-center space-x-2 text-amber-700">
+                  <button
+                    onClick={() => setShowInbox(false)}
+                    className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition flex items-center space-x-1 text-xs font-bold mr-1 cursor-pointer"
+                    title="Volver atrás"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Volver atrás</span>
+                  </button>
                   <Inbox className="w-5 h-5" />
                   <h3 className="font-extrabold text-lg font-display text-gray-800">
                     Bandeja de Solicitudes & Cotizaciones Pendientes
                   </h3>
                 </div>
-                <button onClick={() => setShowInbox(false)} className="text-gray-400 hover:text-gray-600">
+                <button onClick={() => setShowInbox(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -1631,13 +1640,15 @@ export default function Vehicles({
                 )}
               </div>
 
-              <div className="p-3 bg-gray-50 border-t border-gray-100 flex justify-end">
+              <div className="p-3 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
                 <button
                   onClick={() => setShowInbox(false)}
-                  className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer"
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-bold rounded-xl flex items-center space-x-1.5 cursor-pointer transition"
                 >
-                  Cerrar
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Volver atrás</span>
                 </button>
+                <span className="text-[11px] text-gray-400 font-medium">PUBLI-X Bolivia</span>
               </div>
             </motion.div>
           </motion.div>

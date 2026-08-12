@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Client, ClientState } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Client, ClientState, UserSession, PendingQuotationRequest } from '../types';
+import { mockDb } from '../data/mockDatabase';
 import { generateClientCredentials, generateClientWelcomeMessage } from '../utils/credentials';
 import { 
   Plus, 
@@ -17,6 +18,7 @@ import {
   MapPin, 
   DollarSign, 
   ArrowRight,
+  ArrowLeft,
   TrendingUp,
   Download,
   Calendar,
@@ -25,12 +27,15 @@ import {
   Key,
   Copy,
   Lock,
-  ExternalLink
+  ExternalLink,
+  Inbox,
+  ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ClientsProps {
   clients: Client[];
+  currentUser?: UserSession;
   onAddClient: (client: Omit<Client, 'id' | 'fecha_registro' | 'fecha_actualizacion'>) => boolean;
   onUpdateClient: (client: Client) => void;
   onDeleteClient: (id: string) => void;
@@ -43,6 +48,7 @@ interface ClientsProps {
 
 export default function Clients({
   clients,
+  currentUser,
   onAddClient,
   onUpdateClient,
   onDeleteClient,
@@ -52,6 +58,19 @@ export default function Clients({
   exchangeRate,
   clientTimeline
 }: ClientsProps) {
+  const isDuenoOrGerente = currentUser?.rol === 'Dueño' || currentUser?.rol === 'Gerente' || currentUser?.rol === 'Jefe';
+
+  // Pending Requests State
+  const [showPendingRequestsModal, setShowPendingRequestsModal] = useState(false);
+  const [pendingRequestsList, setPendingRequestsList] = useState<PendingQuotationRequest[]>(() => mockDb.getPendingRequests());
+
+  const refreshPendingRequests = () => {
+    setPendingRequestsList(mockDb.getPendingRequests());
+  };
+
+  useEffect(() => {
+    refreshPendingRequests();
+  }, []);
   // Local states
   const [search, setSearch] = useState('');
   const [filterState, setFilterState] = useState<string>('Todos');
@@ -261,10 +280,78 @@ export default function Clients({
       alert('Este cliente no tiene correo electrónico registrado. Por favor, edite su ficha para agregarlo.');
       return;
     }
-    const subject = 'Contacto Comercial - MLA AUTOMOTORS 🚘';
-    const body = `Estimado/a ${client.nombre},\n\nLe escribimos de MLA AUTOMOTORS en relación a su interés de importación registrado en nuestra plataforma.\n\nContamos con un presupuesto registrado de USD ${client.presupuesto_usd.toLocaleString()} para su proyecto. ¿Le gustaría que le preparemos propuestas y opciones exclusivas adaptadas a sus preferencias?\n\nQuedamos a su entera disposición.\n\nAtentamente,\nAsesor de Ventas\nMLA AUTOMOTORS`;
+    const subject = 'Contacto Comercial - PUBLI-X BOLIVIA 📢';
+    const body = `Estimado/a ${client.nombre},\n\nLe escribimos de PUBLI-X BOLIVIA en relación a su interés de vallas publicitarias / pantallas LED registrado en nuestra plataforma.\n\nContamos con un presupuesto registrado de USD ${client.presupuesto_usd.toLocaleString()} para su proyecto. ¿Le gustaría que le preparemos propuestas y opciones exclusivas adaptadas a sus preferencias?\n\nQuedamos a su entera disposición.\n\nAtentamente,\nGerencia Comercial\nPUBLI-X BOLIVIA`;
     const url = `mailto:${client.correo}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.open(url, '_blank');
+  };
+
+  // Accept Candidate and create official Client in CRM
+  const handleAcceptPendingCandidate = (req: PendingQuotationRequest) => {
+    if (!isDuenoOrGerente) {
+      alert('⛔ Acceso denegado: Únicamente el usuario con rol de Dueño o Gerente tiene permisos para aceptar el ingreso de nuevos clientes.');
+      return;
+    }
+
+    const cleanCell = req.cliente_celular.startsWith('+591') ? req.cliente_celular : `+591${req.cliente_celular.replace(/\D/g, '')}`;
+    
+    // Check if client already exists by phone
+    const existing = clients.find(c => c.celular === cleanCell);
+    let targetClient: Client;
+
+    if (existing) {
+      targetClient = existing;
+    } else {
+      const creds = generateClientCredentials(req.cliente_nombre, cleanCell);
+      const newClientData = {
+        nombre: req.cliente_nombre,
+        empresa: req.cliente_empresa || '',
+        celular: cleanCell,
+        correo: req.cliente_correo || '',
+        ciudad: req.cliente_ciudad || 'Santa Cruz',
+        departamento: 'Santa Cruz',
+        pais: 'Bolivia',
+        presupuesto_usd: req.presupuesto_estimado_usd || 10000,
+        observaciones: req.sugerencia_cotizacion 
+          ? `Solicitud web (${req.codigo}): ${req.sugerencia_cotizacion}`
+          : `Cliente aceptado desde solicitud de registro web (${req.codigo}).`,
+        estado: 'Interesado' as const,
+        campania: 'Registro Web',
+        usuario_acceso: creds.usuario_acceso,
+        password_acceso: creds.password_acceso
+      };
+
+      onAddClient(newClientData);
+      
+      const refreshedClients = mockDb.getClients();
+      targetClient = refreshedClients.find(c => c.celular === cleanCell) || {
+        ...newClientData,
+        id: 'C' + Date.now().toString().slice(-4),
+        fecha_registro: new Date().toISOString(),
+        fecha_actualizacion: new Date().toISOString()
+      };
+    }
+
+    // Mark request as Cotizado/Atendido in mockDb
+    const allReqs = mockDb.getPendingRequests();
+    const updatedReqs = allReqs.map(r => r.id === req.id ? { ...r, estado: 'Cotizado' as const, vendedor_asignado: currentUser?.nombre || 'Dueño/Gerente' } : r);
+    mockDb.savePendingRequests(updatedReqs);
+    setPendingRequestsList(updatedReqs);
+
+    mockDb.addAuditLog(
+      currentUser?.nombre || 'Dueño/Gerente',
+      'Aceptar Solicitud Cliente',
+      `Se aprobó y creó el cliente oficial ${targetClient.nombre} (${targetClient.celular}) procedente de la solicitud web ${req.codigo}.`
+    );
+
+    // Show Welcome WhatsApp Popup with Credentials
+    const welcomeInfo = generateClientWelcomeMessage(
+      targetClient.nombre, 
+      targetClient.celular, 
+      targetClient.usuario_acceso, 
+      targetClient.password_acceso
+    );
+    setWelcomeClientData({ client: targetClient, welcomeInfo });
   };
 
   // Filter & Search Logic
@@ -317,6 +404,19 @@ export default function Clients({
         </div>
 
         <div className="flex items-center space-x-3">
+          {/* Button for Pending Registration Requests */}
+          <button
+            onClick={() => {
+              refreshPendingRequests();
+              setShowPendingRequestsModal(true);
+            }}
+            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition flex items-center space-x-1.5 cursor-pointer shadow-2xs"
+            title="Ver solicitudes y sugerencias de nuevos clientes"
+          >
+            <Inbox className="w-4 h-4" />
+            <span>Solicitudes de Registro ({pendingRequestsList.filter(r => r.estado === 'Pendiente').length})</span>
+          </button>
+
           <label className="text-xs font-semibold text-gray-500">Estado:</label>
           <select
             value={filterState}
@@ -468,7 +568,7 @@ export default function Clients({
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1">Departamento *</label>
                 <select
@@ -480,16 +580,6 @@ export default function Clients({
                     <option key={i} value={dep}>{dep}</option>
                   ))}
                 </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">País</label>
-                <input
-                  type="text"
-                  value="Bolivia"
-                  disabled
-                  className="w-full px-3 py-2 text-sm bg-gray-100 border border-gray-200 rounded-lg text-gray-500 cursor-not-allowed font-medium"
-                />
               </div>
 
               <div>
@@ -577,91 +667,91 @@ export default function Clients({
         </div>
 
         {/* Right Side: List Table */}
-        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-xs xl:col-span-2 flex flex-col justify-between">
-          <div className="flex justify-between items-center mb-5 pb-3 border-b border-gray-50">
-            <h3 className="text-lg font-bold font-display text-gray-800">
+        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-xs xl:col-span-2 flex flex-col justify-between">
+          <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-50">
+            <h3 className="text-base font-bold font-display text-gray-800">
               Cartera de Clientes ({filteredClients.length} de {clients.length})
             </h3>
-            <span className="text-xs text-gray-400 font-medium">Lista de solo lectura / edición lógica</span>
+            <span className="text-xs text-gray-400 font-medium">Lista de clientes registrados</span>
           </div>
 
-          <div className="overflow-x-auto min-h-[350px]">
-            <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto min-h-[300px]">
+            <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-gray-100 text-gray-400 text-xs font-semibold uppercase tracking-wider bg-gray-50/50">
-                  <th className="py-3 px-4 font-semibold">Cliente / Contacto</th>
-                  <th className="py-3 px-4 font-semibold">Ubicación</th>
-                  <th className="py-3 px-4 font-semibold">Presupuesto</th>
-                  <th className="py-3 px-4 font-semibold">Estado</th>
-                  <th className="py-3 px-4 font-semibold text-center">Acciones Comerciales</th>
+                <tr className="border-b border-gray-100 text-gray-400 text-[10px] font-semibold uppercase tracking-wider bg-gray-50/50">
+                  <th className="py-2 px-2 font-semibold">Cliente / Contacto</th>
+                  <th className="py-2 px-1.5 font-semibold">Ubicación</th>
+                  <th className="py-2 px-1.5 font-semibold">Presupuesto</th>
+                  <th className="py-2 px-1.5 font-semibold">Estado</th>
+                  <th className="py-2 px-1.5 font-semibold text-center">Acciones Comerciales</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {sortedClients.length > 0 ? (
                   sortedClients.map((client) => (
                     <tr key={client.id} className="hover:bg-gray-50/60 transition-colors">
-                      <td className="py-3.5 px-4">
-                        <div className="space-y-1 max-w-xs">
+                      <td className="py-2 px-2">
+                        <div className="space-y-0.5 max-w-[200px]">
                           {client.empresa && (
-                            <div className="inline-block px-2 py-0.5 bg-amber-50 text-amber-900 border border-amber-200 rounded text-[10px] font-extrabold uppercase tracking-wide">
+                            <div className="inline-block px-1.5 py-0.2 bg-amber-50 text-amber-900 border border-amber-200 rounded text-[9px] font-extrabold uppercase tracking-wide truncate max-w-full">
                               🏢 {client.empresa}
                             </div>
                           )}
                           {client.razon_social && (
-                            <div className="text-[11px] font-bold text-slate-700">
-                              R.S.: {client.razon_social} {client.nit_ci ? `• NIT/CI: ${client.nit_ci}` : ''}
+                            <div className="text-[10px] font-bold text-slate-700 truncate">
+                              R.S.: {client.razon_social}
                             </div>
                           )}
-                          <div className="flex items-center flex-wrap gap-1.5">
-                            <span className="font-semibold text-gray-800 text-sm">{client.nombre}</span>
+                          <div className="flex items-center flex-wrap gap-1">
+                            <span className="font-semibold text-gray-800 text-xs">{client.nombre}</span>
                             {client.campania && (
-                              <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] rounded-full font-bold border border-amber-200">
+                              <span className="px-1 py-0.2 bg-amber-100 text-amber-800 text-[8px] rounded-full font-bold border border-amber-200">
                                 {client.campania}
                               </span>
                             )}
                           </div>
-                          <div className="flex flex-col text-xs text-gray-500 space-y-0.5">
+                          <div className="flex flex-col text-[11px] text-gray-500 space-y-0.2">
                             <span className="font-mono text-indigo-500 font-semibold">{client.celular}</span>
                             {client.correo ? (
-                              <span className="text-gray-500 font-mono text-[11px] truncate" title={client.correo}>
+                              <span className="text-gray-500 font-mono text-[10px] truncate max-w-[180px]" title={client.correo}>
                                 {client.correo}
                               </span>
                             ) : (
-                              <span className="text-gray-300 italic text-[10px]">Sin correo registrado</span>
+                              <span className="text-gray-300 italic text-[9px]">Sin correo</span>
                             )}
                           </div>
                           {/* Generated Credentials Badge */}
-                          <div className="mt-1 bg-amber-50/80 border border-amber-200 px-2 py-0.5 rounded-lg flex items-center justify-between text-[10px] font-mono">
-                            <span className="text-amber-900 font-bold flex items-center gap-1">
-                              <Key className="w-3 h-3 text-amber-600" />
-                              <span>Usuario: <strong className="text-gray-900">{client.usuario_acceso || generateClientCredentials(client.nombre, client.celular).usuario_acceso}</strong></span>
+                          <div className="mt-0.5 bg-amber-50/80 border border-amber-200 px-1.5 py-0.5 rounded-md flex items-center justify-between text-[9px] font-mono">
+                            <span className="text-amber-900 font-bold flex items-center gap-0.5">
+                              <Key className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                              <span>U: <strong className="text-gray-900">{client.usuario_acceso || generateClientCredentials(client.nombre, client.celular).usuario_acceso}</strong></span>
                             </span>
-                            <span className="text-gray-600 font-bold ml-2">
-                              Pass: <span className="text-amber-800">{client.password_acceso || generateClientCredentials(client.nombre, client.celular).password_acceso}</span>
+                            <span className="text-gray-600 font-bold ml-1">
+                              P: <span className="text-amber-800">{client.password_acceso || generateClientCredentials(client.nombre, client.celular).password_acceso}</span>
                             </span>
                           </div>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center space-x-1 text-xs text-gray-600 font-semibold">
-                          <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                      <td className="py-2 px-1.5 whitespace-nowrap">
+                        <div className="flex items-center space-x-1 text-[11px] text-gray-600 font-semibold">
+                          <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
                           <span>{client.departamento}</span>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4">
+                      <td className="py-2 px-1.5 whitespace-nowrap">
                         <div>
                           {client.presupuesto_usd > 0 ? (
                             <>
-                              <p className="text-sm font-bold text-gray-800">${client.presupuesto_usd.toLocaleString()}</p>
-                              <p className="text-[10px] text-gray-400 font-medium">Bs. {getBobEquivalent(client.presupuesto_usd)}</p>
+                              <p className="text-xs font-bold text-gray-800">${client.presupuesto_usd.toLocaleString()}</p>
+                              <p className="text-[9px] text-gray-400 font-medium">Bs. {getBobEquivalent(client.presupuesto_usd)}</p>
                             </>
                           ) : (
-                            <span className="text-xs text-gray-400 italic font-medium">Sin definir</span>
+                            <span className="text-[10px] text-gray-400 italic font-medium">Sin definir</span>
                           )}
                         </div>
                       </td>
-                      <td className="py-3.5 px-4">
-                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
+                      <td className="py-2 px-1.5 whitespace-nowrap">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
                           client.estado === 'Nuevo' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
                           client.estado === 'Contactado' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' :
                           client.estado === 'Interesado' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
@@ -674,59 +764,59 @@ export default function Clients({
                           {client.estado}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center justify-center space-x-1">
+                      <td className="py-2 px-1.5">
+                        <div className="flex items-center justify-center flex-wrap gap-1">
                           
                           {/* Aceptar Cliente & Enviar Accesos WhatsApp */}
                           <button
                             onClick={() => handleAcceptAndSendWelcome(client)}
-                            className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-black text-[10px] uppercase transition shadow-2xs flex items-center space-x-1 cursor-pointer whitespace-nowrap"
+                            className="px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-black text-[9px] uppercase transition shadow-2xs flex items-center space-x-0.5 cursor-pointer whitespace-nowrap"
                             title="Aceptar Cliente y Enviar Bienvenida WhatsApp con Usuario y PIN/Clave"
                           >
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Aceptar & Accesos</span>
+                            <Check className="w-3 h-3" />
+                            <span>Aceptar</span>
                           </button>
 
                           {/* Details Icon */}
                           <button
                             onClick={() => setSelectedDetailClient(client)}
-                            className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
+                            className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition"
                             title="Ver Historial y Timeline"
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-3.5 h-3.5" />
                           </button>
 
                           {/* Edit Icon */}
                           <button
                             onClick={() => handleEditClick(client)}
-                            className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition"
+                            className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition"
                             title="Editar Datos"
                           >
-                            <Edit2 className="w-4 h-4" />
+                            <Edit2 className="w-3.5 h-3.5" />
                           </button>
 
                           {/* WhatsApp AutoGenerator */}
                           <button
                             onClick={() => onSelectClientForWhatsApp(client)}
-                            className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
+                            className="p-1 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition"
                             title="Generar Mensaje WhatsApp"
                           >
-                            <MessageSquare className="w-4 h-4" />
+                            <MessageSquare className="w-3.5 h-3.5" />
                           </button>
 
                           {/* Direct WhatsApp Envío Automático */}
                           <button
                             onClick={() => handleDirectWhatsAppSend(client)}
-                            className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition"
+                            className="p-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 rounded transition"
                             title="Envío Automático WhatsApp Directo"
                           >
-                            <Send className="w-4 h-4" />
+                            <Send className="w-3.5 h-3.5" />
                           </button>
 
                           {/* Direct Email Envío Automático */}
                           <button
                             onClick={() => handleDirectEmailSend(client)}
-                            className={`p-1.5 rounded-lg transition ${
+                            className={`p-1 rounded transition ${
                               client.correo 
                                 ? 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200' 
                                 : 'bg-gray-50 text-gray-300 border border-gray-100 cursor-not-allowed'
@@ -734,16 +824,16 @@ export default function Clients({
                             disabled={!client.correo}
                             title={client.correo ? "Envío Automático Correo Directo" : "Sin correo registrado"}
                           >
-                            <Mail className="w-4 h-4" />
+                            <Mail className="w-3.5 h-3.5" />
                           </button>
 
                           {/* Create Cotizacion */}
                           <button
                             onClick={() => onSelectClientForQuote(client)}
-                            className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition"
+                            className="p-1 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded transition"
                             title="Generar Cotización PDF"
                           >
-                            <FileText className="w-4 h-4" />
+                            <FileText className="w-3.5 h-3.5" />
                           </button>
 
                           {/* Delete Action with verification */}
@@ -1115,12 +1205,187 @@ export default function Clients({
                   </button>
                   <button
                     onClick={() => setWelcomeClientData(null)}
-                    className="py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl text-xs uppercase transition cursor-pointer"
+                    className="py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl text-xs uppercase transition cursor-pointer flex items-center justify-center space-x-1.5"
                   >
-                    Cerrar
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Volver atrás</span>
                   </button>
                 </div>
 
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: SOLICITUDES Y SUGERENCIAS DE NUEVOS CLIENTES (SOLO DUEÑO Y GERENTE PUEDEN ACEPTAR) */}
+      <AnimatePresence>
+        {showPendingRequestsModal && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl border border-gray-100 shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Header */}
+              <div className="bg-slate-900 text-white p-5 flex justify-between items-center border-b border-slate-800">
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => setShowPendingRequestsModal(false)}
+                    className="p-1.5 bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white rounded-xl transition flex items-center space-x-1 text-xs font-bold mr-1 cursor-pointer"
+                    title="Volver atrás"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Volver atrás</span>
+                  </button>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <Inbox className="w-5 h-5 text-amber-500" />
+                      <h3 className="font-extrabold text-base font-display">Solicitudes y Registro de Nuevos Clientes</h3>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      Buzón de personas que han solicitado ingreso o cotización desde la web. Aprobación exclusiva de Dueño / Gerente.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <span className="text-[11px] font-bold px-3 py-1 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full">
+                    {pendingRequestsList.filter(r => r.estado === 'Pendiente').length} Pendiente(s)
+                  </span>
+                  <button
+                    onClick={() => setShowPendingRequestsModal(false)}
+                    className="p-1.5 text-gray-400 hover:text-white hover:bg-slate-800 rounded-xl transition"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Security Banner */}
+              <div className={`px-5 py-3 text-xs flex items-center justify-between border-b ${
+                isDuenoOrGerente 
+                  ? 'bg-amber-50 text-amber-900 border-amber-100' 
+                  : 'bg-rose-50 text-rose-900 border-rose-100'
+              }`}>
+                <div className="flex items-center space-x-2 font-semibold">
+                  <ShieldCheck className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  <span>
+                    {isDuenoOrGerente 
+                      ? `Modo Administrador Activo (${currentUser?.rol || 'Dueño'}): Tienes permisos autorizados para Aceptar nuevos clientes y generar sus credenciales.` 
+                      : `Modo Restringido (${currentUser?.rol || 'Vendedor'}): Solamente el Dueño o Gerente pueden autorizar y aceptar el ingreso de nuevos clientes.`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Body Content */}
+              <div className="p-6 overflow-y-auto space-y-4 flex-1">
+                {pendingRequestsList.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400 space-y-2">
+                    <Inbox className="w-12 h-12 mx-auto text-gray-300" />
+                    <p className="font-bold text-sm">No hay solicitudes pendientes en el buzón.</p>
+                    <p className="text-xs text-gray-400">Las solicitudes registradas desde el portal web o formulario aparecerán en esta sección.</p>
+                  </div>
+                ) : (
+                  pendingRequestsList.map((req) => (
+                    <div 
+                      key={req.id} 
+                      className={`p-5 rounded-2xl border transition-all ${
+                        req.estado === 'Pendiente'
+                          ? 'bg-amber-50/40 border-amber-200/80 shadow-2xs'
+                          : 'bg-gray-50 border-gray-200'
+                      }`}
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-gray-200/60">
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-extrabold text-gray-900 text-sm">{req.cliente_nombre}</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-900 text-white rounded-md">
+                              {req.codigo}
+                            </span>
+                            <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase ${
+                              req.estado === 'Pendiente' ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-emerald-100 text-emerald-900'
+                            }`}>
+                              {req.estado}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            🏢 <b>{req.cliente_empresa || 'Empresa No Especificada'}</b> • 📱 {req.cliente_celular} {req.cliente_correo ? `• ✉️ ${req.cliente_correo}` : ''} • 📍 {req.cliente_ciudad || 'Santa Cruz'}
+                          </p>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex items-center space-x-2">
+                          {req.estado === 'Pendiente' && isDuenoOrGerente && (
+                            <button
+                              onClick={() => handleAcceptPendingCandidate(req)}
+                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition text-xs shadow-md shadow-emerald-600/20 flex items-center space-x-1.5 cursor-pointer uppercase tracking-wider"
+                            >
+                              <Check className="w-4 h-4" />
+                              <span>Aceptar Cliente & Dar Acceso</span>
+                            </button>
+                          )}
+
+                          {req.estado === 'Pendiente' && !isDuenoOrGerente && (
+                            <div className="px-3 py-1.5 bg-rose-100 text-rose-800 text-[11px] font-bold rounded-xl border border-rose-200 flex items-center space-x-1">
+                              <Lock className="w-3.5 h-3.5" />
+                              <span>Aprobación Solo Dueño/Gerente</span>
+                            </div>
+                          )}
+
+                          {req.estado !== 'Pendiente' && (
+                            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                              ✅ Aceptado por {req.vendedor_asignado || 'Gerencia'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Details Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 text-xs">
+                        {/* Selected Billboards / Spaces */}
+                        <div className="bg-white p-3 rounded-xl border border-gray-200 space-y-1">
+                          <span className="font-extrabold text-amber-900 block text-[11px]">📢 Espacios / Vallas Solicitadas:</span>
+                          {(req.vallas_nombres && req.vallas_nombres.length > 0) ? (
+                            <ul className="list-disc list-inside text-gray-700 space-y-0.5 font-medium">
+                              {req.vallas_nombres.map((vn, idx) => (
+                                <li key={idx} className="truncate">{vn}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-gray-400 italic">Interés general en catálogo OOH.</p>
+                          )}
+                        </div>
+
+                        {/* Custom suggestions & specs */}
+                        <div className="bg-white p-3 rounded-xl border border-gray-200 space-y-1">
+                          <span className="font-extrabold text-gray-800 block text-[11px]">💬 Sugerencia / Requerimientos Específicos:</span>
+                          <p className="text-gray-700 italic font-medium">
+                            "{req.sugerencia_cotizacion || req.observaciones || 'Sin observaciones adicionales'}"
+                          </p>
+                          {req.presupuesto_estimado_usd && (
+                            <p className="text-emerald-700 font-bold pt-1">
+                              Presupuesto Estimado: ${req.presupuesto_estimado_usd.toLocaleString()} USD
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Modal Footer with Back Button */}
+              <div className="bg-gray-50 p-4 border-t border-gray-100 flex justify-between items-center">
+                <button
+                  onClick={() => setShowPendingRequestsModal(false)}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold text-xs rounded-xl transition flex items-center space-x-1.5 cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Volver atrás</span>
+                </button>
+                <span className="text-xs text-gray-400">PUBLI-X Bolivia • Control de Registro de Clientes</span>
               </div>
             </motion.div>
           </div>

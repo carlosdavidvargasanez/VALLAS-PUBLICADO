@@ -112,6 +112,11 @@ export default function App() {
     localStorage.removeItem('publix_is_logged_in');
   };
 
+  const handleUpdateTemplates = (newTemplates: MessageTemplate[]) => {
+    mockDb.saveTemplates(newTemplates);
+    setTemplates(newTemplates);
+  };
+
   // CRM Client Mutations
   const handleAddClient = (clientData: Omit<Client, 'id' | 'fecha_registro' | 'fecha_actualizacion'>): boolean => {
     const list = mockDb.getClients();
@@ -1195,6 +1200,7 @@ export default function App() {
               {activeTab === 'clientes' && (
                 <Clients
                   clients={clients}
+                  currentUser={currentUser}
                   onAddClient={handleAddClient}
                   onUpdateClient={handleUpdateClient}
                   onDeleteClient={handleDeleteClient}
@@ -1243,12 +1249,13 @@ export default function App() {
                   clients={clients}
                   vehicles={vehicles}
                   templates={templates}
+                  onUpdateTemplates={handleUpdateTemplates}
                   activeClient={activeClient}
                   activeVehicle={activeVehicle}
                   onSelectActiveClient={setActiveClient}
                   onSelectActiveVehicle={setActiveVehicle}
                   onRegisterLog={mockDb.addAuditLog.bind(mockDb)}
-                  currentUser={currentUser.nombre}
+                  currentUser={currentUser}
                 />
               )}
 

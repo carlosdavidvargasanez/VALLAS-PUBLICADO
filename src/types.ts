@@ -265,7 +265,9 @@ export interface MessageTemplate {
   id: string;
   nombre: string;
   contenido: string;
-  activa: boolean;
+  activa?: boolean;
+  activo?: boolean;
+  categoria?: 'General' | 'Agradecimiento' | 'Promocion' | 'Urgencia' | 'Cierre' | string;
 }
 
 export interface AuditLog {
@@ -292,7 +294,7 @@ export interface Settings {
   custom_fields?: Record<string, string>;
 }
 
-export type UserRole = 'Dueño' | 'Jefe' | 'Vendedor' | 'Cliente';
+export type UserRole = 'Dueño' | 'Gerente' | 'Jefe' | 'Vendedor' | 'Cliente';
 
 export interface UserSession {
   id: string;

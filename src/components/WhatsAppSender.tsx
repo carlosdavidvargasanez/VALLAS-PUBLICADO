@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Client, Vehicle, MessageTemplate } from '../types';
+import { Client, Vehicle, MessageTemplate, UserSession } from '../types';
 import { 
   MessageSquare, 
   Send, 
@@ -10,26 +10,37 @@ import {
   Check, 
   RefreshCw, 
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Settings,
+  Plus,
+  Trash2,
+  Edit3,
+  Lock,
+  ShieldCheck,
+  ArrowLeft,
+  X,
+  Save
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface WhatsAppSenderProps {
   clients: Client[];
   vehicles: Vehicle[];
   templates: MessageTemplate[];
+  onUpdateTemplates?: (templates: MessageTemplate[]) => void;
   activeClient: Client | null;
   activeVehicle: Vehicle | null;
   onSelectActiveClient: (client: Client | null) => void;
   onSelectActiveVehicle: (vehicle: Vehicle | null) => void;
   onRegisterLog: (action: string, detail: string) => void;
-  currentUser: string;
+  currentUser: UserSession | string;
 }
 
 export default function WhatsAppSender({
   clients,
   vehicles,
   templates,
+  onUpdateTemplates,
   activeClient,
   activeVehicle,
   onSelectActiveClient,
@@ -37,12 +48,29 @@ export default function WhatsAppSender({
   onRegisterLog,
   currentUser
 }: WhatsAppSenderProps) {
+  const currentUserName = typeof currentUser === 'object' ? currentUser.nombre : currentUser;
+  const userRole = typeof currentUser === 'object' ? currentUser.rol : 'Dueño';
+  const isDuenoOrGerente = typeof currentUser === 'object' 
+    ? (currentUser.rol === 'Dueño' || currentUser.rol === 'Gerente' || currentUser.rol === 'Jefe')
+    : true;
   
   // Local states
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [messageText, setMessageText] = useState('');
   const [isCopied, setIsCopied] = useState(false);
   const [errorFeedback, setErrorFeedback] = useState('');
+
+  // Modal State for Template Management
+  const [showEditorModal, setShowEditorModal] = useState(false);
+  const [editableTemplates, setEditableTemplates] = useState<MessageTemplate[]>(templates);
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [templateTitle, setTemplateTitle] = useState('');
+  const [templateContent, setTemplateContent] = useState('');
+  const [templateCategory, setTemplateCategory] = useState<'General' | 'Agradecimiento' | 'Promocion' | 'Urgencia' | 'Cierre'>('General');
+
+  useEffect(() => {
+    setEditableTemplates(templates);
+  }, [templates]);
 
   // Default to first template if loaded
   useEffect(() => {
@@ -110,10 +138,80 @@ export default function WhatsAppSender({
     result = result.replace(/{COTIZACION_NUM}/g, 'VLB-20260711-000025');
 
     // Corporate info
-    result = result.replace(/{VENDEDOR}/g, currentUser || 'Asesor Comercial');
+    result = result.replace(/{VENDEDOR}/g, currentUserName || 'Asesor Comercial');
     result = result.replace(/{EMPRESA}/g, 'PUBLI-X BOLIVIA');
 
     return result;
+  };
+
+  // Template editing functions
+  const handleSaveAllTemplates = (updatedList: MessageTemplate[]) => {
+    setEditableTemplates(updatedList);
+    if (onUpdateTemplates) {
+      onUpdateTemplates(updatedList);
+    }
+    onRegisterLog(
+      'Actualización Plantillas WhatsApp',
+      `Se modificaron los mensajes preestablecidos de WhatsApp por ${currentUserName} (${userRole}).`
+    );
+  };
+
+  const handleAddNewTemplate = () => {
+    if (!isDuenoOrGerente) {
+      alert('⛔ Acceso denegado: Únicamente el usuario con rol de Dueño o Gerente tiene permisos para crear o modificar plantillas preestablecidas.');
+      return;
+    }
+    const newTmpl: MessageTemplate = {
+      id: 'T' + Date.now().toString().slice(-4),
+      nombre: 'Nueva Plantilla Comercial',
+      categoria: 'General',
+      contenido: 'Hola {CLIENTE}, le saluda {VENDEDOR} de PUBLI-X BOLIVIA 📢. Le adjuntamos información de {VALLA_NOMBRE}.\n\nQuedamos atentos a sus consultas.',
+      activo: true
+    };
+    const updated = [...editableTemplates, newTmpl];
+    handleSaveAllTemplates(updated);
+    setEditingTemplateId(newTmpl.id);
+    setTemplateTitle(newTmpl.nombre);
+    setTemplateContent(newTmpl.contenido);
+    setTemplateCategory(newTmpl.categoria);
+  };
+
+  const handleSaveSingleTemplateEdit = () => {
+    if (!isDuenoOrGerente) {
+      alert('⛔ Acceso denegado: Únicamente el usuario con rol de Dueño o Gerente tiene permisos para modificar plantillas.');
+      return;
+    }
+    if (!editingTemplateId) return;
+
+    const updated = editableTemplates.map(t => {
+      if (t.id === editingTemplateId) {
+        return {
+          ...t,
+          nombre: templateTitle.trim() || t.nombre,
+          contenido: templateContent.trim() || t.contenido,
+          categoria: templateCategory
+        };
+      }
+      return t;
+    });
+
+    handleSaveAllTemplates(updated);
+    alert('✅ Plantilla de mensaje preestablecido guardada con éxito.');
+    setEditingTemplateId(null);
+  };
+
+  const handleDeleteTemplate = (id: string) => {
+    if (!isDuenoOrGerente) {
+      alert('⛔ Acceso denegado: Únicamente el usuario con rol de Dueño o Gerente tiene permisos para eliminar plantillas.');
+      return;
+    }
+    if (confirm('¿Está seguro de eliminar esta plantilla de mensaje preestablecido?')) {
+      const updated = editableTemplates.filter(t => t.id !== id);
+      handleSaveAllTemplates(updated);
+      if (editingTemplateId === id) {
+        setEditingTemplateId(null);
+      }
+    }
   };
 
   // Re-run replacement whenever selections change
@@ -230,12 +328,23 @@ export default function WhatsAppSender({
 
             {/* Template Selector Dropdown */}
             <div className="space-y-1.5 pt-2 border-t border-gray-50">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center space-x-1">
-                <FileText className="w-3.5 h-3.5" />
-                <span>Plantilla Base Comercial</span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center space-x-1">
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Plantilla Base Comercial</span>
+                </label>
+                <button
+                  onClick={() => setShowEditorModal(true)}
+                  className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold flex items-center space-x-1 transition shadow-2xs cursor-pointer"
+                  title="Administrar y editar mensajes preestablecidos (Solo Dueño / Gerente)"
+                >
+                  <Settings className="w-3 h-3" />
+                  <span>Editar Plantillas</span>
+                </button>
+              </div>
+
               <div className="space-y-2">
-                {templates.map(tmpl => (
+                {editableTemplates.map(tmpl => (
                   <button
                     key={tmpl.id}
                     onClick={() => handleTemplateChange(tmpl.id)}
@@ -335,6 +444,215 @@ export default function WhatsAppSender({
           </div>
         </div>
       </div>
+
+      {/* MODAL: EDITOR DE MENSAJES Y PLANTILLAS PREESTABLECIDAS (RESTRINGIDO A DUEÑO Y GERENTE) */}
+      <AnimatePresence>
+        {showEditorModal && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl border border-gray-100 shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Header */}
+              <div className="bg-slate-900 text-white p-5 flex justify-between items-center border-b border-slate-800">
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => setShowEditorModal(false)}
+                    className="p-1.5 bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white rounded-xl transition flex items-center space-x-1 text-xs font-bold mr-1 cursor-pointer"
+                    title="Volver atrás"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Volver atrás</span>
+                  </button>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <Settings className="w-5 h-5 text-amber-500" />
+                      <h3 className="font-extrabold text-base font-display">Editor de Mensajes Preestablecidos de WhatsApp</h3>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      Configure y personalice las plantillas corporativas. Exclusivo para Dueño y Gerente.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowEditorModal(false)}
+                  className="p-1.5 text-gray-400 hover:text-white hover:bg-slate-800 rounded-xl transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Security Banner */}
+              <div className={`px-5 py-2.5 text-xs flex items-center justify-between border-b ${
+                isDuenoOrGerente 
+                  ? 'bg-amber-50 text-amber-900 border-amber-100' 
+                  : 'bg-rose-50 text-rose-900 border-rose-100'
+              }`}>
+                <div className="flex items-center space-x-2 font-semibold">
+                  <ShieldCheck className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  <span>
+                    {isDuenoOrGerente 
+                      ? `Permisos de Administrador Activos (${userRole}): Puedes editar, agregar o eliminar mensajes preestablecidos.` 
+                      : `Acceso Restringido (${userRole}): Solo el Dueño o Gerente pueden modificar los mensajes preestablecidos.`}
+                  </span>
+                </div>
+
+                {isDuenoOrGerente && (
+                  <button
+                    onClick={handleAddNewTemplate}
+                    className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-xs flex items-center space-x-1 cursor-pointer transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Nueva Plantilla</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-3 gap-6 flex-1">
+                
+                {/* Left Col: Template List */}
+                <div className="space-y-2 border-r border-gray-100 pr-0 md:pr-4">
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Plantillas Registradas</h4>
+                  {editableTemplates.map((t) => (
+                    <div 
+                      key={t.id}
+                      className={`p-3 rounded-xl border transition-all text-xs flex justify-between items-center ${
+                        editingTemplateId === t.id 
+                          ? 'bg-amber-50 border-amber-300 font-bold text-amber-900' 
+                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      <button 
+                        onClick={() => {
+                          setEditingTemplateId(t.id);
+                          setTemplateTitle(t.nombre);
+                          setTemplateContent(t.contenido);
+                          setTemplateCategory(t.categoria);
+                        }}
+                        className="text-left flex-1 font-semibold truncate pr-2 cursor-pointer"
+                      >
+                        <span>{t.nombre}</span>
+                      </button>
+
+                      {isDuenoOrGerente && (
+                        <button
+                          onClick={() => handleDeleteTemplate(t.id)}
+                          className="p-1 text-gray-400 hover:text-rose-600 rounded transition cursor-pointer"
+                          title="Eliminar plantilla"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Right Col: Editor Panel */}
+                <div className="md:col-span-2 space-y-4">
+                  {editingTemplateId ? (
+                    <div className="space-y-4 bg-gray-50/50 p-4 rounded-2xl border border-gray-200">
+                      <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                        <span className="font-bold text-xs text-gray-800">Editando Plantilla</span>
+                        <span className="text-[10px] font-mono text-gray-400">ID: {editingTemplateId}</span>
+                      </div>
+
+                      {/* Title */}
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Nombre / Título de la Plantilla:</label>
+                        <input
+                          type="text"
+                          disabled={!isDuenoOrGerente}
+                          value={templateTitle}
+                          onChange={(e) => setTemplateTitle(e.target.value)}
+                          className="w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-amber-500 font-medium disabled:bg-gray-100"
+                        />
+                      </div>
+
+                      {/* Category */}
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Categoría Comercial:</label>
+                        <select
+                          disabled={!isDuenoOrGerente}
+                          value={templateCategory}
+                          onChange={(e) => setTemplateCategory(e.target.value as any)}
+                          className="w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-amber-500 font-medium disabled:bg-gray-100"
+                        >
+                          <option value="General">General / Presentación</option>
+                          <option value="Agradecimiento">Agradecimiento / Bienvenida</option>
+                          <option value="Promocion">Promoción / Oferta</option>
+                          <option value="Urgencia">Urgencia / Reserva</option>
+                          <option value="Cierre">Cierre / Facturación</option>
+                        </select>
+                      </div>
+
+                      {/* Content */}
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Contenido del Mensaje:</label>
+                        <textarea
+                          disabled={!isDuenoOrGerente}
+                          rows={7}
+                          value={templateContent}
+                          onChange={(e) => setTemplateContent(e.target.value)}
+                          className="w-full p-3 text-xs font-mono bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-amber-500 leading-relaxed disabled:bg-gray-100"
+                        />
+                      </div>
+
+                      {/* Dynamic Tags Helper */}
+                      <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/60 space-y-1.5 text-[11px]">
+                        <span className="font-extrabold text-amber-900 block">Etiquetas Dinámicas disponibles:</span>
+                        <div className="flex flex-wrap gap-1.5 text-gray-700 font-mono text-[10px]">
+                          <span className="bg-white px-2 py-0.5 rounded border border-amber-200">{`{CLIENTE}`}</span>
+                          <span className="bg-white px-2 py-0.5 rounded border border-amber-200">{`{CELULAR}`}</span>
+                          <span className="bg-white px-2 py-0.5 rounded border border-amber-200">{`{VALLA_NOMBRE}`}</span>
+                          <span className="bg-white px-2 py-0.5 rounded border border-amber-200">{`{PRECIO}`}</span>
+                          <span className="bg-white px-2 py-0.5 rounded border border-amber-200">{`{USUARIO}`}</span>
+                          <span className="bg-white px-2 py-0.5 rounded border border-amber-200">{`{PIN_CLAVE}`}</span>
+                          <span className="bg-white px-2 py-0.5 rounded border border-amber-200">{`{VENDEDOR}`}</span>
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      {isDuenoOrGerente && (
+                        <div className="pt-2 flex justify-end">
+                          <button
+                            onClick={handleSaveSingleTemplateEdit}
+                            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl transition flex items-center space-x-1.5 shadow-md shadow-emerald-600/20 cursor-pointer"
+                          >
+                            <Save className="w-4 h-4" />
+                            <span>Guardar Cambios de la Plantilla</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-16 text-gray-400 space-y-2 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                      <FileText className="w-10 h-10 mx-auto text-gray-300" />
+                      <p className="font-bold text-xs">Seleccione una plantilla de la izquierda para editar su contenido.</p>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              {/* Modal Footer with Back Button */}
+              <div className="bg-gray-50 p-4 border-t border-gray-100 flex justify-between items-center">
+                <button
+                  onClick={() => setShowEditorModal(false)}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold text-xs rounded-xl transition flex items-center space-x-1.5 cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Volver atrás</span>
+                </button>
+                <span className="text-xs text-gray-400">PUBLI-X Bolivia • Gestión de Mensajes Corporativos</span>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

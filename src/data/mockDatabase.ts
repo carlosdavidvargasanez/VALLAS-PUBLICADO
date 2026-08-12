@@ -20,67 +20,72 @@ const INITIAL_CLIENTS: Client[] = [
   {
     id: 'C001',
     nombre: 'Carlos David Vargas',
+    empresa: 'PUBLI-X Bolivia',
     celular: '+59170000000',
     ciudad: 'Santa Cruz',
     departamento: 'Santa Cruz',
     pais: 'Bolivia',
-    presupuesto_usd: 55000,
-    observaciones: 'Cliente corporativo sumamente interesado en importar una SUV familiar premium de alta gama. Prefiere marca alemana (BMW o Mercedes-Benz) o americana de gran tamaño. Solicita asesoramiento completo sobre aranceles aduaneros.',
+    presupuesto_usd: 12000,
+    observaciones: 'Cliente principal y corporativo. Interesado en Vallas Unipolares de Alto Impacto en el 3er Anillo de Santa Cruz.',
     estado: 'Interesado',
+    usuario_acceso: 'carlos.vargas',
+    password_acceso: '70000000',
     fecha_registro: '2026-07-01T09:10:00Z',
     fecha_actualizacion: '2026-07-11T15:30:00Z'
   },
   {
     id: 'C002',
-    nombre: 'Pedro López',
+    nombre: 'Lic. Paola Carmiña Pericón',
+    empresa: 'Universidad Privada Domingo Savio (UPDS)',
+    razon_social: 'Universidad Privada Domingo Savio S.A.',
+    nit_ci: '1015289020',
     celular: '+59172012345',
-    ciudad: 'La Paz',
-    departamento: 'La Paz',
+    ciudad: 'Santa Cruz',
+    departamento: 'Santa Cruz',
     pais: 'Bolivia',
-    presupuesto_usd: 75000,
-    observaciones: 'Busca una camioneta pickup de alta potencia y equipamiento premium para viajes interdepartamentales y caminos de montaña. Sumamente interesado en la Toyota Tacoma TRD Pro.',
+    presupuesto_usd: 15000,
+    observaciones: 'Requiere 3 vallas unipolares estratégicas más impresión de lonas para campaña académica 2026.',
     estado: 'Negociando',
+    usuario_acceso: 'cliente.upds',
+    password_acceso: '70000000',
     fecha_registro: '2026-07-05T14:30:00Z',
     fecha_actualizacion: '2026-07-11T12:00:00Z'
   },
   {
     id: 'C003',
     nombre: 'Maria Soria',
+    empresa: 'Cervecería Boliviana Nacional',
+    razon_social: 'CBN S.A.',
+    nit_ci: '1028374029',
     celular: '+59171098765',
     ciudad: 'Cochabamba',
     departamento: 'Cochabamba',
     pais: 'Bolivia',
-    presupuesto_usd: 35000,
-    observaciones: 'Interesada en un SUV compacto moderno con excelente rendimiento de combustible para la ciudad de Cochabamba. Evaluando opciones como la Hyundai Tucson o Kia Sportage.',
+    presupuesto_usd: 8500,
+    observaciones: 'Interesada en Pantallas LED Gigantes HD 4K en ubicaciones céntricas de Cochabamba.',
     estado: 'Nuevo',
+    usuario_acceso: 'maria.soria',
+    password_acceso: '71098765',
     fecha_registro: '2026-07-10T11:00:00Z',
     fecha_actualizacion: '2026-07-10T11:00:00Z'
   },
   {
     id: 'C004',
     nombre: 'Alejandro Claure',
+    empresa: 'Banco Bisa S.A.',
+    razon_social: 'Banco Bisa S.A.',
+    nit_ci: '1002938471',
     celular: '+59160012345',
-    ciudad: 'Tarija',
-    departamento: 'Tarija',
+    ciudad: 'La Paz',
+    departamento: 'La Paz',
     pais: 'Bolivia',
-    presupuesto_usd: 95000,
-    observaciones: 'Cliente de alto perfil. Busca un deportivo Premium o un SUV de lujo extremo. Ha consultado por el Porsche Cayenne Coupé.',
+    presupuesto_usd: 22000,
+    observaciones: 'Consulta por circuito de pantallas LED y Vallas de Alto Impacto para campaña financiera.',
     estado: 'Cotizado',
+    usuario_acceso: 'alejandro.claure',
+    password_acceso: '60012345',
     fecha_registro: '2026-06-15T10:00:00Z',
     fecha_actualizacion: '2026-07-11T11:30:00Z'
-  },
-  {
-    id: 'C005',
-    nombre: 'Roberto Vaca',
-    celular: '+59177054321',
-    ciudad: 'Santa Cruz',
-    departamento: 'Santa Cruz',
-    pais: 'Bolivia',
-    presupuesto_usd: 48000,
-    observaciones: 'Interesado en la importación directa de una vagoneta familiar Toyota 4Runner para viajes de campo y off-road en las lomas de arena.',
-    estado: 'Vendido',
-    fecha_registro: '2026-06-10T16:00:00Z',
-    fecha_actualizacion: '2026-07-11T14:00:00Z'
   }
 ];
 
@@ -423,8 +428,18 @@ const INITIAL_AUDIT_LOGS: AuditLog[] = [
 
 export const mockDb = {
   initialize() {
-    if (!localStorage.getItem(DB_KEYS.CLIENTS)) {
-      localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(generate350Clients()));
+    const storedClients = localStorage.getItem(DB_KEYS.CLIENTS);
+    if (!storedClients) {
+      localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(INITIAL_CLIENTS));
+    } else {
+      try {
+        const parsed = JSON.parse(storedClients);
+        if (Array.isArray(parsed) && parsed.length > 4) {
+          localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(INITIAL_CLIENTS));
+        }
+      } catch (err) {
+        localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(INITIAL_CLIENTS));
+      }
     }
     
     // Auto-migrate legacy automotive data if stored
