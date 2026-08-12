@@ -72,6 +72,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [initialCategoryFilter, setInitialCategoryFilter] = useState<string>('Todos');
 
   // Load all initial data from local SQLite simulator on startup
   useEffect(() => {
@@ -806,8 +807,18 @@ export default function App() {
     return (
       <>
         <LandingPage
-          onOpenLogin={() => setShowLoginModal(true)}
-          onExploreCatalog={() => setShowLoginModal(true)}
+          onOpenLogin={() => {
+            setInitialCategoryFilter('Todos');
+            setShowLoginModal(true);
+          }}
+          onOpenLoginWithCategory={(cat) => {
+            setInitialCategoryFilter(cat);
+            setShowLoginModal(true);
+          }}
+          onExploreCatalog={() => {
+            setInitialCategoryFilter('Todos');
+            setShowLoginModal(true);
+          }}
           settings={settings}
         />
         <LoginModal
@@ -1057,7 +1068,22 @@ export default function App() {
       </header>
 
       <div className="flex flex-1 relative">
-        
+        {/* Client specific filtered data for portal access */}
+        {(() => {
+          const loggedInClient = currentUser.rol === 'Cliente'
+            ? clients.find(c => c.id === currentUser.id || c.nombre === currentUser.nombre || (c.usuario_acceso && c.usuario_acceso.toLowerCase() === currentUser.usuario?.toLowerCase()))
+            : null;
+
+          const displayQuotations = currentUser.rol === 'Cliente'
+            ? (loggedInClient ? quotations.filter(q => q.cliente_id === loggedInClient.id) : [])
+            : quotations;
+
+          const displayContracts = currentUser.rol === 'Cliente'
+            ? (loggedInClient ? contracts.filter(c => c.cliente_id === loggedInClient.id) : [])
+            : contracts;
+
+          return (
+            <>
         {/* SIDEBAR NAVIGATION (CRITICAL COMPONENT SPECIFIED IN SPECS) */}
         <aside className={`no-print fixed inset-y-0 left-0 lg:static lg:flex flex-col bg-gray-950 text-white w-64 border-r border-gray-900 shrink-0 transform ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
@@ -1074,8 +1100,8 @@ export default function App() {
             {(currentUser.rol === 'Cliente'
               ? [
                   { id: 'vehiculos', label: 'CATÁLOGO DE ESPACIOS PUBLI-X', icon: Presentation, badge: vehicles.length },
-                  { id: 'cotizaciones', label: 'MIS COTIZACIONES', icon: FileText, badge: quotations.length },
-                  { id: 'contratos', label: 'MIS CONTRATOS FIRMADOS', icon: FileCheck, badge: contracts.length },
+                  { id: 'cotizaciones', label: 'MIS COTIZACIONES', icon: FileText, badge: displayQuotations.length },
+                  { id: 'contratos', label: 'MIS CONTRATOS FIRMADOS', icon: FileCheck, badge: displayContracts.length },
                 ]
               : [
                   { id: 'dashboard', label: 'DASHBOARD PRINCIPAL', icon: Sliders, badge: null },
@@ -1083,8 +1109,8 @@ export default function App() {
                   { id: 'vehiculos', label: 'CATÁLOGO PUBLI-X OOH', icon: Presentation, badge: vehicles.length },
                   { id: 'recomendacion', label: 'RECOMENDADOR IA', icon: Sparkles, badge: null },
                   { id: 'whatsapp', label: 'WHATSAPP COMERCIAL', icon: MessageSquare, badge: null },
-                  { id: 'cotizaciones', label: 'COTIZACIONES PDF', icon: FileText, badge: quotations.length },
-                  { id: 'contratos', label: 'CONTRATOS CRM', icon: FileCheck, badge: contracts.length },
+                  { id: 'cotizaciones', label: 'COTIZACIONES PDF', icon: FileText, badge: displayQuotations.length },
+                  { id: 'contratos', label: 'CONTRATOS CRM', icon: FileCheck, badge: displayContracts.length },
                   { id: 'agenda', label: 'SEGUIMIENTOS AGENDA', icon: Calendar, badge: followUps.filter(f => f.estado === 'Pendiente').length },
                   { id: 'importar', label: 'EXCEL IMPORT / EXPORT', icon: Database, badge: null },
                   { id: 'auditoria', label: 'BITÁCORA AUDITORÍA', icon: ShieldCheck, badge: null },
@@ -1195,6 +1221,7 @@ export default function App() {
                   exchangeRate={settings.tipo_cambio || 6.96}
                   currentUser={currentUser}
                   settings={settings}
+                  initialCategory={initialCategoryFilter}
                 />
               )}
 
@@ -1227,7 +1254,7 @@ export default function App() {
 
               {activeTab === 'cotizaciones' && (
                 <Quotations
-                  quotations={quotations}
+                  quotations={displayQuotations}
                   clients={clients}
                   vehicles={vehicles}
                   settings={settings}
@@ -1246,7 +1273,7 @@ export default function App() {
 
               {activeTab === 'contratos' && (
                 <Contracts
-                  contracts={contracts}
+                  contracts={displayContracts}
                   clients={clients}
                   vehicles={vehicles}
                   settings={settings}
@@ -1305,6 +1332,9 @@ export default function App() {
             </motion.div>
           </AnimatePresence>
         </main>
+            </>
+          );
+        })()}
       </div>
 
       {/* Login Modal for Client / Staff Authentication */}

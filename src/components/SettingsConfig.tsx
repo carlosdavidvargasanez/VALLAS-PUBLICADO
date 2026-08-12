@@ -515,14 +515,14 @@ export default function SettingsConfig({
             )}
 
             <p className="text-xs text-gray-500 leading-relaxed mb-4">
-              Como <strong>Dueño</strong>, puede renombrar cualquier campo clave del sistema (por ejemplo, cambiar "Marca" por "Fabricante", o "Presupuesto" por "Capital de Inversión"). Las etiquetas modificadas se propagarán de forma automática en los formularios, tablas, filtros y reportes de la plataforma.
+              Como <strong>Dueño</strong>, puede renombrar cualquier campo clave del sistema de Vallas, Pantallas LED y CRM (por ejemplo, cambiar "Tipo de Estructura" por "Formato OOH", o "Presupuesto" por "Inversión Comercial"). Las etiquetas modificadas se propagarán de forma automática en los formularios, tablas, filtros y reportes de la plataforma.
             </p>
 
             <form onSubmit={handleSaveFieldsCustomization} className="space-y-6">
               
-              {/* Vehicle custom fields group */}
+              {/* Vallas / OOH custom fields group */}
               <div className="space-y-3">
-                <span className="text-xs font-bold text-gray-700 uppercase tracking-wider block border-l-2 border-amber-500 pl-2">Campos del Catálogo de Vehículos</span>
+                <span className="text-xs font-bold text-gray-700 uppercase tracking-wider block border-l-2 border-amber-500 pl-2">Campos del Catálogo de Vallas y Espacios Publicitarios OOH</span>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {Object.keys(DEFAULT_FIELD_LABELS)
                     .filter(key => key.startsWith('vehicle_'))

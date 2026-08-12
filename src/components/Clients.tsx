@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Client, ClientState } from '../types';
-import { generateClientCredentials } from '../utils/credentials';
+import { generateClientCredentials, generateClientWelcomeMessage } from '../utils/credentials';
 import { 
   Plus, 
   Search, 
@@ -62,11 +62,12 @@ export default function Clients({
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState('');
   const [empresa, setEmpresa] = useState('');
+  const [razonSocial, setRazonSocial] = useState('');
+  const [nitCi, setNitCi] = useState('');
   const [nombre, setNombre] = useState('');
   const [celular, setCelular] = useState('');
   const [correo, setCorreo] = useState('');
   const [campania, setCampania] = useState('');
-  const [ciudad, setCiudad] = useState('Santa Cruz');
   const [departamento, setDepartamento] = useState('Santa Cruz');
   const [presupuestoUsd, setPresupuestoUsd] = useState('');
   const [observaciones, setObservaciones] = useState('');
@@ -80,28 +81,37 @@ export default function Clients({
   const [formSuccess, setFormSuccess] = useState('');
   const [showConfirmDeleteId, setShowConfirmDeleteId] = useState<string | null>(null);
 
+  // Welcome WhatsApp Modal state
+  const [welcomeClientData, setWelcomeClientData] = useState<{ client: Client; welcomeInfo: ReturnType<typeof generateClientWelcomeMessage> } | null>(null);
+
+  const handleAcceptAndSendWelcome = (client: Client) => {
+    let u = client.usuario_acceso;
+    let p = client.password_acceso;
+    if (!u || !p) {
+      const creds = generateClientCredentials(client.nombre, client.celular);
+      u = creds.usuario_acceso;
+      p = creds.password_acceso;
+      onUpdateClient({
+        ...client,
+        usuario_acceso: u,
+        password_acceso: p,
+        estado: client.estado === 'Nuevo' ? 'Contactado' : client.estado
+      });
+    } else if (client.estado === 'Nuevo') {
+      onUpdateClient({
+        ...client,
+        estado: 'Contactado'
+      });
+    }
+
+    const welcomeInfo = generateClientWelcomeMessage(client.nombre, client.celular, u, p);
+    setWelcomeClientData({ client, welcomeInfo });
+  };
+
   // Departments & Cities of Bolivia
   const BOLIVIAN_DEPARTMENTS = [
     'Santa Cruz', 'La Paz', 'Cochabamba', 'Tarija', 'Chuquisaca', 'Oruro', 'Potosí', 'Beni', 'Pando'
   ];
-
-  const BOLIVIAN_CITIES = [
-    'Santa Cruz de la Sierra', 'La Paz', 'El Alto', 'Cochabamba', 'Tarija', 'Sucre', 'Oruro', 'Potosí', 'Trinidad', 'Cobija', 'Montero', 'Yacuiba', 'Quillacollo'
-  ];
-
-  // Auto-fill department when city matches typical city
-  const handleCityChange = (city: string) => {
-    setCiudad(city);
-    if (city.includes('Santa Cruz') || city.includes('Montero')) setDepartamento('Santa Cruz');
-    else if (city.includes('La Paz') || city.includes('El Alto')) setDepartamento('La Paz');
-    else if (city.includes('Cochabamba') || city.includes('Quillacollo')) setDepartamento('Cochabamba');
-    else if (city.includes('Tarija') || city.includes('Yacuiba')) setDepartamento('Tarija');
-    else if (city.includes('Sucre')) setDepartamento('Chuquisaca');
-    else if (city.includes('Oruro')) setDepartamento('Oruro');
-    else if (city.includes('Potosí')) setDepartamento('Potosí');
-    else if (city.includes('Trinidad')) setDepartamento('Beni');
-    else if (city.includes('Cobija')) setDepartamento('Pando');
-  };
 
   // Handle Form submit
   const handleSubmit = (e: React.FormEvent) => {
@@ -112,7 +122,7 @@ export default function Clients({
     // Validations
     if (!nombre.trim()) return setFormError('El nombre completo es obligatorio.');
     if (!celular.trim()) return setFormError('El celular es obligatorio.');
-    if (!presupuestoUsd || isNaN(Number(presupuestoUsd)) || Number(presupuestoUsd) <= 0) {
+    if (presupuestoUsd && (isNaN(Number(presupuestoUsd)) || Number(presupuestoUsd) < 0)) {
       return setFormError('El presupuesto en USD debe ser un número positivo.');
     }
 
@@ -135,6 +145,8 @@ export default function Clients({
       }
     }
 
+    const parsedPresupuesto = presupuestoUsd ? Number(presupuestoUsd) : 0;
+
     if (isEditing) {
       // Check duplicate on other clients
       const phoneExists = clients.some(c => c.celular === formattedPhone && c.id !== editId);
@@ -149,10 +161,12 @@ export default function Clients({
           ...original,
           nombre: nombre.trim(),
           empresa: empresa.trim(),
+          razon_social: razonSocial.trim(),
+          nit_ci: nitCi.trim(),
           celular: formattedPhone,
-          ciudad,
+          ciudad: departamento,
           departamento,
-          presupuesto_usd: Number(presupuestoUsd),
+          presupuesto_usd: parsedPresupuesto,
           observaciones: observaciones.trim(),
           estado,
           correo: correo.trim(),
@@ -170,11 +184,13 @@ export default function Clients({
       const success = onAddClient({
         nombre: nombre.trim(),
         empresa: empresa.trim(),
+        razon_social: razonSocial.trim(),
+        nit_ci: nitCi.trim(),
         celular: formattedPhone,
-        ciudad,
+        ciudad: departamento,
         departamento,
         pais: 'Bolivia',
-        presupuesto_usd: Number(presupuestoUsd),
+        presupuesto_usd: parsedPresupuesto,
         observaciones: observaciones.trim(),
         estado,
         correo: correo.trim(),
@@ -197,11 +213,12 @@ export default function Clients({
     setIsEditing(false);
     setEditId('');
     setEmpresa('');
+    setRazonSocial('');
+    setNitCi('');
     setNombre('');
     setCelular('');
     setCorreo('');
     setCampania('');
-    setCiudad('Santa Cruz de la Sierra');
     setDepartamento('Santa Cruz');
     setPresupuestoUsd('');
     setObservaciones('');
@@ -215,13 +232,15 @@ export default function Clients({
     setIsEditing(true);
     setEditId(client.id);
     setEmpresa(client.empresa || '');
+    setRazonSocial(client.razon_social || '');
+    setNitCi(client.nit_ci || '');
     setNombre(client.nombre);
     // Strip leading +591 for display in raw input if needed, or leave formatted
     const rawCell = client.celular.startsWith('+591') ? client.celular.substring(4) : client.celular;
     setCelular(rawCell);
     setCorreo(client.correo || '');
     setCampania(client.campania || '');
-    setCiudad(client.ciudad);
+    setDepartamento(client.departamento || 'Santa Cruz');
     setDepartamento(client.departamento);
     setPresupuestoUsd(String(client.presupuesto_usd));
     setObservaciones(client.observaciones);
@@ -362,9 +381,9 @@ export default function Clients({
               </div>
             )}
 
-            {/* EMPRESA AL COMIENZO DE TODO */}
+            {/* EMPRESA Y RAZON SOCIAL */}
             <div>
-              <label className="block text-xs font-bold text-amber-800 mb-1">Empresa / Razón Social</label>
+              <label className="block text-xs font-bold text-amber-800 mb-1">Empresa / Nombre Comercial</label>
               <input
                 type="text"
                 value={empresa}
@@ -372,6 +391,30 @@ export default function Clients({
                 placeholder="Ej. CBN, Entel, Banco Bisa, Cervecería..."
                 className="w-full px-3 py-2 text-sm bg-amber-50/50 border border-amber-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
               />
+            </div>
+
+            {/* RAZON SOCIAL Y NIT / CI */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Razón Social (Facturación)</label>
+                <input
+                  type="text"
+                  value={razonSocial}
+                  onChange={(e) => setRazonSocial(e.target.value)}
+                  placeholder="Ej. Cervecería Boliviana Nacional S.A."
+                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">NIT / CI</label>
+                <input
+                  type="text"
+                  value={nitCi}
+                  onChange={(e) => setNitCi(e.target.value)}
+                  placeholder="Ej. 1028374029"
+                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition font-mono"
+                />
+              </div>
             </div>
 
             <div>
@@ -406,19 +449,18 @@ export default function Clients({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Presupuesto USD *</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Presupuesto USD (Opcional)</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">$</span>
                   <input
                     type="number"
                     value={presupuestoUsd}
                     onChange={(e) => setPresupuestoUsd(e.target.value)}
-                    placeholder="Ej. 45000"
+                    placeholder="Opcional"
                     className="w-full pl-7 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
-                    required
                   />
                 </div>
-                {presupuestoUsd && !isNaN(Number(presupuestoUsd)) && (
+                {presupuestoUsd && !isNaN(Number(presupuestoUsd)) && Number(presupuestoUsd) > 0 && (
                   <span className="block mt-1 text-[10px] text-gray-400 font-medium">
                     Eqv: Bs. {getBobEquivalent(Number(presupuestoUsd))} (T/C {exchangeRate})
                   </span>
@@ -426,42 +468,27 @@ export default function Clients({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Ciudad *</label>
-                <select
-                  value={ciudad}
-                  onChange={(e) => handleCityChange(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
-                >
-                  {BOLIVIAN_CITIES.map((city, i) => (
-                    <option key={i} value={city}>{city}</option>
-                  ))}
-                </select>
-              </div>
-
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1">Departamento *</label>
                 <select
                   value={departamento}
                   onChange={(e) => setDepartamento(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
+                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition font-medium"
                 >
                   {BOLIVIAN_DEPARTMENTS.map((dep, i) => (
                     <option key={i} value={dep}>{dep}</option>
                   ))}
                 </select>
               </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1">País</label>
                 <input
                   type="text"
                   value="Bolivia"
                   disabled
-                  className="w-full px-3 py-2 text-sm bg-gray-100 border border-gray-200 rounded-lg text-gray-500 cursor-not-allowed"
+                  className="w-full px-3 py-2 text-sm bg-gray-100 border border-gray-200 rounded-lg text-gray-500 cursor-not-allowed font-medium"
                 />
               </div>
 
@@ -580,6 +607,11 @@ export default function Clients({
                               🏢 {client.empresa}
                             </div>
                           )}
+                          {client.razon_social && (
+                            <div className="text-[11px] font-bold text-slate-700">
+                              R.S.: {client.razon_social} {client.nit_ci ? `• NIT/CI: ${client.nit_ci}` : ''}
+                            </div>
+                          )}
                           <div className="flex items-center flex-wrap gap-1.5">
                             <span className="font-semibold text-gray-800 text-sm">{client.nombre}</span>
                             {client.campania && (
@@ -611,15 +643,21 @@ export default function Clients({
                         </div>
                       </td>
                       <td className="py-3.5 px-4">
-                        <div className="flex items-center space-x-1 text-xs text-gray-600">
+                        <div className="flex items-center space-x-1 text-xs text-gray-600 font-semibold">
                           <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                          <span>{client.ciudad}</span>
+                          <span>{client.departamento}</span>
                         </div>
                       </td>
                       <td className="py-3.5 px-4">
                         <div>
-                          <p className="text-sm font-bold text-gray-800">${client.presupuesto_usd.toLocaleString()}</p>
-                          <p className="text-[10px] text-gray-400 font-medium">Bs. {getBobEquivalent(client.presupuesto_usd)}</p>
+                          {client.presupuesto_usd > 0 ? (
+                            <>
+                              <p className="text-sm font-bold text-gray-800">${client.presupuesto_usd.toLocaleString()}</p>
+                              <p className="text-[10px] text-gray-400 font-medium">Bs. {getBobEquivalent(client.presupuesto_usd)}</p>
+                            </>
+                          ) : (
+                            <span className="text-xs text-gray-400 italic font-medium">Sin definir</span>
+                          )}
                         </div>
                       </td>
                       <td className="py-3.5 px-4">
@@ -639,6 +677,16 @@ export default function Clients({
                       <td className="py-3.5 px-4">
                         <div className="flex items-center justify-center space-x-1">
                           
+                          {/* Aceptar Cliente & Enviar Accesos WhatsApp */}
+                          <button
+                            onClick={() => handleAcceptAndSendWelcome(client)}
+                            className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-black text-[10px] uppercase transition shadow-2xs flex items-center space-x-1 cursor-pointer whitespace-nowrap"
+                            title="Aceptar Cliente y Enviar Bienvenida WhatsApp con Usuario y PIN/Clave"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Aceptar & Accesos</span>
+                          </button>
+
                           {/* Details Icon */}
                           <button
                             onClick={() => setSelectedDetailClient(client)}
@@ -771,7 +819,7 @@ export default function Clients({
                   </div>
                   <div>
                     <h3 className="font-bold font-display text-base leading-tight">{selectedDetailClient.nombre}</h3>
-                    <p className="text-xs text-gray-400">{selectedDetailClient.celular} • {selectedDetailClient.ciudad}</p>
+                    <p className="text-xs text-gray-400">{selectedDetailClient.celular} • {selectedDetailClient.departamento} {selectedDetailClient.razon_social ? `• R.S.: ${selectedDetailClient.razon_social}` : ''}</p>
                   </div>
                 </div>
                 <button 
@@ -984,6 +1032,98 @@ export default function Clients({
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* WELCOME WHATSAPP MODAL WITH CREDENTIALS */}
+      <AnimatePresence>
+        {welcomeClientData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-emerald-200 overflow-hidden"
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-emerald-600 to-teal-700 p-5 text-white flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2.5 bg-white/20 rounded-2xl backdrop-blur-md">
+                    <Send className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base uppercase font-display">Aceptar Cliente & Enviar Accesos</h3>
+                    <p className="text-xs text-emerald-100">Bienvenida oficial PUBLI-X con PIN / Clave</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setWelcomeClientData(null)}
+                  className="text-white/80 hover:text-white p-1 rounded-full hover:bg-white/10 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 space-y-4 text-xs text-gray-700">
+                
+                <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-2xl space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-emerald-900 text-sm">{welcomeClientData.client.nombre}</span>
+                    <span className="text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full uppercase">
+                      {welcomeClientData.client.empresa || 'Cliente Registrado'}
+                    </span>
+                  </div>
+                  <p className="text-emerald-800 font-semibold">📱 WhatsApp: {welcomeClientData.client.celular}</p>
+                </div>
+
+                {/* Credentials box */}
+                <div className="bg-slate-900 text-white p-4 rounded-2xl space-y-2 border border-slate-700 font-mono">
+                  <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Credenciales Generadas para el Portal:</div>
+                  <div className="flex justify-between items-center bg-slate-800/80 px-3 py-2 rounded-xl text-xs">
+                    <span className="text-gray-400">Usuario de Acceso:</span>
+                    <span className="font-bold text-amber-400">{welcomeClientData.welcomeInfo.usuario}</span>
+                  </div>
+                  <div className="flex justify-between items-center bg-slate-800/80 px-3 py-2 rounded-xl text-xs">
+                    <span className="text-gray-400">PIN / Clave de Acceso:</span>
+                    <span className="font-bold text-emerald-400">{welcomeClientData.welcomeInfo.password}</span>
+                  </div>
+                </div>
+
+                {/* Message Preview */}
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Vista Previa del Mensaje de Bienvenida WhatsApp:</label>
+                  <textarea
+                    readOnly
+                    value={welcomeClientData.welcomeInfo.message}
+                    rows={8}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-[11px] font-mono leading-relaxed text-gray-800 focus:outline-none"
+                  />
+                </div>
+
+                {/* Action buttons */}
+                <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => {
+                      window.open(welcomeClientData.welcomeInfo.waUrl, '_blank');
+                      setWelcomeClientData(null);
+                    }}
+                    className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-2xl text-xs uppercase transition shadow-lg shadow-emerald-600/30 flex items-center justify-center space-x-2 cursor-pointer"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>Enviar WhatsApp de Bienvenida</span>
+                  </button>
+                  <button
+                    onClick={() => setWelcomeClientData(null)}
+                    className="py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl text-xs uppercase transition cursor-pointer"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

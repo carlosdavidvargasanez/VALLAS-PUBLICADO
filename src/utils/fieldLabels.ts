@@ -1,27 +1,30 @@
 import { Settings } from '../types';
 
 export const DEFAULT_FIELD_LABELS: Record<string, string> = {
-  // Vehicle fields
-  vehicle_marca: 'Marca',
-  vehicle_modelo: 'Modelo',
-  vehicle_version: 'Versión',
-  vehicle_anio: 'Año',
-  vehicle_tipo: 'Tipo',
-  vehicle_motor: 'Motor',
-  vehicle_combustible: 'Combustible',
-  vehicle_transmision: 'Transmisión',
-  vehicle_traccion: 'Tracción',
-  vehicle_color: 'Color',
-  vehicle_precio: 'Precio (USD)',
-  vehicle_descripcion: 'Descripción',
-  vehicle_estado: 'Estado',
+  // Vallas & Espacios Publicitarios OOH fields
+  vehicle_marca: 'Empresa / Marca OOH',
+  vehicle_modelo: 'Ubicación / Avenida / Calle',
+  vehicle_version: 'Zona y Formato',
+  vehicle_tipo: 'Tipo de Estructura / Valla',
+  vehicle_zona: 'Zona / Distrito',
+  vehicle_cara: 'Cara / Vista Exposición',
+  vehicle_medidas: 'Medidas / Dimensiones (m)',
+  vehicle_ciudad: 'Ciudad',
+  vehicle_provincia: 'Provincia / Municipio',
+  vehicle_transitabilidad: 'Transitabilidad / Flujo Vehicular',
+  vehicle_costo_lona: 'Costo Impresión Lona (Bs/m²)',
+  vehicle_precio: 'Precio Alquiler Mensual (USD)',
+  vehicle_descripcion: 'Detalle Técnico / Especificaciones',
+  vehicle_estado: 'Estado de Disponibilidad',
   
   // Client fields
-  client_nombre: 'Nombre Completo',
+  client_nombre: 'Nombre Completo de Contacto',
+  client_empresa: 'Empresa Comercial',
+  client_razon_social: 'Razón Social (Facturación)',
+  client_nit_ci: 'NIT / CI',
   client_celular: 'Celular / WhatsApp',
-  client_ciudad: 'Ciudad',
   client_departamento: 'Departamento',
-  client_presupuesto: 'Presupuesto USD',
+  client_presupuesto: 'Presupuesto USD (Opcional)',
   client_estado: 'Estado CRM',
   client_observaciones: 'Observaciones / Requerimientos'
 };

@@ -229,42 +229,38 @@ export const generateCatalogPptx = async (
 
     const labelBrand = getFieldLabel('vehicle_marca', settings);
     const labelModel = getFieldLabel('vehicle_modelo', settings);
-    const labelYear = getFieldLabel('vehicle_anio', settings);
     const labelType = getFieldLabel('vehicle_tipo', settings);
-    const labelEngine = getFieldLabel('vehicle_motor', settings);
-    const labelFuel = getFieldLabel('vehicle_combustible', settings);
-    const labelTrans = getFieldLabel('vehicle_transmision', settings);
-    const labelTract = getFieldLabel('vehicle_traccion', settings);
-    const labelColor = getFieldLabel('vehicle_color', settings);
+    const labelZona = getFieldLabel('vehicle_zona', settings);
+    const labelCara = getFieldLabel('vehicle_cara', settings);
+    const labelMedidas = getFieldLabel('vehicle_medidas', settings);
+    const labelTraffic = getFieldLabel('vehicle_transitabilidad', settings);
+    const labelCostoLona = getFieldLabel('vehicle_costo_lona', settings);
 
     slide.addText(
       [
         { text: `• ${labelBrand}: `, options: { bold: true, color: '1E293B', fontSize: 10 } },
-        { text: `${vehicle.marca}\n`, options: { color: '475569', fontSize: 10 } },
+        { text: `${vehicle.marca || 'PUBLI-X'}\n`, options: { color: '475569', fontSize: 10 } },
         
         { text: `• ${labelModel}: `, options: { bold: true, color: '1E293B', fontSize: 10 } },
-        { text: `${vehicle.modelo} ${vehicle.version || ''}\n`, options: { color: '475569', fontSize: 10 } },
-        
-        { text: `• ${labelYear}: `, options: { bold: true, color: '1E293B', fontSize: 10 } },
-        { text: `${vehicle.anio}\n`, options: { color: '475569', fontSize: 10 } },
+        { text: `${vehicle.avenida_calle || vehicle.modelo}\n`, options: { color: '475569', fontSize: 10 } },
         
         { text: `• ${labelType}: `, options: { bold: true, color: '1E293B', fontSize: 10 } },
-        { text: `${vehicle.tipo}\n`, options: { color: '475569', fontSize: 10 } },
+        { text: `${vehicle.tipo_valla || vehicle.tipo}\n`, options: { color: '475569', fontSize: 10 } },
         
-        { text: `• ${labelEngine}: `, options: { bold: true, color: '1E293B', fontSize: 10 } },
-        { text: `${vehicle.motor || 'A consultar'}\n`, options: { color: '475569', fontSize: 10 } },
+        { text: `• ${labelZona}: `, options: { bold: true, color: '1E293B', fontSize: 10 } },
+        { text: `${vehicle.zona || 'Zona Comercial'}\n`, options: { color: '475569', fontSize: 10 } },
         
-        { text: `• ${labelFuel}: `, options: { bold: true, color: '1E293B', fontSize: 10 } },
-        { text: `${vehicle.combustible}\n`, options: { color: '475569', fontSize: 10 } },
+        { text: `• ${labelCara}: `, options: { bold: true, color: '1E293B', fontSize: 10 } },
+        { text: `${vehicle.cara || 'Cara A'}\n`, options: { color: '475569', fontSize: 10 } },
         
-        { text: `• ${labelTrans}: `, options: { bold: true, color: '1E293B', fontSize: 10 } },
-        { text: `${vehicle.transmision}\n`, options: { color: '475569', fontSize: 10 } },
+        { text: `• ${labelMedidas}: `, options: { bold: true, color: '1E293B', fontSize: 10 } },
+        { text: `${vehicle.medidas || '10 x 4 m'}\n`, options: { color: '475569', fontSize: 10 } },
         
-        { text: `• ${labelTract}: `, options: { bold: true, color: '1E293B', fontSize: 10 } },
-        { text: `${vehicle.traccion}\n`, options: { color: '475569', fontSize: 10 } },
+        { text: `• ${labelTraffic}: `, options: { bold: true, color: '1E293B', fontSize: 10 } },
+        { text: `${vehicle.transitabilidad_trafico || 'Alto flujo'}\n`, options: { color: '475569', fontSize: 10 } },
         
-        { text: `• ${labelColor}: `, options: { bold: true, color: '1E293B', fontSize: 10 } },
-        { text: `${vehicle.color || 'Gris'}\n`, options: { color: '475569', fontSize: 10 } }
+        { text: `• ${labelCostoLona}: `, options: { bold: true, color: '1E293B', fontSize: 10 } },
+        { text: `Bs. ${vehicle.costo_lona_m2_bs || 65}/m²\n`, options: { color: '475569', fontSize: 10 } }
       ],
       {
         x: 6.2, y: 2.6, w: 6.4, h: 2.8,

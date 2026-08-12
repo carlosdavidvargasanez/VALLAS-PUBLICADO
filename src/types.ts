@@ -15,6 +15,8 @@ export interface Client {
   correo?: string;
   campania?: string;
   empresa?: string;
+  razon_social?: string;
+  nit_ci?: string;
   usuario_acceso?: string;
   password_acceso?: string;
 }
@@ -59,6 +61,7 @@ export interface Vehicle {
   transitabilidad_trafico?: string;
   costo_lona_m2_bs?: number; // Cost in BOB per m2 for printed lona
   drive_photos?: string[];
+  alto_impacto?: boolean; // Highlighted High-Impact Location (Ubicación de Alto Impacto)
 
   ubicacion?: string;
   dimensiones?: string;

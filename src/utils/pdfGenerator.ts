@@ -295,22 +295,22 @@ export const generateCatalogPdf = async (
       const cellHeight = 5.2;
       
       // Dynamic custom fields support
-      const labelYear = settings ? getFieldLabel('vehicle_anio', settings) : 'Año';
-      const labelType = settings ? getFieldLabel('vehicle_tipo', settings) : 'Carrocería';
-      const labelEngine = settings ? getFieldLabel('vehicle_motor', settings) : 'Motor/Cilindrada';
-      const labelFuel = settings ? getFieldLabel('vehicle_combustible', settings) : 'Combustible';
-      const labelTrans = settings ? getFieldLabel('vehicle_transmision', settings) : 'Transmisión';
-      const labelTract = settings ? getFieldLabel('vehicle_traccion', settings) : 'Tracción';
-      const labelColor = settings ? getFieldLabel('vehicle_color', settings) : 'Color Exterior';
+      const labelType = settings ? getFieldLabel('vehicle_tipo', settings) : 'Tipo de Estructura';
+      const labelModel = settings ? getFieldLabel('vehicle_modelo', settings) : 'Ubicación / Avenida';
+      const labelZona = settings ? getFieldLabel('vehicle_zona', settings) : 'Zona / Distrito';
+      const labelCara = settings ? getFieldLabel('vehicle_cara', settings) : 'Cara / Vista';
+      const labelMedidas = settings ? getFieldLabel('vehicle_medidas', settings) : 'Medidas';
+      const labelTraffic = settings ? getFieldLabel('vehicle_transitabilidad', settings) : 'Transitabilidad';
+      const labelCostoLona = settings ? getFieldLabel('vehicle_costo_lona', settings) : 'Impresión Lona';
 
       const specs = [
-        `• ${labelYear}: ${vehicle.anio}`,
-        `• ${labelType}: ${vehicle.tipo}`,
-        `• ${labelEngine}: ${vehicle.motor || 'Verificar'}`,
-        `• ${labelFuel}: ${vehicle.combustible}`,
-        `• ${labelTrans}: ${vehicle.transmision}`,
-        `• ${labelTract}: ${vehicle.traccion}`,
-        `• ${labelColor}: ${vehicle.color || 'A elección'}`
+        `• ${labelType}: ${vehicle.tipo_valla || vehicle.tipo}`,
+        `• ${labelModel}: ${vehicle.avenida_calle || vehicle.modelo}`,
+        `• ${labelZona}: ${vehicle.zona || 'Zona Comercial'}`,
+        `• ${labelCara}: ${vehicle.cara || 'Cara A'}`,
+        `• ${labelMedidas}: ${vehicle.medidas || '10 x 4 m'}`,
+        `• ${labelTraffic}: ${vehicle.transitabilidad_trafico || 'Alto flujo'}`,
+        `• ${labelCostoLona}: Bs. ${vehicle.costo_lona_m2_bs || 65}/m²`
       ];
 
       specs.forEach((spec, sIdx) => {

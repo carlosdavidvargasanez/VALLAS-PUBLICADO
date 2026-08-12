@@ -29,3 +29,38 @@ export function generateClientCredentials(nombre: string, celular: string): { us
 
   return { usuario_acceso, password_acceso };
 }
+
+/**
+ * Generates official PUBLI-X welcome message with login credentials for WhatsApp.
+ */
+export function generateClientWelcomeMessage(
+  nombre: string,
+  celular: string,
+  usuario_acceso?: string,
+  password_acceso?: string
+): { cleanPhone: string; message: string; waUrl: string; usuario: string; password: string } {
+  const creds = generateClientCredentials(nombre, celular);
+  const u = usuario_acceso || creds.usuario_acceso;
+  const p = password_acceso || creds.password_acceso;
+
+  const rawPhone = celular || '';
+  let digits = rawPhone.replace(/\D/g, '');
+  if (!digits.startsWith('591') && digits.length === 8) {
+    digits = '591' + digits;
+  }
+
+  const message = `*¡Bienvenido a PUBLI-X BOLIVIA!* 📢\n\n` +
+    `Estimado/a *${nombre || 'Cliente'}*,\n` +
+    `¡Muchas gracias por elegirnos! Elegir *PUBLI-X* es sin duda la mejor opción para potenciar la presencia, el impacto y la visibilidad de su marca.\n\n` +
+    `A continuación le facilitamos sus credenciales para ingresar a nuestro *Portal Exclusivo de Vallas Publicitarias y Pantallas LED*:\n\n` +
+    `👤 *Nombre de Usuario:* ${u}\n` +
+    `🔑 *PIN / Clave de Acceso:* ${p}\n\n` +
+    `🌐 *Acceso Web:* https://publi-x.bo\n\n` +
+    `Desde nuestro portal podrá explorar el catálogo en tiempo real, revisar ubicaciones de alto impacto, descargar cotizaciones en PDF y dar seguimiento a sus proyectos.\n\n` +
+    `Estamos a su entera disposición para cualquier consulta. ¡Éxito total en sus campañas!`;
+
+  const waUrl = `https://api.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(message)}`;
+
+  return { cleanPhone: digits, message, waUrl, usuario: u, password: p };
+}
+

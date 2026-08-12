@@ -353,7 +353,7 @@ export default function ContractModal({
       numero: contractNum,
       cotizacion_id: quotation ? quotation.id : undefined,
 
-      cliente_id: selectedClientId || 'C001',
+      cliente_id: selectedClientId || (clients[0]?.id || ''),
       cliente_nombre: clienteNombre,
       cliente_empresa: clienteEmpresa,
       cliente_nit_ci: clienteNitCi,

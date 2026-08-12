@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Presentation, Shield, Lock, MapPin, Sparkles, CheckCircle2, Phone, Star, Building2, ArrowRight, Eye, Smartphone, Zap, FileText, MessageSquare, Upload } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Presentation, Shield, Lock, MapPin, Sparkles, CheckCircle2, Phone, Star, Building2, ArrowRight, Eye, Smartphone, Zap, FileText, MessageSquare, Upload, UserCheck, UserPlus, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import oohBannerImage from '../assets/images/publi_x_ooh_banner_1786328834763.jpg';
 import Logo from './Logo';
 import OOHInquiryModal from './OOHInquiryModal';
@@ -9,15 +9,25 @@ import { Settings } from '../types';
 
 interface LandingPageProps {
   onOpenLogin: () => void;
+  onOpenLoginWithCategory?: (category: string) => void;
   onExploreCatalog: () => void;
   settings?: Settings;
 }
 
-export default function LandingPage({ onOpenLogin, onExploreCatalog, settings }: LandingPageProps) {
+export default function LandingPage({ onOpenLogin, onOpenLoginWithCategory, onExploreCatalog, settings }: LandingPageProps) {
   const logoUrl = settings?.logo;
   const [showInquiryModal, setShowInquiryModal] = useState<boolean>(false);
   const [inquiryTitle, setInquiryTitle] = useState<string>('Soluciones OOH Bolivia');
   const [inquiryType, setInquiryType] = useState<string>('Vallas Monumentales & Pantallas LED');
+
+  // Action Selection Modal state (Cliente vs Nuevo Cliente)
+  const [showActionModal, setShowActionModal] = useState<boolean>(false);
+  const [targetCategory, setTargetCategory] = useState<'Alto Impacto' | 'Pantalla LED'>('Alto Impacto');
+
+  const handleOpenActionModal = (category: 'Alto Impacto' | 'Pantalla LED') => {
+    setTargetCategory(category);
+    setShowActionModal(true);
+  };
 
   const handleOpenInquiry = (title: string, type: string) => {
     setInquiryTitle(title);
@@ -139,9 +149,9 @@ export default function LandingPage({ onOpenLogin, onExploreCatalog, settings }:
 
         <div className="grid md:grid-cols-3 gap-8">
           
-          {/* Card 1: Ubicaciones */}
+          {/* Card 1: Ubicaciones de Alto Impacto */}
           <div 
-            onClick={() => handleOpenInquiry('Ubicaciones de Alto Impacto', 'Vallas Monumentales & Estratégicas')}
+            onClick={() => handleOpenActionModal('Alto Impacto')}
             className="bg-[#0d182b] border border-[#0fa0e6]/30 hover:border-[#ff8c00] rounded-3xl p-8 transition shadow-xl group cursor-pointer flex flex-col justify-between"
           >
             <div>
@@ -154,15 +164,15 @@ export default function LandingPage({ onOpenLogin, onExploreCatalog, settings }:
               </p>
             </div>
 
-            <button className="mt-6 w-full py-3 bg-[#0a111e] group-hover:bg-[#ff8c00] text-gray-200 group-hover:text-white font-bold rounded-xl text-xs uppercase transition border border-gray-700 group-hover:border-[#ff8c00] flex items-center justify-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              <span>Cotizar / Enviar Sugerencia</span>
+            <button className="mt-6 w-full py-3.5 bg-gradient-to-r from-[#ff8c00] to-[#ff7300] hover:from-[#ff7300] hover:to-[#e06600] text-white font-extrabold rounded-xl text-xs uppercase transition shadow-lg flex items-center justify-center gap-2 cursor-pointer">
+              <FileText className="w-4 h-4" />
+              <span>Cotizar</span>
             </button>
           </div>
 
           {/* Card 2: Pantallas LED */}
           <div 
-            onClick={() => handleOpenInquiry('Pantallas Digitales LED 4K', 'Publicidad Exterior Digital')}
+            onClick={() => handleOpenActionModal('Pantalla LED')}
             className="bg-[#0d182b] border border-[#0fa0e6]/30 hover:border-[#ff8c00] rounded-3xl p-8 transition shadow-xl group cursor-pointer flex flex-col justify-between"
           >
             <div>
@@ -175,9 +185,9 @@ export default function LandingPage({ onOpenLogin, onExploreCatalog, settings }:
               </p>
             </div>
 
-            <button className="mt-6 w-full py-3 bg-[#0a111e] group-hover:bg-[#ff8c00] text-gray-200 group-hover:text-white font-bold rounded-xl text-xs uppercase transition border border-gray-700 group-hover:border-[#ff8c00] flex items-center justify-center gap-2">
-              <Upload className="w-4 h-4" />
-              <span>Adjuntar Arte / Presupuesto</span>
+            <button className="mt-6 w-full py-3.5 bg-gradient-to-r from-[#ff8c00] to-[#ff7300] hover:from-[#ff7300] hover:to-[#e06600] text-white font-extrabold rounded-xl text-xs uppercase transition shadow-lg flex items-center justify-center gap-2 cursor-pointer">
+              <FileText className="w-4 h-4" />
+              <span>Cotizar</span>
             </button>
           </div>
 
@@ -277,6 +287,96 @@ export default function LandingPage({ onOpenLogin, onExploreCatalog, settings }:
         solutionTitle={inquiryTitle}
         solutionType={inquiryType}
       />
+
+      {/* ACTION SELECTION MODAL (COTIZAR BUTTON CLICKS) */}
+      <AnimatePresence>
+        {showActionModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-lg bg-[#0d182b] border-2 border-[#0fa0e6]/50 rounded-3xl p-6 sm:p-8 shadow-2xl text-white space-y-6"
+            >
+              {/* Close button */}
+              <button
+                onClick={() => setShowActionModal(false)}
+                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white bg-gray-800/60 rounded-full transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Header */}
+              <div className="text-center space-y-2 pt-2">
+                <span className="bg-[#ff8c00]/20 text-[#ff8c00] border border-[#ff8c00]/40 text-[10px] font-black px-3.5 py-1 rounded-full uppercase tracking-wider inline-block">
+                  PUBLI-X BOLIVIA 2026
+                </span>
+                <h3 className="text-2xl font-black uppercase text-white tracking-tight">
+                  {targetCategory === 'Alto Impacto' ? 'Ubicaciones de Alto Impacto' : 'Pantallas Digitales LED 4K'}
+                </h3>
+                <p className="text-xs text-gray-300">
+                  ¿Cómo desea proceder para cotizar y revisar estos espacios publicitarios?
+                </p>
+              </div>
+
+              {/* 2 Main Action Buttons */}
+              <div className="grid grid-cols-1 gap-4 pt-2">
+                {/* Button 1: Cliente Registrado / Iniciar Sesión */}
+                <button
+                  onClick={() => {
+                    setShowActionModal(false);
+                    if (onOpenLoginWithCategory) {
+                      onOpenLoginWithCategory(targetCategory);
+                    } else {
+                      onOpenLogin();
+                    }
+                  }}
+                  className="w-full p-4 bg-gradient-to-r from-[#0fa0e6] to-[#0873b0] hover:from-[#0873b0] hover:to-[#05517d] text-white font-extrabold rounded-2xl transition shadow-xl flex items-center justify-between group cursor-pointer border border-cyan-400/30"
+                >
+                  <div className="flex items-center space-x-3.5 text-left">
+                    <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
+                      <UserCheck className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-black uppercase tracking-wide">CLIENTE REGISTRADO</div>
+                      <div className="text-[11px] text-cyan-100 font-medium">
+                        Iniciar sesión para ver directamente las vallas de {targetCategory === 'Alto Impacto' ? 'Alto Impacto' : 'Pantallas LED'}
+                      </div>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition flex-shrink-0 ml-2" />
+                </button>
+
+                {/* Button 2: Nuevo Cliente / Solicitar Cotización */}
+                <button
+                  onClick={() => {
+                    setShowActionModal(false);
+                    handleOpenInquiry(
+                      targetCategory === 'Alto Impacto' ? 'Ubicaciones de Alto Impacto' : 'Pantallas Digitales LED 4K',
+                      targetCategory === 'Alto Impacto' ? 'Vallas Monumentales & Estratégicas' : 'Publicidad Exterior Digital'
+                    );
+                  }}
+                  className="w-full p-4 bg-gradient-to-r from-[#ff8c00] via-[#ffa024] to-[#ff7300] hover:from-[#ff7300] hover:to-[#e06600] text-white font-extrabold rounded-2xl transition shadow-xl flex items-center justify-between group cursor-pointer border border-amber-300/40"
+                >
+                  <div className="flex items-center space-x-3.5 text-left">
+                    <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
+                      <UserPlus className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-black uppercase tracking-wide">NUEVO CLIENTE</div>
+                      <div className="text-[11px] text-amber-100 font-medium">
+                        Registrarse o enviar formulario de cotización directa con imágenes de referencia
+                      </div>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition flex-shrink-0 ml-2" />
+                </button>
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

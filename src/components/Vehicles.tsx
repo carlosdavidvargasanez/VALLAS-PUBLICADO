@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Vehicle, VehicleState, Client, Settings, UserSession, PendingQuotationRequest, VallaCategory } from '../types';
 import { 
   Plus, 
@@ -45,6 +45,7 @@ interface VehiclesProps {
   exchangeRate: number;
   currentUser: UserSession;
   settings: Settings;
+  initialCategory?: string;
 }
 
 // Convert Google Drive share link into viewable image link
@@ -99,7 +100,8 @@ export default function Vehicles({
   onAssociateVehicleToClient,
   exchangeRate,
   currentUser,
-  settings
+  settings,
+  initialCategory
 }: VehiclesProps) {
   
   const isDueno = currentUser.rol === 'Dueño';
@@ -109,10 +111,17 @@ export default function Vehicles({
 
   // Filters states
   const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
+  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory || 'Todos');
   const [selectedCity, setSelectedCity] = useState<string>('Todos');
   const [selectedStatus, setSelectedStatus] = useState<string>('Todos');
   const [maxPrice, setMaxPrice] = useState<number>(10000);
+
+  // Sync initialCategory if passed
+  useEffect(() => {
+    if (initialCategory) {
+      setSelectedCategory(initialCategory);
+    }
+  }, [initialCategory]);
 
   // Form / Add / Edit Modal
   const [showForm, setShowForm] = useState(false);
@@ -121,6 +130,7 @@ export default function Vehicles({
   
   // Valla / LED Fields
   const [tipoValla, setTipoValla] = useState<VallaCategory>('Unipolar');
+  const [altoImpacto, setAltoImpacto] = useState<boolean>(false);
   const [zona, setZona] = useState('');
   const [cara, setCara] = useState<'Cara A' | 'Cara B' | 'Ambas Caras'>('Cara A');
   const [estado, setEstado] = useState<VehicleState>('Disponible');
@@ -289,6 +299,7 @@ export default function Vehicles({
     setIsEditing(false);
     setEditId('');
     setTipoValla('Unipolar');
+    setAltoImpacto(false);
     setZona('');
     setCara('Cara A');
     setEstado('Disponible');
@@ -312,6 +323,7 @@ export default function Vehicles({
     setIsEditing(true);
     setEditId(v.id);
     setTipoValla(v.tipo_valla || (v.tipo as any) || 'Unipolar');
+    setAltoImpacto(!!v.alto_impacto);
     setZona(v.zona || '');
     setCara((v.cara as any) || 'Cara A');
     setEstado(v.estado);
@@ -359,6 +371,7 @@ export default function Vehicles({
       anio: 2025,
       tipo: tipoValla as any,
       tipo_valla: tipoValla,
+      alto_impacto: altoImpacto,
       zona: zona.trim(),
       cara,
       ciudad,
@@ -407,7 +420,11 @@ export default function Vehicles({
     const vLocation = `${v.ciudad} ${v.zona} ${v.avenida_calle} ${v.modelo} ${v.provincia}`.toLowerCase();
 
     const matchesSearch = vLocation.includes(query) || vCategory.toLowerCase().includes(query) || v.id.includes(query);
-    const matchesCategory = selectedCategory === 'Todos' || vCategory === selectedCategory;
+    const matchesCategory = selectedCategory === 'Todos'
+      ? true
+      : selectedCategory === 'Alto Impacto'
+      ? (v.alto_impacto === true || vCategory === 'Unipolar' || vCategory === 'Estructural' || (v.zona && v.zona.toLowerCase().includes('alto impacto')))
+      : vCategory === selectedCategory;
     const matchesCity = selectedCity === 'Todos' || v.ciudad === selectedCity;
     const matchesStatus = selectedStatus === 'Todos' || v.estado === selectedStatus;
     const matchesPrice = v.precio_usd <= maxPrice;
@@ -560,6 +577,18 @@ export default function Vehicles({
         >
           Todos ({vehicles.length})
         </button>
+
+        <button
+          onClick={() => setSelectedCategory('Alto Impacto')}
+          className={`px-3.5 py-1 rounded-lg text-xs font-black transition whitespace-nowrap cursor-pointer flex items-center gap-1 ${
+            selectedCategory === 'Alto Impacto'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-2xs'
+              : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200'
+          }`}
+        >
+          <span>⭐ Alto Impacto</span>
+          <span>({vehicles.filter(v => v.alto_impacto || (v.tipo_valla || v.tipo) === 'Unipolar' || (v.tipo_valla || v.tipo) === 'Estructural').length})</span>
+        </button>
         {VALLA_CATEGORIES.map((cat) => {
           const count = vehicles.filter(v => (v.tipo_valla || v.tipo) === cat).length;
           return (
@@ -627,6 +656,19 @@ export default function Vehicles({
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
+              </div>
+
+              {/* Ubicación de Alto Impacto Checkbox */}
+              <div className="flex items-end pb-1">
+                <label className="flex items-center space-x-2 cursor-pointer bg-amber-50 hover:bg-amber-100 p-2.5 rounded-xl border border-amber-200 w-full transition">
+                  <input
+                    type="checkbox"
+                    checked={altoImpacto}
+                    onChange={(e) => setAltoImpacto(e.target.checked)}
+                    className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500 cursor-pointer"
+                  />
+                  <span className="text-xs font-black text-amber-900">⭐ Ubicación de Alto Impacto</span>
+                </label>
               </div>
 
               {/* Ciudad */}
