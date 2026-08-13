@@ -57,6 +57,7 @@ export default function App() {
   const [users, setUsers] = useState<UserSession[]>([]);
   const [currentUser, setCurrentUser] = useState<UserSession>({} as UserSession);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState<number>(0);
 
   // Selected Active Navigation Tab
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -80,6 +81,19 @@ export default function App() {
   useEffect(() => {
     mockDb.initialize();
     loadAllStates();
+
+    const handleSyncRequests = () => {
+      setPendingRequestsCount(mockDb.getPendingRequests().filter(r => r.estado === 'Pendiente').length);
+      setQuotations(mockDb.getQuotations());
+      setClients(mockDb.getClients());
+    };
+
+    window.addEventListener('publix_new_request', handleSyncRequests);
+    window.addEventListener('storage', handleSyncRequests);
+    return () => {
+      window.removeEventListener('publix_new_request', handleSyncRequests);
+      window.removeEventListener('storage', handleSyncRequests);
+    };
   }, []);
 
   const loadAllStates = () => {
@@ -93,6 +107,7 @@ export default function App() {
     setUsers(mockDb.getUsers());
     setCurrentUser(mockDb.getCurrentUser());
     setAuditLogs(mockDb.getAuditLogs());
+    setPendingRequestsCount(mockDb.getPendingRequests().filter(r => r.estado === 'Pendiente').length);
   };
 
   // Switch Active user session or Login
@@ -1112,7 +1127,7 @@ export default function App() {
                 ]
               : [
                   { id: 'dashboard', label: 'DASHBOARD PRINCIPAL', icon: Sliders, badge: null },
-                  { id: 'solicitudes', label: 'SOLICITUDES & NUEVOS CLIENTES WEB', icon: Inbox, badge: mockDb.getPendingRequests().filter(r => r.estado === 'Pendiente').length },
+                  { id: 'solicitudes', label: 'SOLICITUDES & NUEVOS CLIENTES WEB', icon: Inbox, badge: pendingRequestsCount },
                   { id: 'clientes', label: 'CRM CLIENTES', icon: Users, badge: clients.length },
                   { id: 'vehiculos', label: 'CATÁLOGO PUBLI-X OOH', icon: Presentation, badge: vehicles.length },
                   { id: 'recomendacion', label: 'RECOMENDADOR IA', icon: Sparkles, badge: null },

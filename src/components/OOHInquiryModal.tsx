@@ -66,9 +66,36 @@ export default function OOHInquiryModal({
   const [submitted, setSubmitted] = useState<boolean>(false);
   const [submittedData, setSubmittedData] = useState<PendingQuotationRequest | null>(null);
 
+  // Reset all form inputs and state to prevent data lingering for other users
+  const resetFormFields = () => {
+    setNombre('');
+    setEmpresa('');
+    setCelular('');
+    setCorreo('');
+    setCiudad('La Paz');
+    setSugerencia('');
+    setPresupuestoEstimado('1500');
+    setImagenesReferencia([]);
+    setSubmitted(false);
+    setSubmittedData(null);
+    try {
+      localStorage.removeItem('publix_saved_visitor');
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleClose = () => {
+    resetFormFields();
+    onClose();
+  };
+
   // Pre-fill user data & detect device info on mount / open
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      resetFormFields();
+      return;
+    }
 
     // Detect device, OS, and browser automatically
     const ua = navigator.userAgent;
@@ -99,20 +126,14 @@ export default function OOHInquiryModal({
       setCelular(currentUser.celular || '+591 70000000');
       setCorreo(currentUser.email || '');
     } else {
-      // Default auto-fill or stored client info if available in localStorage
-      const savedClient = localStorage.getItem('publix_saved_visitor');
-      if (savedClient) {
-        try {
-          const parsed = JSON.parse(savedClient);
-          setNombre(parsed.nombre || '');
-          setEmpresa(parsed.empresa || '');
-          setCelular(parsed.celular || '');
-          setCorreo(parsed.correo || '');
-          setCiudad(parsed.ciudad || 'La Paz');
-        } catch {
-          // ignore
-        }
-      }
+      // For unauthenticated/public visitors, ensure clean blank fields
+      setNombre('');
+      setEmpresa('');
+      setCelular('');
+      setCorreo('');
+      setCiudad('La Paz');
+      setSugerencia('');
+      setImagenesReferencia([]);
     }
   }, [isOpen, currentUser, activeClient]);
 
@@ -186,11 +207,6 @@ export default function OOHInquiryModal({
       return;
     }
 
-    // Save visitor info locally for future sessions
-    localStorage.setItem('publix_saved_visitor', JSON.stringify({
-      nombre, empresa, celular, correo, ciudad
-    }));
-
     const nextId = 'REQ-' + Date.now().toString().slice(-6);
     const estVal = parseFloat(presupuestoEstimado) || 1500;
 
@@ -225,6 +241,13 @@ export default function OOHInquiryModal({
     const currentRequests = mockDb.getPendingRequests();
     mockDb.savePendingRequests([newRequest, ...currentRequests]);
     mockDb.addAuditLog(nombre, 'Solicitud OOH & Cotización', `El usuario/cliente solicitó cotización OOH para ${ciudad} con ${imagenesReferencia.length} imágenes adjuntas.`);
+
+    // Broadcast new request event for real-time update across components
+    try {
+      window.dispatchEvent(new Event('publix_new_request'));
+    } catch {
+      // ignore
+    }
 
     setSubmittedData(newRequest);
     setSubmitted(true);
@@ -265,7 +288,7 @@ export default function OOHInquiryModal({
             
             {/* Close Button */}
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="absolute top-4 right-4 p-2.5 text-gray-400 hover:text-white bg-gray-800/60 hover:bg-red-600/80 rounded-full transition cursor-pointer z-10"
               title="Cerrar ventana"
             >
@@ -365,7 +388,7 @@ export default function OOHInquiryModal({
                   </button>
 
                   <button
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="w-full sm:w-auto px-8 py-3.5 bg-gray-800 hover:bg-gray-700 text-gray-200 font-bold rounded-xl text-sm transition cursor-pointer border border-gray-700"
                   >
                     Cerrar Ventana

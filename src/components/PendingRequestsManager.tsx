@@ -62,6 +62,19 @@ export default function PendingRequestsManager({
     setRequestsList(mockDb.getPendingRequests());
   };
 
+  // Real-time synchronization whenever a new web request is sent
+  React.useEffect(() => {
+    const handleSync = () => {
+      setRequestsList(mockDb.getPendingRequests());
+    };
+    window.addEventListener('publix_new_request', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('publix_new_request', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
+
   // Accept candidate and convert into official CRM Client with username & password
   const handleAcceptCandidate = (req: PendingQuotationRequest) => {
     if (!isDuenoOrGerente) {
@@ -108,6 +121,29 @@ export default function PendingRequestsManager({
         fecha_registro: new Date().toISOString(),
         fecha_actualizacion: new Date().toISOString()
       };
+    }
+
+    // Generate formal Quotation record in system for this client request
+    try {
+      const currentQuotations = mockDb.getQuotations();
+      const newQuotation = {
+        id: 'Q' + Date.now().toString().slice(-6),
+        numero: `PUB-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`,
+        cliente_id: targetClient.id,
+        vehiculo_id: req.vallas_ids?.[0] || 'V001',
+        precio_vehiculo: req.presupuesto_estimado_usd || 1500,
+        gastos_importacion: 150,
+        gastos_aduana: 100,
+        gastos_logistica: 80,
+        gastos_seguro: 50,
+        total: (req.presupuesto_estimado_usd || 1500) + 380,
+        estado: 'Enviada' as const,
+        observaciones: `Cotización solicitada desde la Web (${req.codigo}) para ${req.vallas_nombres?.[0] || 'Solución OOH'}. Requerimiento: ${req.sugerencia_cotizacion || 'Consulta de espacios publicitarios'}`,
+        fecha: new Date().toISOString()
+      };
+      mockDb.saveQuotations([newQuotation, ...currentQuotations]);
+    } catch (e) {
+      console.error('Error generating quotation record:', e);
     }
 
     // Mark request as Cotizado / Approved in mockDb
