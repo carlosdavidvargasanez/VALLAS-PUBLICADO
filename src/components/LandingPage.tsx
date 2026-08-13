@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Presentation, Shield, Lock, MapPin, Sparkles, CheckCircle2, Phone, Star, Building2, ArrowRight, Eye, Smartphone, Zap, FileText, MessageSquare, Upload, UserCheck, UserPlus, X } from 'lucide-react';
+import { Presentation, Shield, Lock, MapPin, Sparkles, CheckCircle2, Phone, Star, Building2, ArrowRight, Eye, Smartphone, Zap, FileText, MessageSquare, Upload, UserCheck, UserPlus, X, LogIn } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import oohBannerImage from '../assets/images/publi_x_ooh_banner_1786328834763.jpg';
 import Logo from './Logo';
@@ -54,8 +54,8 @@ export default function LandingPage({ onOpenLogin, onOpenLoginWithCategory, onEx
             <Logo size="lg" logoUrl={logoUrl} />
           </div>
 
-          {/* Quick Nav Links */}
-          <nav className="flex items-center space-x-6 sm:space-x-8 text-xs font-bold uppercase tracking-wider text-gray-200">
+          {/* Quick Nav Links & Login Button */}
+          <nav className="flex items-center space-x-3 sm:space-x-6 text-xs font-bold uppercase tracking-wider text-gray-200">
             <a href="#inicio" className="hover:text-[#0fa0e6] transition py-1 hidden sm:inline">Inicio</a>
             <a href="#cobertura" className="hover:text-[#0fa0e6] transition py-1 hidden md:inline">Cobertura Nacional</a>
             <button 
@@ -65,7 +65,16 @@ export default function LandingPage({ onOpenLogin, onOpenLoginWithCategory, onEx
               <MessageSquare className="w-4 h-4" />
               <span>Soluciones OOH</span>
             </button>
-            <a href="#contacto" className="hover:text-[#0fa0e6] transition py-1 hidden sm:inline">Contacto</a>
+            <a href="#contacto" className="hover:text-[#0fa0e6] transition py-1 hidden lg:inline">Contacto</a>
+
+            {/* Prominent Login / Access Portal Button */}
+            <button
+              onClick={onOpenLogin}
+              className="px-4 sm:px-5 py-2.5 bg-gradient-to-r from-[#0fa0e6] to-[#0873b0] hover:from-[#0fa0e6] hover:to-[#0988cf] text-white font-extrabold rounded-xl transition shadow-lg shadow-[#0fa0e6]/30 flex items-center gap-2 cursor-pointer border border-cyan-300/30 text-xs"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Portal Clientes & CRM</span>
+            </button>
           </nav>
         </div>
       </header>
@@ -164,7 +173,11 @@ export default function LandingPage({ onOpenLogin, onOpenLoginWithCategory, onEx
               </p>
             </div>
 
-            <button className="mt-6 w-full py-3.5 bg-gradient-to-r from-[#ff8c00] to-[#ff7300] hover:from-[#ff7300] hover:to-[#e06600] text-white font-extrabold rounded-xl text-xs uppercase transition shadow-lg flex items-center justify-center gap-2 cursor-pointer">
+            <button 
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleOpenActionModal('Alto Impacto'); }}
+              className="mt-6 w-full py-3.5 bg-gradient-to-r from-[#ff8c00] to-[#ff7300] hover:from-[#ff7300] hover:to-[#e06600] text-white font-extrabold rounded-xl text-xs uppercase transition shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+            >
               <FileText className="w-4 h-4" />
               <span>Cotizar</span>
             </button>
@@ -185,7 +198,11 @@ export default function LandingPage({ onOpenLogin, onOpenLoginWithCategory, onEx
               </p>
             </div>
 
-            <button className="mt-6 w-full py-3.5 bg-gradient-to-r from-[#ff8c00] to-[#ff7300] hover:from-[#ff7300] hover:to-[#e06600] text-white font-extrabold rounded-xl text-xs uppercase transition shadow-lg flex items-center justify-center gap-2 cursor-pointer">
+            <button 
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleOpenActionModal('Pantalla LED'); }}
+              className="mt-6 w-full py-3.5 bg-gradient-to-r from-[#ff8c00] to-[#ff7300] hover:from-[#ff7300] hover:to-[#e06600] text-white font-extrabold rounded-xl text-xs uppercase transition shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+            >
               <FileText className="w-4 h-4" />
               <span>Cotizar</span>
             </button>
@@ -206,7 +223,11 @@ export default function LandingPage({ onOpenLogin, onOpenLoginWithCategory, onEx
               </p>
             </div>
 
-            <button className="mt-6 w-full py-3 bg-[#0a111e] group-hover:bg-[#ff8c00] text-gray-200 group-hover:text-white font-bold rounded-xl text-xs uppercase transition border border-gray-700 group-hover:border-[#ff8c00] flex items-center justify-center gap-2">
+            <button 
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleOpenInquiry('Proyectos Especiales OOH', 'Desarrollo de Estructuras & Letreros'); }}
+              className="mt-6 w-full py-3 bg-[#0a111e] group-hover:bg-[#ff8c00] text-gray-200 group-hover:text-white font-bold rounded-xl text-xs uppercase transition border border-gray-700 group-hover:border-[#ff8c00] flex items-center justify-center gap-2 cursor-pointer"
+            >
               <MessageSquare className="w-4 h-4" />
               <span>Solicitar Cotización</span>
             </button>

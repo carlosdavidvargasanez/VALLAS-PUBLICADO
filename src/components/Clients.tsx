@@ -63,6 +63,7 @@ export default function Clients({
   // Pending Requests State
   const [showPendingRequestsModal, setShowPendingRequestsModal] = useState(false);
   const [pendingRequestsList, setPendingRequestsList] = useState<PendingQuotationRequest[]>(() => mockDb.getPendingRequests());
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
 
   const refreshPendingRequests = () => {
     setPendingRequestsList(mockDb.getPendingRequests());
@@ -70,6 +71,15 @@ export default function Clients({
 
   useEffect(() => {
     refreshPendingRequests();
+    const handleSync = () => {
+      refreshPendingRequests();
+    };
+    window.addEventListener('publix_new_request', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('publix_new_request', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
   }, []);
   // Local states
   const [search, setSearch] = useState('');
@@ -1425,6 +1435,26 @@ export default function Clients({
                           )}
                         </div>
                       </div>
+
+                      {/* Attached Reference Photos Gallery */}
+                      {req.imagenes_referencia && req.imagenes_referencia.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <span className="font-extrabold text-amber-900 block text-[11px] mb-2">
+                            📸 Fotografías de Referencia Adjuntas ({req.imagenes_referencia.length}):
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {req.imagenes_referencia.map((imgUrl, idx) => (
+                              <div
+                                key={idx}
+                                onClick={() => setPreviewPhotoUrl(imgUrl)}
+                                className="w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-amber-500 cursor-pointer transition transform hover:scale-105 shadow-sm bg-gray-900"
+                              >
+                                <img src={imgUrl} alt={`Foto ${idx+1}`} className="w-full h-full object-cover" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
@@ -1440,6 +1470,33 @@ export default function Clients({
                   <span>Volver atrás</span>
                 </button>
                 <span className="text-xs text-gray-400">PUBLI-X Bolivia • Control de Registro de Clientes</span>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Lightbox for reference photos */}
+      <AnimatePresence>
+        {previewPhotoUrl && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-slate-900 rounded-3xl border border-slate-700 shadow-2xl max-w-3xl w-full overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="p-4 bg-slate-950 text-white flex justify-between items-center border-b border-slate-800">
+                <span className="font-bold text-sm">Inspección de Fotografía Referencial</span>
+                <button
+                  onClick={() => setPreviewPhotoUrl(null)}
+                  className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-4 flex-1 flex items-center justify-center bg-black overflow-auto">
+                <img src={previewPhotoUrl} alt="Foto Referencial" className="max-h-[70vh] w-auto object-contain rounded-xl" />
               </div>
             </motion.div>
           </div>

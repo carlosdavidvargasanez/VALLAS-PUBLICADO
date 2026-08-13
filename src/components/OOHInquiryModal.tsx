@@ -62,9 +62,11 @@ export default function OOHInquiryModal({
   const [imagenesReferencia, setImagenesReferencia] = useState<{ id: string; name: string; url: string; size?: string }[]>([]);
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
-  // Status & Confirmation State
+  // Status, Feedback & Confirmation State
   const [submitted, setSubmitted] = useState<boolean>(false);
   const [submittedData, setSubmittedData] = useState<PendingQuotationRequest | null>(null);
+  const [formError, setFormError] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Reset all form inputs and state to prevent data lingering for other users
   const resetFormFields = () => {
@@ -78,6 +80,8 @@ export default function OOHInquiryModal({
     setImagenesReferencia([]);
     setSubmitted(false);
     setSubmittedData(null);
+    setFormError('');
+    setIsSubmitting(false);
     try {
       localStorage.removeItem('publix_saved_visitor');
     } catch {
@@ -134,6 +138,7 @@ export default function OOHInquiryModal({
       setCiudad('La Paz');
       setSugerencia('');
       setImagenesReferencia([]);
+      setFormError('');
     }
   }, [isOpen, currentUser, activeClient]);
 
@@ -141,6 +146,7 @@ export default function OOHInquiryModal({
 
   // Handle File Uploads (Drag & Drop or File Input)
   const handleFileUpload = (files: FileList | File[]) => {
+    setFormError('');
     const fileArray = Array.from(files);
     fileArray.forEach(file => {
       if (!file.type.startsWith('image/')) return;
@@ -166,6 +172,7 @@ export default function OOHInquiryModal({
 
   // Quick preset sample images for easy testing
   const addPresetSampleImage = (type: 'valla' | 'led' | 'boceto') => {
+    setFormError('');
     const presets = {
       valla: {
         name: 'Ejemplo_Valla_Monumental_Banzer.jpg',
@@ -203,9 +210,12 @@ export default function OOHInquiryModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombre.trim() || !celular.trim()) {
-      alert('Por favor complete su nombre completo y número de celular/WhatsApp.');
+      setFormError('Por favor complete su Nombre Completo y Número de Celular / WhatsApp para registrar su cotización.');
       return;
     }
+
+    setIsSubmitting(true);
+    setFormError('');
 
     const nextId = 'REQ-' + Date.now().toString().slice(-6);
     const estVal = parseFloat(presupuestoEstimado) || 1500;
@@ -213,10 +223,10 @@ export default function OOHInquiryModal({
     const newRequest: PendingQuotationRequest = {
       id: nextId,
       codigo: `SOL-2026-${Math.floor(100 + Math.random() * 900)}`,
-      cliente_nombre: nombre,
-      cliente_empresa: empresa || 'Empresa No Especificada',
-      cliente_celular: celular,
-      cliente_correo: correo || 'no-especificado@cliente.com',
+      cliente_nombre: nombre.trim(),
+      cliente_empresa: empresa.trim() || 'Empresa No Especificada',
+      cliente_celular: celular.trim(),
+      cliente_correo: correo.trim() || 'no-especificado@cliente.com',
       cliente_ciudad: ciudad,
       vallas_ids: ['SOL-OOH'],
       vallas_nombres: [solutionTitle],
@@ -231,7 +241,7 @@ export default function OOHInquiryModal({
       fecha: new Date().toISOString(),
       estado: 'Pendiente',
       observaciones: `Solicitud recibida desde la web de PUBLI-X. Tipo: ${solutionType}`,
-      sugerencia_cotizacion: sugerencia,
+      sugerencia_cotizacion: sugerencia.trim(),
       imagenes_referencia: imagenesReferencia.map(img => img.url),
       dispositivo_detectado: deviceInfo,
       presupuesto_estimado_usd: estVal
@@ -240,7 +250,7 @@ export default function OOHInquiryModal({
     // Save to mock database pending requests
     const currentRequests = mockDb.getPendingRequests();
     mockDb.savePendingRequests([newRequest, ...currentRequests]);
-    mockDb.addAuditLog(nombre, 'Solicitud OOH & Cotización', `El usuario/cliente solicitó cotización OOH para ${ciudad} con ${imagenesReferencia.length} imágenes adjuntas.`);
+    mockDb.addAuditLog(nombre.trim(), 'Solicitud OOH & Cotización', `El usuario/cliente solicitó cotización OOH para ${ciudad} con ${imagenesReferencia.length} imágenes adjuntas.`);
 
     // Broadcast new request event for real-time update across components
     try {
@@ -249,6 +259,7 @@ export default function OOHInquiryModal({
       // ignore
     }
 
+    setIsSubmitting(false);
     setSubmittedData(newRequest);
     setSubmitted(true);
   };
@@ -319,7 +330,6 @@ export default function OOHInquiryModal({
 
           {/* MODAL BODY CONTENT */}
           <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1">
-            
             {submitted ? (
               /* SUCCESS STATE SCREEN */
               <div className="text-center py-6 space-y-6">
@@ -328,11 +338,14 @@ export default function OOHInquiryModal({
                 </div>
 
                 <div className="space-y-2">
+                  <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-black px-3.5 py-1 rounded-full uppercase tracking-wider inline-block">
+                    SOLICITUD REGISTRADA EN EL SISTEMA
+                  </span>
                   <h3 className="text-2xl font-black uppercase text-white">
                     ¡Solicitud Enviada con Éxito!
                   </h3>
                   <p className="text-sm text-gray-300 max-w-lg mx-auto">
-                    Hemos registrado su requerimiento en nuestro sistema. Un ejecutivo comercial de PUBLI-X revisará su sugerencia e imágenes de referencia para enviarle un presupuesto ajustado.
+                    Su solicitud ha sido enviada directamente al <strong>Buzón de Solicitudes Central de PUBLI-X</strong>. Nuestro equipo comercial validará su requerimiento para emitir su cotización y darle de alta en el sistema.
                   </p>
                 </div>
 
@@ -371,10 +384,22 @@ export default function OOHInquiryModal({
                     </div>
                   )}
 
-                  <div className="pt-2 border-t border-gray-800 flex justify-between items-center">
-                    <span className="text-gray-400">Imágenes de Referencia:</span>
-                    <span className="font-bold text-[#ff8c00]">{submittedData?.imagenes_referencia?.length || 0} imagen(es) adjuntada(s)</span>
-                  </div>
+                  {/* Attached images preview thumbnails in success card */}
+                  {submittedData?.imagenes_referencia && submittedData.imagenes_referencia.length > 0 && (
+                    <div className="pt-2 border-t border-gray-800 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Imágenes de Referencia Adjuntas:</span>
+                        <span className="font-bold text-[#ff8c00]">{submittedData.imagenes_referencia.length} foto(s)</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {submittedData.imagenes_referencia.map((imgUrl, idx) => (
+                          <div key={idx} className="w-14 h-14 rounded-lg overflow-hidden border border-gray-700 bg-gray-900 flex-shrink-0">
+                            <img src={imgUrl} alt={`Referencia ${idx + 1}`} className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Action Buttons */}
@@ -391,7 +416,7 @@ export default function OOHInquiryModal({
                     onClick={handleClose}
                     className="w-full sm:w-auto px-8 py-3.5 bg-gray-800 hover:bg-gray-700 text-gray-200 font-bold rounded-xl text-sm transition cursor-pointer border border-gray-700"
                   >
-                    Cerrar Ventana
+                    Finalizar y Cerrar
                   </button>
                 </div>
               </div>
@@ -399,6 +424,14 @@ export default function OOHInquiryModal({
               /* FORM STATE */
               <form onSubmit={handleSubmit} className="space-y-6">
                 
+                {/* Form Error Banner */}
+                {formError && (
+                  <div className="p-4 bg-rose-500/20 border-2 border-rose-500 text-rose-200 rounded-2xl text-xs font-bold flex items-center gap-3 animate-pulse">
+                    <X className="w-5 h-5 text-rose-400 flex-shrink-0" />
+                    <span>{formError}</span>
+                  </div>
+                )}
+
                 {/* 1. PERSONAL DATA SECTION */}
                 <div className="bg-[#0d182b]/80 border border-[#0fa0e6]/30 rounded-2xl p-4 sm:p-5 space-y-4">
                   <div className="flex items-center justify-between">
@@ -422,7 +455,7 @@ export default function OOHInquiryModal({
                           type="text"
                           required
                           value={nombre}
-                          onChange={e => setNombre(e.target.value)}
+                          onChange={e => { setNombre(e.target.value); setFormError(''); }}
                           placeholder="Ej: Juan Carlos Pérez"
                           className="w-full pl-9 pr-3 py-2.5 bg-[#0a111e] border border-gray-700 rounded-xl text-xs text-white focus:border-[#0fa0e6] focus:outline-none transition"
                         />
@@ -438,7 +471,7 @@ export default function OOHInquiryModal({
                         <input
                           type="text"
                           value={empresa}
-                          onChange={e => setEmpresa(e.target.value)}
+                          onChange={e => { setEmpresa(e.target.value); setFormError(''); }}
                           placeholder="Ej: Banco Mercantil, Farmacia, Marca Personal"
                           className="w-full pl-9 pr-3 py-2.5 bg-[#0a111e] border border-gray-700 rounded-xl text-xs text-white focus:border-[#0fa0e6] focus:outline-none transition"
                         />
@@ -455,7 +488,7 @@ export default function OOHInquiryModal({
                           type="text"
                           required
                           value={celular}
-                          onChange={e => setCelular(e.target.value)}
+                          onChange={e => { setCelular(e.target.value); setFormError(''); }}
                           placeholder="Ej: +591 70000000"
                           className="w-full pl-9 pr-3 py-2.5 bg-[#0a111e] border border-gray-700 rounded-xl text-xs text-white focus:border-[#0fa0e6] focus:outline-none transition"
                         />
@@ -471,7 +504,7 @@ export default function OOHInquiryModal({
                         <input
                           type="email"
                           value={correo}
-                          onChange={e => setCorreo(e.target.value)}
+                          onChange={e => { setCorreo(e.target.value); setFormError(''); }}
                           placeholder="ejemplo@empresa.com"
                           className="w-full pl-9 pr-3 py-2.5 bg-[#0a111e] border border-gray-700 rounded-xl text-xs text-white focus:border-[#0fa0e6] focus:outline-none transition"
                         />
@@ -516,7 +549,7 @@ export default function OOHInquiryModal({
                   <textarea
                     rows={4}
                     value={sugerencia}
-                    onChange={e => setSugerencia(e.target.value)}
+                    onChange={e => { setSugerencia(e.target.value); setFormError(''); }}
                     placeholder="Escriba aquí los detalles de su campaña OOH: tipo de espacio (valla o pantalla LED), zonas estratégicas deseadas, fechas de exhibición, presupuesto de referencia o sugerencias para su diseño..."
                     className="w-full p-3 bg-[#0a111e] border border-gray-700 rounded-xl text-xs text-white placeholder-gray-500 focus:border-[#ff8c00] focus:outline-none transition resize-none leading-relaxed"
                   />
@@ -664,10 +697,11 @@ export default function OOHInquiryModal({
 
                   <button
                     type="submit"
-                    className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-[#ff8c00] via-[#ffa024] to-[#ff7300] hover:from-[#ff7300] hover:to-[#e06600] text-white font-black rounded-2xl text-sm uppercase tracking-wider transition cursor-pointer shadow-xl shadow-[#ff8c00]/30 flex items-center justify-center gap-3 transform hover:scale-102 active:scale-98 border border-amber-300/40"
+                    disabled={isSubmitting}
+                    className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-[#ff8c00] via-[#ffa024] to-[#ff7300] hover:from-[#ff7300] hover:to-[#e06600] text-white font-black rounded-2xl text-sm uppercase tracking-wider transition cursor-pointer shadow-xl shadow-[#ff8c00]/30 flex items-center justify-center gap-3 transform hover:scale-102 active:scale-98 border border-amber-300/40 disabled:opacity-50"
                   >
                     <Send className="w-5 h-5 stroke-[2.5]" />
-                    <span>ENVIAR Y RECIBIR COTIZACIÓN</span>
+                    <span>{isSubmitting ? 'REGISTRANDO SOLICITUD...' : 'ENVIAR Y RECIBIR COTIZACIÓN'}</span>
                   </button>
                 </div>
 

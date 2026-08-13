@@ -179,6 +179,19 @@ export default function Vehicles({
     setPendingRequests(mockDb.getPendingRequests());
   };
 
+  React.useEffect(() => {
+    refreshInbox();
+    const handleSync = () => {
+      refreshInbox();
+    };
+    window.addEventListener('publix_new_request', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('publix_new_request', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
+
   // Toggle multi-select item
   const handleToggleSelectVehicle = (id: string) => {
     setSelectedVehicleIds(prev => {
