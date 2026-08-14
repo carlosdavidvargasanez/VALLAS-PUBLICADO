@@ -86,6 +86,13 @@ export default function App() {
     mockDb.initialize();
     loadAllStates();
 
+    // Trigger asynchronous sync with PostgreSQL server
+    mockDb.syncWithServer().then(synced => {
+      if (synced) {
+        loadAllStates();
+      }
+    });
+
     // Check and trigger auto backup if due
     try {
       const currentSettings = mockDb.getSettings();
@@ -109,6 +116,12 @@ export default function App() {
       setPendingRequestsCount(mockDb.getPendingRequests().filter(r => r.estado === 'Pendiente').length);
       setQuotations(mockDb.getQuotations());
       setClients(mockDb.getClients());
+      setContracts(mockDb.getContracts());
+      setVehicles(mockDb.getVehicles());
+    };
+
+    const handleDbSynced = () => {
+      loadAllStates();
     };
 
     // Periodic interval to check auto backup every 15 minutes while app is running
@@ -129,10 +142,12 @@ export default function App() {
     }, 15 * 60 * 1000);
 
     window.addEventListener('publix_new_request', handleSyncRequests);
+    window.addEventListener('publix_db_synced', handleDbSynced);
     window.addEventListener('storage', handleSyncRequests);
     return () => {
       clearInterval(backupInterval);
       window.removeEventListener('publix_new_request', handleSyncRequests);
+      window.removeEventListener('publix_db_synced', handleDbSynced);
       window.removeEventListener('storage', handleSyncRequests);
     };
   }, []);

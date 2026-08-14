@@ -1,6 +1,7 @@
 import { Client, Vehicle, Quotation, Contract, FollowUp, MessageTemplate, AuditLog, Settings, UserSession, PendingQuotationRequest, BackupRecord } from '../types';
 import { INITIAL_VEHICLES } from './initialVehicles';
 import { generateClientCredentials } from '../utils/credentials';
+import { api } from '../services/api';
 
 const DB_KEYS = {
   CLIENTS: 'mla_autosender_clients',
@@ -18,7 +19,7 @@ const DB_KEYS = {
   LAST_BACKUP_TIMESTAMP: 'mla_autosender_last_backup_ts',
 };
 
-// Clean 2 Sample Clients clearly identified as [EJEMPLO] / (PRUEBA)
+// 2 Sample Clients clearly identified as [EJEMPLO] / (PRUEBA)
 const INITIAL_CLIENTS: Client[] = [
   {
     id: 'C001',
@@ -294,128 +295,36 @@ const INITIAL_AUDIT_LOGS: AuditLog[] = [
 export const mockDb = {
   initialize() {
     try {
-      // 1. Clients: If null or legacy mass test data (> 4), initialize with clean sample
-      const storedClients = localStorage.getItem(DB_KEYS.CLIENTS);
-      if (!storedClients) {
+      if (!localStorage.getItem(DB_KEYS.CLIENTS)) {
         localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(INITIAL_CLIENTS));
-      } else {
-        try {
-          const parsed = JSON.parse(storedClients);
-          if (!Array.isArray(parsed) || parsed.length > 4) {
-            localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(INITIAL_CLIENTS));
-          }
-        } catch {
-          localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(INITIAL_CLIENTS));
-        }
       }
-
-      // 2. Vehicles / Vallas: If null or legacy mass test data (> 5), initialize with 3 clean samples
-      const storedVehicles = localStorage.getItem(DB_KEYS.VEHICLES);
-      if (!storedVehicles) {
+      if (!localStorage.getItem(DB_KEYS.VEHICLES)) {
         localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(INITIAL_VEHICLES));
-      } else {
-        try {
-          const parsed = JSON.parse(storedVehicles);
-          if (!Array.isArray(parsed) || parsed.length > 5 || parsed.length === 0) {
-            localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(INITIAL_VEHICLES));
-          }
-        } catch {
-          localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(INITIAL_VEHICLES));
-        }
       }
-
-      // 3. Quotations
-      const storedQuotations = localStorage.getItem(DB_KEYS.QUOTATIONS);
-      if (!storedQuotations) {
+      if (!localStorage.getItem(DB_KEYS.QUOTATIONS)) {
         localStorage.setItem(DB_KEYS.QUOTATIONS, JSON.stringify(INITIAL_QUOTATIONS));
-      } else {
-        try {
-          const parsed = JSON.parse(storedQuotations);
-          if (!Array.isArray(parsed) || parsed.length > 4) {
-            localStorage.setItem(DB_KEYS.QUOTATIONS, JSON.stringify(INITIAL_QUOTATIONS));
-          }
-        } catch {
-          localStorage.setItem(DB_KEYS.QUOTATIONS, JSON.stringify(INITIAL_QUOTATIONS));
-        }
       }
-
-      // 4. Contracts
-      const storedContracts = localStorage.getItem(DB_KEYS.CONTRACTS);
-      if (!storedContracts) {
+      if (!localStorage.getItem(DB_KEYS.CONTRACTS)) {
         localStorage.setItem(DB_KEYS.CONTRACTS, JSON.stringify(INITIAL_CONTRACTS));
-      } else {
-        try {
-          const parsed = JSON.parse(storedContracts);
-          if (!Array.isArray(parsed) || parsed.length > 3) {
-            localStorage.setItem(DB_KEYS.CONTRACTS, JSON.stringify(INITIAL_CONTRACTS));
-          }
-        } catch {
-          localStorage.setItem(DB_KEYS.CONTRACTS, JSON.stringify(INITIAL_CONTRACTS));
-        }
       }
-
-      // 5. Follow-ups
-      const storedFollowUps = localStorage.getItem(DB_KEYS.FOLLOW_UPS);
-      if (!storedFollowUps) {
+      if (!localStorage.getItem(DB_KEYS.FOLLOW_UPS)) {
         localStorage.setItem(DB_KEYS.FOLLOW_UPS, JSON.stringify(INITIAL_FOLLOW_UPS));
-      } else {
-        try {
-          const parsed = JSON.parse(storedFollowUps);
-          if (!Array.isArray(parsed) || parsed.length > 4) {
-            localStorage.setItem(DB_KEYS.FOLLOW_UPS, JSON.stringify(INITIAL_FOLLOW_UPS));
-          }
-        } catch {
-          localStorage.setItem(DB_KEYS.FOLLOW_UPS, JSON.stringify(INITIAL_FOLLOW_UPS));
-        }
       }
-
-      // 6. Templates
       if (!localStorage.getItem(DB_KEYS.TEMPLATES)) {
         localStorage.setItem(DB_KEYS.TEMPLATES, JSON.stringify(DEFAULT_TEMPLATES));
       }
-
-      // 7. Settings
       if (!localStorage.getItem(DB_KEYS.SETTINGS)) {
         localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
       }
-
-      // 8. Users
-      const storedUsers = localStorage.getItem(DB_KEYS.USERS);
-      if (!storedUsers) {
+      if (!localStorage.getItem(DB_KEYS.USERS)) {
         localStorage.setItem(DB_KEYS.USERS, JSON.stringify(DEFAULT_USERS));
-      } else {
-        try {
-          const parsed: UserSession[] = JSON.parse(storedUsers);
-          if (!Array.isArray(parsed) || parsed.length === 0) {
-            localStorage.setItem(DB_KEYS.USERS, JSON.stringify(DEFAULT_USERS));
-          } else {
-            // Ensure all users have password and clean properties
-            const updated = parsed.map(u => {
-              const def = DEFAULT_USERS.find(du => du.usuario === u.usuario || du.id === u.id);
-              return {
-                ...u,
-                password: u.password || (def ? def.password : (u.celular ? u.celular.replace(/\D/g, '') : '70000000')),
-                celular: u.celular || (def ? def.celular : '+59170000000')
-              };
-            });
-            localStorage.setItem(DB_KEYS.USERS, JSON.stringify(updated));
-          }
-        } catch {
-          localStorage.setItem(DB_KEYS.USERS, JSON.stringify(DEFAULT_USERS));
-        }
       }
-
-      // 9. Current User
       if (localStorage.getItem(DB_KEYS.CURRENT_USER) === null) {
         localStorage.setItem(DB_KEYS.CURRENT_USER, JSON.stringify(DEFAULT_USERS[0]));
       }
-
-      // 10. Audit Logs
       if (localStorage.getItem(DB_KEYS.AUDIT_LOGS) === null) {
         localStorage.setItem(DB_KEYS.AUDIT_LOGS, JSON.stringify(INITIAL_AUDIT_LOGS));
       }
-
-      // 11. Pending Requests
       if (localStorage.getItem(DB_KEYS.PENDING_REQUESTS) === null) {
         localStorage.setItem(DB_KEYS.PENDING_REQUESTS, JSON.stringify(INITIAL_PENDING_REQUESTS));
       }
@@ -424,28 +333,42 @@ export const mockDb = {
     }
   },
 
+  /**
+   * Sync all data from PostgreSQL / Express Backend
+   */
+  async syncWithServer(): Promise<boolean> {
+    try {
+      const data = await api.getBootstrap();
+      if (data) {
+        if (Array.isArray(data.clients)) localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(data.clients));
+        if (Array.isArray(data.vehicles)) localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(data.vehicles));
+        if (Array.isArray(data.quotations)) localStorage.setItem(DB_KEYS.QUOTATIONS, JSON.stringify(data.quotations));
+        if (Array.isArray(data.contracts)) localStorage.setItem(DB_KEYS.CONTRACTS, JSON.stringify(data.contracts));
+        if (Array.isArray(data.followUps)) localStorage.setItem(DB_KEYS.FOLLOW_UPS, JSON.stringify(data.followUps));
+        if (Array.isArray(data.templates)) localStorage.setItem(DB_KEYS.TEMPLATES, JSON.stringify(data.templates));
+        if (data.settings) localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify(data.settings));
+        if (Array.isArray(data.users)) localStorage.setItem(DB_KEYS.USERS, JSON.stringify(data.users));
+        if (Array.isArray(data.auditLogs)) localStorage.setItem(DB_KEYS.AUDIT_LOGS, JSON.stringify(data.auditLogs));
+        if (Array.isArray(data.pendingRequests)) localStorage.setItem(DB_KEYS.PENDING_REQUESTS, JSON.stringify(data.pendingRequests));
+        
+        try {
+          window.dispatchEvent(new Event('publix_db_synced'));
+        } catch {}
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.warn('Sync with server error (using cache):', err);
+      return false;
+    }
+  },
+
   getClients(): Client[] {
     this.initialize();
     try {
       const raw: Client[] = JSON.parse(localStorage.getItem(DB_KEYS.CLIENTS) || '[]');
-      if (!Array.isArray(raw)) return INITIAL_CLIENTS;
-      let modified = false;
-      const updated = raw.map(c => {
-        if (!c.usuario_acceso || !c.password_acceso) {
-          const creds = generateClientCredentials(c.nombre, c.celular);
-          modified = true;
-          return {
-            ...c,
-            usuario_acceso: c.usuario_acceso || creds.usuario_acceso,
-            password_acceso: c.password_acceso || creds.password_acceso
-          };
-        }
-        return c;
-      });
-      if (modified) {
-        localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(updated));
-      }
-      return updated;
+      if (!Array.isArray(raw) || raw.length === 0) return INITIAL_CLIENTS;
+      return raw;
     } catch {
       return INITIAL_CLIENTS;
     }
@@ -459,11 +382,51 @@ export const mockDb = {
     }
   },
 
+  async addClient(client: Client) {
+    const list = this.getClients();
+    const idx = list.findIndex(c => c.id === client.id);
+    if (idx >= 0) {
+      list[idx] = client;
+    } else {
+      list.unshift(client);
+    }
+    this.saveClients(list);
+    try {
+      await api.createClient(client);
+    } catch (e) {
+      console.warn('API addClient error:', e);
+    }
+  },
+
+  async updateClient(id: string, update: Partial<Client>) {
+    const list = this.getClients();
+    const idx = list.findIndex(c => c.id === id);
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...update, fecha_actualizacion: new Date().toISOString() };
+      this.saveClients(list);
+      try {
+        await api.updateClient(id, update);
+      } catch (e) {
+        console.warn('API updateClient error:', e);
+      }
+    }
+  },
+
+  async deleteClient(id: string) {
+    const list = this.getClients().filter(c => c.id !== id);
+    this.saveClients(list);
+    try {
+      await api.deleteClient(id);
+    } catch (e) {
+      console.warn('API deleteClient error:', e);
+    }
+  },
+
   getVehicles(): Vehicle[] {
     this.initialize();
     try {
       const parsed = JSON.parse(localStorage.getItem(DB_KEYS.VEHICLES) || '[]');
-      return Array.isArray(parsed) ? parsed : INITIAL_VEHICLES;
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_VEHICLES;
     } catch {
       return INITIAL_VEHICLES;
     }
@@ -474,6 +437,46 @@ export const mockDb = {
       localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(vehicles));
     } catch (e) {
       console.error(e);
+    }
+  },
+
+  async addVehicle(vehicle: Vehicle) {
+    const list = this.getVehicles();
+    const idx = list.findIndex(v => v.id === vehicle.id);
+    if (idx >= 0) {
+      list[idx] = vehicle;
+    } else {
+      list.unshift(vehicle);
+    }
+    this.saveVehicles(list);
+    try {
+      await api.createVehicle(vehicle);
+    } catch (e) {
+      console.warn('API addVehicle error:', e);
+    }
+  },
+
+  async updateVehicle(id: string, update: Partial<Vehicle>) {
+    const list = this.getVehicles();
+    const idx = list.findIndex(v => v.id === id);
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...update, fecha_actualizacion: new Date().toISOString() };
+      this.saveVehicles(list);
+      try {
+        await api.updateVehicle(id, update);
+      } catch (e) {
+        console.warn('API updateVehicle error:', e);
+      }
+    }
+  },
+
+  async deleteVehicle(id: string) {
+    const list = this.getVehicles().filter(v => v.id !== id);
+    this.saveVehicles(list);
+    try {
+      await api.deleteVehicle(id);
+    } catch (e) {
+      console.warn('API deleteVehicle error:', e);
     }
   },
 
@@ -495,6 +498,32 @@ export const mockDb = {
     }
   },
 
+  async addQuotation(q: Quotation) {
+    const list = this.getQuotations();
+    const idx = list.findIndex(x => x.id === q.id);
+    if (idx >= 0) {
+      list[idx] = q;
+    } else {
+      list.unshift(q);
+    }
+    this.saveQuotations(list);
+    try {
+      await api.createQuotation(q);
+    } catch (e) {
+      console.warn('API addQuotation error:', e);
+    }
+  },
+
+  async deleteQuotation(id: string) {
+    const list = this.getQuotations().filter(q => q.id !== id);
+    this.saveQuotations(list);
+    try {
+      await api.deleteQuotation(id);
+    } catch (e) {
+      console.warn('API deleteQuotation error:', e);
+    }
+  },
+
   getContracts(): Contract[] {
     this.initialize();
     try {
@@ -510,6 +539,32 @@ export const mockDb = {
       localStorage.setItem(DB_KEYS.CONTRACTS, JSON.stringify(contracts));
     } catch (e) {
       console.error(e);
+    }
+  },
+
+  async addContract(c: Contract) {
+    const list = this.getContracts();
+    const idx = list.findIndex(x => x.id === c.id);
+    if (idx >= 0) {
+      list[idx] = c;
+    } else {
+      list.unshift(c);
+    }
+    this.saveContracts(list);
+    try {
+      await api.createContract(c);
+    } catch (e) {
+      console.warn('API addContract error:', e);
+    }
+  },
+
+  async deleteContract(id: string) {
+    const list = this.getContracts().filter(c => c.id !== id);
+    this.saveContracts(list);
+    try {
+      await api.deleteContract(id);
+    } catch (e) {
+      console.warn('API deleteContract error:', e);
     }
   },
 
@@ -531,6 +586,41 @@ export const mockDb = {
     }
   },
 
+  async addFollowUp(f: FollowUp) {
+    const list = this.getFollowUps();
+    list.unshift(f);
+    this.saveFollowUps(list);
+    try {
+      await api.createFollowUp(f);
+    } catch (e) {
+      console.warn('API addFollowUp error:', e);
+    }
+  },
+
+  async updateFollowUp(id: string, update: Partial<FollowUp>) {
+    const list = this.getFollowUps();
+    const idx = list.findIndex(f => f.id === id);
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...update };
+      this.saveFollowUps(list);
+      try {
+        await api.updateFollowUp(id, update);
+      } catch (e) {
+        console.warn('API updateFollowUp error:', e);
+      }
+    }
+  },
+
+  async deleteFollowUp(id: string) {
+    const list = this.getFollowUps().filter(f => f.id !== id);
+    this.saveFollowUps(list);
+    try {
+      await api.deleteFollowUp(id);
+    } catch (e) {
+      console.warn('API deleteFollowUp error:', e);
+    }
+  },
+
   getTemplates(): MessageTemplate[] {
     this.initialize();
     try {
@@ -544,6 +634,7 @@ export const mockDb = {
   saveTemplates(templates: MessageTemplate[]) {
     try {
       localStorage.setItem(DB_KEYS.TEMPLATES, JSON.stringify(templates));
+      api.saveTemplatesBatch(templates).catch(e => console.warn('API saveTemplates error:', e));
     } catch (e) {
       console.error(e);
     }
@@ -553,10 +644,6 @@ export const mockDb = {
     this.initialize();
     try {
       const settings: Settings = JSON.parse(localStorage.getItem(DB_KEYS.SETTINGS) || '{}');
-      if (settings.logo && (settings.logo.includes('photo-') || settings.logo.includes('unsplash'))) {
-        settings.logo = '';
-        this.saveSettings(settings);
-      }
       return settings && typeof settings === 'object' && settings.nombre_empresa ? settings : DEFAULT_SETTINGS;
     } catch {
       return DEFAULT_SETTINGS;
@@ -566,6 +653,7 @@ export const mockDb = {
   saveSettings(settings: Settings) {
     try {
       localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify(settings));
+      api.saveSettings(settings).catch(e => console.warn('API saveSettings error:', e));
     } catch (e) {
       console.error(e);
     }
@@ -586,6 +674,32 @@ export const mockDb = {
       localStorage.setItem(DB_KEYS.USERS, JSON.stringify(users));
     } catch (e) {
       console.error(e);
+    }
+  },
+
+  async addUser(user: UserSession) {
+    const list = this.getUsers();
+    const idx = list.findIndex(u => u.id === user.id);
+    if (idx >= 0) {
+      list[idx] = user;
+    } else {
+      list.push(user);
+    }
+    this.saveUsers(list);
+    try {
+      await api.saveUser(user);
+    } catch (e) {
+      console.warn('API saveUser error:', e);
+    }
+  },
+
+  async deleteUser(userId: string) {
+    const list = this.getUsers().filter(u => u.id !== userId);
+    this.saveUsers(list);
+    try {
+      await api.deleteUser(userId);
+    } catch (e) {
+      console.warn('API deleteUser error:', e);
     }
   },
 
@@ -616,9 +730,6 @@ export const mockDb = {
     }
   },
 
-  /**
-   * Reset a user's password to their mobile phone number (Admin / Dueño privilege)
-   */
   resetUserPassword(userId: string): { success: boolean; newPassword?: string; error?: string } {
     try {
       const users = this.getUsers();
@@ -628,20 +739,16 @@ export const mockDb = {
       }
 
       const user = users[userIndex];
-      // Default password is their mobile phone number (digits) or standard fallback
       const defaultPass = user.celular ? user.celular.replace(/\D/g, '') || user.celular : '70000000';
-      users[userIndex] = {
-        ...user,
-        password: defaultPass
-      };
-
+      users[userIndex] = { ...user, password: defaultPass };
       this.saveUsers(users);
 
-      // If current user is modified, update current user too
       const current = this.getCurrentUser();
       if (current.id === userId) {
         this.setCurrentUser(users[userIndex]);
       }
+
+      api.resetUserPassword(userId).catch(e => console.warn('API resetUserPassword error:', e));
 
       this.addAuditLog(
         current.nombre || 'Administrador',
@@ -655,9 +762,6 @@ export const mockDb = {
     }
   },
 
-  /**
-   * Change own password for current user
-   */
   changeUserPassword(userId: string, newPassword: string): { success: boolean; error?: string } {
     try {
       const users = this.getUsers();
@@ -666,17 +770,15 @@ export const mockDb = {
         return { success: false, error: 'Usuario no encontrado.' };
       }
 
-      users[userIndex] = {
-        ...users[userIndex],
-        password: newPassword
-      };
-
+      users[userIndex] = { ...users[userIndex], password: newPassword };
       this.saveUsers(users);
 
       const current = this.getCurrentUser();
       if (current.id === userId) {
         this.setCurrentUser(users[userIndex]);
       }
+
+      api.changeUserPassword(userId, newPassword).catch(e => console.warn('API changeUserPassword error:', e));
 
       this.addAuditLog(
         users[userIndex].nombre,
@@ -690,6 +792,51 @@ export const mockDb = {
     }
   },
 
+  exportBackup(): string {
+    return this.exportDatabaseJSON();
+  },
+
+  importBackup(jsonStr: string): boolean {
+    try {
+      this.importDatabaseJSON(jsonStr);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  getLastBackup(): BackupRecord | null {
+    const list = this.getAutoBackups();
+    return list.length > 0 ? list[0] : null;
+  },
+
+  restoreLatestBackup(): boolean {
+    const latest = this.getLastBackup();
+    if (!latest || !latest.data) return false;
+    return this.importBackup(latest.data);
+  },
+
+  resetAll() {
+    try {
+      this.saveClients(INITIAL_CLIENTS);
+      this.saveVehicles(INITIAL_VEHICLES);
+      this.saveQuotations(INITIAL_QUOTATIONS);
+      this.saveContracts(INITIAL_CONTRACTS);
+      this.saveFollowUps(INITIAL_FOLLOW_UPS);
+      this.saveTemplates(DEFAULT_TEMPLATES);
+      this.saveSettings(DEFAULT_SETTINGS);
+      this.saveUsers(DEFAULT_USERS);
+      this.savePendingRequests(INITIAL_PENDING_REQUESTS);
+      this.clearAuditLogs();
+      this.addAuditLog('Sistema', 'Reinicio de Base de Datos', 'Se restablecieron todos los datos a los valores iniciales.');
+      try {
+        window.dispatchEvent(new Event('publix_db_synced'));
+      } catch {}
+    } catch (e) {
+      console.error('Error resetting all:', e);
+    }
+  },
+
   getAuditLogs(): AuditLog[] {
     this.initialize();
     try {
@@ -697,6 +844,24 @@ export const mockDb = {
       return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
+    }
+  },
+
+  addAuditLog(usuario: string, accion: string, detalle: string) {
+    const log: AuditLog = {
+      id: 'L' + String(Date.now()).slice(-6),
+      usuario,
+      accion,
+      detalle,
+      fecha: new Date().toISOString()
+    };
+    const logs = this.getAuditLogs();
+    logs.unshift(log);
+    try {
+      localStorage.setItem(DB_KEYS.AUDIT_LOGS, JSON.stringify(logs.slice(0, 300)));
+      api.createAuditLog(log).catch(e => console.warn('API createAuditLog error:', e));
+    } catch (e) {
+      console.error(e);
     }
   },
 
@@ -714,15 +879,30 @@ export const mockDb = {
     try {
       localStorage.setItem(DB_KEYS.PENDING_REQUESTS, JSON.stringify(requests));
     } catch (e) {
-      console.warn('LocalStorage quota exceeded on savePendingRequests.', e);
+      console.warn('LocalStorage error on savePendingRequests.', e);
     }
   },
 
-  deletePendingRequest(id: string) {
+  async addPendingRequest(req: PendingQuotationRequest) {
+    const current = this.getPendingRequests();
+    current.unshift(req);
+    this.savePendingRequests(current);
+    try {
+      await api.createPendingRequest(req);
+    } catch (e) {
+      console.warn('API addPendingRequest error:', e);
+    }
+    try {
+      window.dispatchEvent(new Event('publix_new_request'));
+    } catch {}
+  },
+
+  async deletePendingRequest(id: string) {
     try {
       const current = this.getPendingRequests();
       const updated = current.filter(r => r.id !== id);
       this.savePendingRequests(updated);
+      await api.deletePendingRequest(id).catch(e => console.warn('API deletePendingRequest error:', e));
       try {
         window.dispatchEvent(new Event('publix_new_request'));
       } catch {}
@@ -731,9 +911,10 @@ export const mockDb = {
     }
   },
 
-  clearPendingRequests() {
+  async clearPendingRequests() {
     try {
       localStorage.setItem(DB_KEYS.PENDING_REQUESTS, JSON.stringify([]));
+      await api.clearPendingRequests().catch(e => console.warn('API clearPendingRequests error:', e));
       try {
         window.dispatchEvent(new Event('publix_new_request'));
       } catch {}
@@ -750,29 +931,85 @@ export const mockDb = {
     }
   },
 
-  addAuditLog(usuario: string, accion: string, detalle: string) {
+  getAutoBackups(): BackupRecord[] {
+    this.initialize();
     try {
-      const logs = JSON.parse(localStorage.getItem(DB_KEYS.AUDIT_LOGS) || '[]');
-      const newLog: AuditLog = {
-        id: 'L' + String((Array.isArray(logs) ? logs.length : 0) + 1).padStart(3, '0'),
-        usuario: usuario || 'Sistema',
-        accion: accion || 'Acción',
-        detalle: detalle || '',
-        fecha: new Date().toISOString()
-      };
-      const safeLogs = Array.isArray(logs) ? logs : [];
-      safeLogs.unshift(newLog);
-      localStorage.setItem(DB_KEYS.AUDIT_LOGS, JSON.stringify(safeLogs));
+      const raw = localStorage.getItem(DB_KEYS.AUTO_BACKUPS);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  saveAutoBackups(backups: BackupRecord[]) {
+    try {
+      localStorage.setItem(DB_KEYS.AUTO_BACKUPS, JSON.stringify(backups));
     } catch (e) {
       console.error(e);
     }
   },
 
-  // Export full database as string
-  exportBackup(): string {
+  getLastBackupTimestamp(): string {
+    return localStorage.getItem(DB_KEYS.LAST_BACKUP_TIMESTAMP) || new Date().toISOString();
+  },
+
+  setLastBackupTimestamp(ts: string) {
+    localStorage.setItem(DB_KEYS.LAST_BACKUP_TIMESTAMP, ts);
+  },
+
+  createAutoBackup(reason: string = 'Respaldo automático del sistema'): BackupRecord | null {
+    try {
+      const settings = this.getSettings();
+      const maxRetention = settings.backup_retention_count || 10;
+      const dataToBackup = {
+        timestamp: new Date().toISOString(),
+        reason,
+        clients: this.getClients(),
+        vehicles: this.getVehicles(),
+        quotations: this.getQuotations(),
+        contracts: this.getContracts(),
+        followUps: this.getFollowUps(),
+        templates: this.getTemplates(),
+        settings: this.getSettings(),
+        users: this.getUsers(),
+        pendingRequests: this.getPendingRequests()
+      };
+
+      const dataStr = JSON.stringify(dataToBackup);
+      const sizeBytes = new Blob([dataStr]).size;
+      const date = new Date();
+      const formattedDate = date.toISOString().replace(/[:.]/g, '-');
+      const filename = `PUBLIX_BACKUP_${formattedDate}.json`;
+
+      const newBackup: BackupRecord = {
+        id: 'BKP-' + Date.now(),
+        archivo: filename,
+        tamano: sizeBytes,
+        fecha: date.toISOString(),
+        observaciones: reason,
+        data: dataStr
+      };
+
+      let existing = this.getAutoBackups();
+      existing.unshift(newBackup);
+      if (existing.length > maxRetention) {
+        existing = existing.slice(0, maxRetention);
+      }
+
+      this.saveAutoBackups(existing);
+      this.setLastBackupTimestamp(date.toISOString());
+      return newBackup;
+    } catch (e) {
+      console.warn('Auto backup creation failed:', e);
+      return null;
+    }
+  },
+
+  exportDatabaseJSON(): string {
     const data = {
-      version: '2.0-ooh-publix',
+      version: '2.0.0-postgres',
       timestamp: new Date().toISOString(),
+      nombre_empresa: this.getSettings().nombre_empresa,
       clients: this.getClients(),
       vehicles: this.getVehicles(),
       quotations: this.getQuotations(),
@@ -782,123 +1019,48 @@ export const mockDb = {
       settings: this.getSettings(),
       users: this.getUsers(),
       auditLogs: this.getAuditLogs(),
+      pendingRequests: this.getPendingRequests()
     };
     return JSON.stringify(data, null, 2);
   },
 
-  // Auto-backup snapshot generation and local archive
-  createAutoBackup(reason: string = 'Respaldo automático programado'): BackupRecord {
+  async importDatabaseJSON(jsonStr: string): Promise<boolean> {
     try {
-      const dataStr = this.exportBackup();
-      const now = new Date();
-      const backupId = 'BKP-' + now.getTime();
-      const dateFormatted = now.toISOString().replace(/[:.]/g, '-');
-      const filename = `PUBLIX_BACKUP_AUTO_${dateFormatted}.json`;
-      const sizeBytes = new Blob([dataStr]).size;
-
-      const newBackup: BackupRecord = {
-        id: backupId,
-        archivo: filename,
-        tamano: sizeBytes,
-        fecha: now.toISOString(),
-        observaciones: reason,
-        data: dataStr
-      };
-
-      const existingBackups = this.getAutoBackups();
-      const updatedBackups = [newBackup, ...existingBackups].slice(0, 15);
-      localStorage.setItem(DB_KEYS.AUTO_BACKUPS, JSON.stringify(updatedBackups));
-      localStorage.setItem(DB_KEYS.LAST_BACKUP_TIMESTAMP, now.toISOString());
-
-      const currentSettings = this.getSettings();
-      if (currentSettings.backup_last_timestamp !== now.toISOString()) {
-        currentSettings.backup_last_timestamp = now.toISOString();
-        localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify(currentSettings));
+      const data = JSON.parse(jsonStr);
+      if (!data || typeof data !== 'object') {
+        throw new Error('Estructura de respaldo inválida.');
       }
+      if (Array.isArray(data.clients)) this.saveClients(data.clients);
+      if (Array.isArray(data.vehicles)) this.saveVehicles(data.vehicles);
+      if (Array.isArray(data.quotations)) this.saveQuotations(data.quotations);
+      if (Array.isArray(data.contracts)) this.saveContracts(data.contracts);
+      if (Array.isArray(data.followUps)) this.saveFollowUps(data.followUps);
+      if (Array.isArray(data.templates)) this.saveTemplates(data.templates);
+      if (data.settings && typeof data.settings === 'object') this.saveSettings(data.settings);
+      if (Array.isArray(data.users)) this.saveUsers(data.users);
+      if (Array.isArray(data.auditLogs)) localStorage.setItem(DB_KEYS.AUDIT_LOGS, JSON.stringify(data.auditLogs));
+      if (Array.isArray(data.pendingRequests)) this.savePendingRequests(data.pendingRequests);
 
-      this.addAuditLog('Sistema Auto-Backup', 'Respaldo Automático Generado', `Se generó copia de seguridad automática (${(sizeBytes / 1024).toFixed(1)} KB) - Motivo: ${reason}`);
+      // Send import payload to backend server
+      await api.importBackup(data).catch(e => console.warn('API importBackup error:', e));
 
-      return newBackup;
-    } catch (e) {
-      console.error('Error creating auto backup:', e);
-      const fallback: BackupRecord = {
-        id: 'BKP-' + Date.now(),
-        archivo: 'PUBLIX_BACKUP_FALLBACK.json',
-        tamano: 0,
-        fecha: new Date().toISOString(),
-        observaciones: 'Respaldo en memoria',
-        data: this.exportBackup()
-      };
-      return fallback;
-    }
-  },
+      this.addAuditLog(
+        this.getCurrentUser().nombre || 'Administrador',
+        'Importación de Base de Datos',
+        'Se importó y restauró exitosamente una copia de seguridad en el sistema y base de datos.'
+      );
 
-  getAutoBackups(): BackupRecord[] {
-    try {
-      const raw = localStorage.getItem(DB_KEYS.AUTO_BACKUPS);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  },
+      try {
+        window.dispatchEvent(new Event('publix_db_synced'));
+      } catch {}
 
-  getLastBackup(): BackupRecord | null {
-    const list = this.getAutoBackups();
-    if (list.length > 0) return list[0];
-    return null;
-  },
-
-  getLastBackupTimestamp(): string {
-    const fromStorage = localStorage.getItem(DB_KEYS.LAST_BACKUP_TIMESTAMP);
-    if (fromStorage) return fromStorage;
-    const settings = this.getSettings();
-    return settings.backup_last_timestamp || new Date().toISOString();
-  },
-
-  restoreLatestBackup(): boolean {
-    const latest = this.getLastBackup();
-    if (!latest || !latest.data) return false;
-    return this.importBackup(latest.data);
-  },
-
-  importBackup(backupText: string): boolean {
-    try {
-      const parsed = JSON.parse(backupText);
-      if (parsed) {
-        if (parsed.clients) localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(parsed.clients));
-        if (parsed.vehicles) localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(parsed.vehicles));
-        if (parsed.quotations) localStorage.setItem(DB_KEYS.QUOTATIONS, JSON.stringify(parsed.quotations));
-        if (parsed.contracts) localStorage.setItem(DB_KEYS.CONTRACTS, JSON.stringify(parsed.contracts));
-        if (parsed.followUps) localStorage.setItem(DB_KEYS.FOLLOW_UPS, JSON.stringify(parsed.followUps));
-        if (parsed.templates) localStorage.setItem(DB_KEYS.TEMPLATES, JSON.stringify(parsed.templates));
-        if (parsed.settings) localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify(parsed.settings));
-        if (parsed.users) localStorage.setItem(DB_KEYS.USERS, JSON.stringify(parsed.users));
-        localStorage.setItem(DB_KEYS.AUDIT_LOGS, JSON.stringify(parsed.auditLogs || []));
-        this.addAuditLog('Sistema', 'Restauración de Copia de Seguridad', 'Se restauró con éxito el estado completo de la base de datos.');
-        return true;
-      }
-      return false;
-    } catch (e) {
-      console.error('Failed to import backup:', e);
+      return true;
+    } catch (err) {
+      console.error('Error importing database JSON:', err);
       return false;
     }
-  },
-
-  resetAll() {
-    localStorage.removeItem(DB_KEYS.CLIENTS);
-    localStorage.removeItem(DB_KEYS.VEHICLES);
-    localStorage.removeItem(DB_KEYS.QUOTATIONS);
-    localStorage.removeItem(DB_KEYS.CONTRACTS);
-    localStorage.removeItem(DB_KEYS.FOLLOW_UPS);
-    localStorage.removeItem(DB_KEYS.TEMPLATES);
-    localStorage.removeItem(DB_KEYS.SETTINGS);
-    localStorage.removeItem(DB_KEYS.USERS);
-    localStorage.removeItem(DB_KEYS.CURRENT_USER);
-    localStorage.removeItem(DB_KEYS.AUDIT_LOGS);
-    this.initialize();
   }
 };
 
 export const mockDatabase = mockDb;
+export default mockDb;
