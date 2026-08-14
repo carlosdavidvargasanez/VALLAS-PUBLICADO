@@ -196,7 +196,7 @@ export const generateCatalogPdf = async (
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
-    doc.text('MLA AUTOMOTORS - PORTAFOLIO EXCLUSIVO', marginX, 8);
+    doc.text('PUBLI-X BOLIVIA - PORTAFOLIO DE PUBLICIDAD EXTERIOR (OOH)', marginX, 8);
     doc.setFont('Helvetica', 'normal');
     doc.text(`Destinatario: ${client.nombre}`, pageWidth - marginX - 55, 8);
 
@@ -372,7 +372,7 @@ export const generateCatalogPdf = async (
     doc.setFont('Helvetica', 'normal');
     doc.setTextColor(cSecondary[0], cSecondary[1], cSecondary[2]);
     doc.setFontSize(7.5);
-    doc.text('Catálogo Personalizado MLA AutoSender. Sujeto a variabilidad de fletes y stock.', marginX, 280);
+    doc.text('Catálogo de Publicidad Exterior PUBLI-X BOLIVIA. Sujeto a disponibilidad de espacios y reserva.', marginX, 280);
     
     const totalPages = Math.ceil(selectedVehicles.length / 2) + 1;
     doc.text(`Página ${pageNum} de ${totalPages}`, pageWidth - marginX - 15, 280);
@@ -680,5 +680,5 @@ const drawFallbackPlaceholder = (
   
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(7.5);
-  doc.text(`MLA AUTOMOTORS - ${brand}`, x + (w / 2) - 20, y + (h / 2) + 4);
+  doc.text(`PUBLI-X BOLIVIA - ${brand}`, x + (w / 2) - 20, y + (h / 2) + 4);
 };

@@ -86,6 +86,25 @@ export default function Quotations({
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
 
+  // Close preview modal cleanly
+  const handleClosePreview = () => {
+    setSelectedPrintQuote(null);
+    setEditingQuote(null);
+    setIsEditingPreview(false);
+    setPreviewSuccessMsg('');
+  };
+
+  // Keyboard shortcut: ESC to close preview modal
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedPrintQuote) {
+        handleClosePreview();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPrintQuote]);
+
   // Auto load vehicle price when vehicle changes
   React.useEffect(() => {
     if (activeVehicle) {
@@ -131,7 +150,7 @@ export default function Quotations({
   const handlePreviewDraft = () => {
     setFormError('');
     if (!activeClient) return setFormError('Debe seleccionar un cliente destinatario.');
-    if (!activeVehicle) return setFormError('Debe seleccionar un vehículo a cotizar.');
+    if (!activeVehicle) return setFormError('Debe seleccionar una valla o pantalla publicitaria a cotizar.');
     if (!precioVehiculo || isNaN(Number(precioVehiculo))) return setFormError('Proporcione un precio base válido.');
 
     const draftQuote: Quotation = {
@@ -316,7 +335,7 @@ export default function Quotations({
           <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Buscar cotizaciones por número, cliente o modelo..."
+            placeholder="Buscar cotizaciones por número, cliente, valla o ubicación..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
@@ -328,7 +347,7 @@ export default function Quotations({
             resetForm();
             setShowForm(prev => !prev);
           }}
-          className="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-4 rounded-lg transition text-sm shadow-xs flex items-center space-x-1.5"
+          className="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-4 rounded-lg transition text-sm shadow-xs flex items-center space-x-1.5 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Nueva Cotización Formal</span>
@@ -347,9 +366,9 @@ export default function Quotations({
             <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-xs space-y-4">
               <div className="pb-3 border-b border-gray-50 flex justify-between items-center">
                 <h4 className="text-base font-bold text-gray-800 font-display">
-                  Calculadora y Generador de Gastos de Importación
+                  Calculadora y Generador de Cotizaciones OOH / Publicidad Exterior
                 </h4>
-                <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
+                <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -544,7 +563,7 @@ export default function Quotations({
               <tr className="border-b border-gray-100 text-gray-400 text-xs font-semibold uppercase tracking-wider bg-gray-50/50">
                 <th className="py-3 px-4 font-semibold">Número Documento</th>
                 <th className="py-3 px-4 font-semibold">Cliente</th>
-                <th className="py-3 px-4 font-semibold">Vehículo Cotizado</th>
+                <th className="py-3 px-4 font-semibold">Valla / Espacio Publicitario</th>
                 <th className="py-3 px-4 font-semibold">Monto Total</th>
                 <th className="py-3 px-4 font-semibold">Estado</th>
                 <th className="py-3 px-4 font-semibold text-center">Acciones</th>
@@ -565,8 +584,8 @@ export default function Quotations({
                         <span className="font-semibold text-gray-800 text-sm">{client ? client.nombre : 'Cliente Desconocido'}</span>
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="text-xs text-gray-600">
-                          {vehicle ? `${vehicle.marca} ${vehicle.modelo} (${vehicle.anio})` : 'Vehículo Desconocido'}
+                        <span className="text-xs text-gray-700 font-medium">
+                          {vehicle ? `${vehicle.tipo_valla || vehicle.tipo} - ${vehicle.avenida_calle || vehicle.modelo} (${vehicle.ciudad})` : 'Valla No Especificada'}
                         </span>
                       </td>
                       <td className="py-3.5 px-4">
@@ -714,16 +733,21 @@ export default function Quotations({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto no-print"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  handleClosePreview();
+                }
+              }}
+              className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto no-print"
             >
               <motion.div
                 initial={{ scale: 0.95, y: 15 }}
                 animate={{ scale: 1, y: 0 }}
                 exit={{ scale: 0.95, y: 15 }}
-                className="bg-white rounded-2xl border border-gray-200 shadow-2xl max-w-3xl w-full overflow-hidden flex flex-col my-8"
+                className="bg-white rounded-2xl border border-gray-200 shadow-2xl max-w-3xl w-full overflow-hidden flex flex-col my-8 relative"
               >
                 {/* Controls toolbar */}
-                <div className="bg-gray-950 text-white p-4 flex flex-wrap gap-2 justify-between items-center no-print border-b border-gray-800">
+                <div className="bg-gray-950 text-white p-4 flex flex-wrap gap-2 justify-between items-center no-print border-b border-gray-800 sticky top-0 z-20">
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => setIsEditingPreview(!isEditingPreview)}
@@ -778,14 +802,12 @@ export default function Quotations({
                     </button>
                     
                     <button
-                      onClick={() => {
-                        setSelectedPrintQuote(null);
-                        setEditingQuote(null);
-                        setIsEditingPreview(false);
-                      }}
-                      className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition ml-1 cursor-pointer"
+                      onClick={handleClosePreview}
+                      className="px-2.5 py-1.5 rounded-lg bg-rose-600/80 hover:bg-rose-600 text-white font-bold text-xs transition flex items-center space-x-1 cursor-pointer"
+                      title="Cerrar vista previa (Esc)"
                     >
-                      <X className="w-5 h-5" />
+                      <X className="w-4 h-4" />
+                      <span>Cerrar</span>
                     </button>
                   </div>
                 </div>
@@ -824,14 +846,14 @@ export default function Quotations({
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Vehículo / Valla Cotizada</label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Valla Publicitaria / Pantalla LED Cotizada</label>
                         <select
                           value={displayQuote.vehiculo_id}
                           onChange={(e) => setEditingQuote(prev => prev ? { ...prev, vehiculo_id: e.target.value } : prev)}
                           className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-semibold focus:ring-2 focus:ring-amber-500"
                         >
                           {vehicles.map((v) => (
-                            <option key={v.id} value={v.id}>{v.modelo} - {v.ciudad} ({v.tipo})</option>
+                            <option key={v.id} value={v.id}>{v.tipo_valla || v.tipo} - {v.avenida_calle || v.modelo} ({v.ciudad})</option>
                           ))}
                         </select>
                       </div>
@@ -956,7 +978,7 @@ export default function Quotations({
                         <div className="flex items-center space-x-2">
                           <Logo size="sm" logoUrl={settings.logo} />
                           <h2 className="text-xl font-extrabold font-display tracking-tight text-gray-900">
-                            {settings.nombre_empresa}
+                            {settings.nombre_empresa || 'PUBLI-X BOLIVIA'}
                           </h2>
                         </div>
                         <p className="text-[10px] text-amber-600 font-bold tracking-wider uppercase">
@@ -1088,9 +1110,30 @@ export default function Quotations({
                       <div className="flex flex-col justify-end items-center text-center space-y-3 pt-8">
                         <div className="w-40 border-b border-gray-300 pb-1" />
                         <div>
-                          <p className="font-bold text-gray-700 text-[10px]">MLA AUTOMOTORS BOLIVIA</p>
-                          <p className="text-gray-400">Firma Autorizada y Sello Comercial</p>
+                          <p className="font-bold text-gray-700 text-[10px]">{settings.nombre_empresa || 'PUBLI-X BOLIVIA'}</p>
+                          <p className="text-gray-400">Firma Autorizada • Departamento Comercial</p>
                         </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Exit Bar */}
+                    <div className="pt-6 border-t border-gray-100 flex items-center justify-between no-print">
+                      <button
+                        onClick={handleClosePreview}
+                        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl transition flex items-center space-x-1.5 cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                        <span>Cerrar Vista Previa</span>
+                      </button>
+
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => window.print()}
+                          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl transition flex items-center space-x-1.5 shadow-xs cursor-pointer"
+                        >
+                          <Printer className="w-4 h-4" />
+                          <span>Imprimir / Guardar PDF</span>
+                        </button>
                       </div>
                     </div>
 

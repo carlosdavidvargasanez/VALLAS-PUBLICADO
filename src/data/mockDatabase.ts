@@ -198,32 +198,32 @@ const INITIAL_FOLLOW_UPS: FollowUp[] = [
 const INITIAL_QUOTATIONS: Quotation[] = [
   {
     id: 'Q001',
-    numero: 'MLA-20260711-000001',
-    cliente_id: 'C004',
-    vehiculo_id: 'V008', // Porsche Cayenne
-    precio_vehiculo: 95000,
-    gastos_importacion: 1800,
-    gastos_aduana: 12500,
-    gastos_logistica: 2200,
-    gastos_seguro: 950,
-    total: 112450,
+    numero: 'PUBLIX-20260711-000001',
+    cliente_id: 'C001',
+    vehiculo_id: 'V001',
+    precio_vehiculo: 1500,
+    gastos_importacion: 400,
+    gastos_aduana: 300,
+    gastos_logistica: 150,
+    gastos_seguro: 100,
+    total: 2450,
     estado: 'Enviada',
-    observaciones: 'Cotización premium para Porsche Cayenne. El cliente solicita que el flete marítimo sea expreso. Se incluye seguro completo de aduana.',
+    observaciones: 'Cotización para Valla Unipolar en Av. Banzer y 4to Anillo. Incluye confección de lona frontlight 13oz e iluminación LED nocturna.',
     fecha: '2026-07-11T11:30:00Z'
   },
   {
     id: 'Q002',
-    numero: 'MLA-20260711-000002',
-    cliente_id: 'C005',
-    vehiculo_id: 'V002', // Toyota 4Runner
-    precio_vehiculo: 48000,
-    gastos_importacion: 1500,
-    gastos_aduana: 6200,
-    gastos_logistica: 1800,
-    gastos_seguro: 480,
-    total: 57980,
+    numero: 'PUBLIX-20260711-000002',
+    cliente_id: 'C002',
+    vehiculo_id: 'V002',
+    precio_vehiculo: 2200,
+    gastos_importacion: 500,
+    gastos_aduana: 400,
+    gastos_logistica: 200,
+    gastos_seguro: 150,
+    total: 3450,
     estado: 'Aceptada',
-    observaciones: 'Venta cerrada de Toyota 4Runner. El pago del 60% inicial ya fue depositado en la cuenta corriente de la empresa. Se inició proceso de compra en subasta Copart.',
+    observaciones: 'Reserva confirmada de Pantalla LED Gigante HD en Plaza Abaroa para campaña institucional UPDS.',
     fecha: '2026-07-11T14:00:00Z'
   }
 ];

@@ -46,12 +46,12 @@ export default function ImportExport({
 
     if (importType === 'clients') {
       headers = 'Nombre,Celular,Ciudad,Departamento,PresupuestoUSD,Observaciones\n';
-      sampleRow = 'Juan Carlos Perez,+59170012345,Santa Cruz de la Sierra,Santa Cruz,45000,Busca vagoneta mediana tipo SUV\n';
-      filename = 'plantilla_clientes_MLA.csv';
+      sampleRow = 'Juan Carlos Perez,+59170012345,Santa Cruz de la Sierra,Santa Cruz,45000,Busca valla publicitaria en zona norte\n';
+      filename = 'plantilla_clientes_PUBLI_X.csv';
     } else {
       headers = 'Marca,Modelo,Version,Anio,Tipo,PrecioUSD,Motor,Combustible,Transmision,Traccion,Color,Descripcion\n';
-      sampleRow = 'Toyota,Tacoma TRD,Double Cab,2025,Pickup,52000,2.4L Hibrido,Hibrido,Automatica,4x4,Azul,Camioneta extrema para offroad\n';
-      filename = 'plantilla_vehiculos_MLA.csv';
+      sampleRow = 'PUBLI-X,Av. Cristo Redentor y 4to Anillo,Cara A,2025,Valla Gigante Bipolar,1500,Iluminacion LED,10x4m,Centro,Santa Cruz,Full Color,Valla de alto impacto visual y tráfico masivo\n';
+      filename = 'plantilla_vallas_PUBLI_X.csv';
     }
 
     const blob = new Blob([headers + sampleRow], { type: 'text/csv;charset=utf-8;' });
@@ -74,14 +74,14 @@ export default function ImportExport({
         `"${c.id}","${c.nombre}","${c.celular}","${c.ciudad}","${c.departamento}",${c.presupuesto_usd},"${c.estado}","${c.fecha_registro}"`
       ).join('\n');
       csvContent = headers + rows;
-      filename = `clientes_exportados_MLA_${new Date().toISOString().split('T')[0]}.csv`;
+      filename = `clientes_exportados_PUBLI_X_${new Date().toISOString().split('T')[0]}.csv`;
     } else {
       const headers = 'ID,Marca,Modelo,Version,Anio,Tipo,Combustible,Transmision,Traccion,PrecioUSD,Estado\n';
       const rows = vehicles.map(v => 
         `"${v.id}","${v.marca}","${v.modelo}","${v.version}",${v.anio},"${v.tipo}","${v.combustible}","${v.transmision}","${v.traccion}",${v.precio_usd},"${v.estado}"`
       ).join('\n');
       csvContent = headers + rows;
-      filename = `catalogo_exportado_MLA_${new Date().toISOString().split('T')[0]}.csv`;
+      filename = `catalogo_vallas_exportado_PUBLI_X_${new Date().toISOString().split('T')[0]}.csv`;
     }
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

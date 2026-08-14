@@ -10,7 +10,7 @@ export const generateCatalogPptx = async (
   onProgress?: (text: string) => void
 ): Promise<void> => {
   if (selectedVehicles.length === 0) {
-    throw new Error('Debe seleccionar al menos un vehículo para generar el PowerPoint.');
+    throw new Error('Debe seleccionar al menos una valla o pantalla para generar el PowerPoint.');
   }
 
   onProgress?.('Iniciando generador de PowerPoint...');
@@ -19,7 +19,7 @@ export const generateCatalogPptx = async (
   // Set widescreen layout
   pptx.layout = 'LAYOUT_16x9';
 
-  const companyName = settings.nombre_empresa || 'MLA AUTOMOTORS';
+  const companyName = settings.nombre_empresa || 'PUBLI-X BOLIVIA';
   const accentColor = 'F59E0B'; // Amber 500
   const primaryBgColor = '0F172A'; // Slate 900
   const lightGrayBg = 'F8FAFC'; // Slate 50
@@ -51,7 +51,7 @@ export const generateCatalogPptx = async (
   });
 
   // Subtitle
-  coverSlide.addText('PORTAFOLIO EXCLUSIVO DE VEHÍCULOS DE ALTA GAMA', {
+  coverSlide.addText('PORTAFOLIO EXCLUSIVO DE PUBLICIDAD EXTERIOR & PANTALLAS LED', {
     x: 1.0, y: 2.5, w: 11.3, h: 0.4,
     fontSize: 12,
     fontFace: 'Helvetica',
@@ -61,7 +61,7 @@ export const generateCatalogPptx = async (
   });
 
   // Main banner text
-  coverSlide.addText('CATÁLOGO DE UNIDADES SELECCIONADAS', {
+  coverSlide.addText('CATÁLOGO DE VALLAS Y PANTALLAS SELECCIONADAS', {
     x: 1.0, y: 3.4, w: 11.3, h: 0.8,
     fontSize: 24,
     bold: true,
@@ -122,7 +122,7 @@ export const generateCatalogPptx = async (
   );
 
   // Footer on cover
-  coverSlide.addText(`${companyName} © ${new Date().getFullYear()} • Importación Certificada desde Copart / IAAI`, {
+  coverSlide.addText(`${companyName} © ${new Date().getFullYear()} • Publicidad Exterior e Impacto Urbano en Bolivia`, {
     x: 1.0, y: 6.8, w: 11.3, h: 0.3,
     fontSize: 9,
     fontFace: 'Helvetica',
@@ -278,7 +278,7 @@ export const generateCatalogPptx = async (
       line: { color: borderLineColor, width: 1 }
     });
 
-    slide.addText('VALOR CIF IMPORTADO FINAL (SOPORTE ADUANERO):', {
+    slide.addText('ALQUILER MENSUAL (INCLUYE ILUMINACIÓN Y MANTENIMIENTO):', {
       x: 0.6, y: 5.75, w: 5.0, h: 0.2,
       fontSize: 8,
       bold: true,

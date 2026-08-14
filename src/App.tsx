@@ -295,13 +295,13 @@ export default function App() {
   const handleAddQuotation = (quoteData: Omit<Quotation, 'id' | 'numero' | 'fecha'>) => {
     const list = mockDb.getQuotations();
     
-    // Auto-number format: MLA-YYYYMMDD-00000X
+    // Auto-number format: PUBLIX-YYYYMMDD-00000X
     const today = new Date();
     const dateStamp = today.getFullYear() + 
                       String(today.getMonth() + 1).padStart(2, '0') + 
                       String(today.getDate()).padStart(2, '0');
     const seq = String(list.length + 1).padStart(6, '0');
-    const quoteNum = `MLA-${dateStamp}-${seq}`;
+    const quoteNum = `PUBLIX-${dateStamp}-${seq}`;
 
     const newQuote: Quotation = {
       ...quoteData,

@@ -1451,7 +1451,7 @@ export default function Vehicles({
                       </button>
 
                       {/* Client Cart Add/Remove Button */}
-                      {isCliente ? (
+                      {isCliente && (
                         <button
                           onClick={() => {
                             if (!isMultiSelect) setIsMultiSelect(true);
@@ -1466,28 +1466,26 @@ export default function Vehicles({
                           <Check className={`w-3.5 h-3.5 ${isSelected ? 'inline-block' : 'hidden'}`} />
                           <span>{isSelected ? 'Agregado 🛒' : '+ Carrito'}</span>
                         </button>
-                      ) : (
-                        <>
-                          {/* Edit Button (Internal Staff) */}
-                          <button
-                            onClick={() => handleEditClick(valla)}
-                            className="p-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-amber-700 rounded-xl transition cursor-pointer"
-                            title="Editar Datos"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
+                      )}
 
-                          {/* Delete Button (STRICTLY Dueño Only) */}
-                          {isDueno && (
-                            <button
-                              onClick={() => handleDeleteClick(valla)}
-                              className="p-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-100 text-rose-600 rounded-xl transition cursor-pointer"
-                              title="Eliminar Valla (Sólo Dueño)"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </>
+                      {/* Edit Button (Always Enabled for quick data editing) */}
+                      <button
+                        onClick={() => handleEditClick(valla)}
+                        className="p-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 rounded-xl transition cursor-pointer"
+                        title="Editar Datos de la Valla / Pantalla"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+
+                      {/* Delete Button (STRICTLY Dueño Only) */}
+                      {isDueno && (
+                        <button
+                          onClick={() => handleDeleteClick(valla)}
+                          className="p-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-100 text-rose-600 rounded-xl transition cursor-pointer"
+                          title="Eliminar Valla (Sólo Dueño)"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       )}
 
                       {/* Direct WhatsApp Contact */}
@@ -1559,13 +1557,27 @@ export default function Vehicles({
                     {selectedSpecVehicle.avenida_calle || selectedSpecVehicle.modelo}
                   </h3>
                 </div>
-                <button
-                  onClick={() => setSelectedSpecVehicle(null)}
-                  className="p-1.5 rounded-full bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition cursor-pointer"
-                  title="Cerrar ventana"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => {
+                      const v = selectedSpecVehicle;
+                      setSelectedSpecVehicle(null);
+                      handleEditClick(v);
+                    }}
+                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs rounded-xl transition flex items-center space-x-1.5 cursor-pointer shadow-xs"
+                    title="Editar datos técnicos y comerciales de esta valla"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Editar Datos</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedSpecVehicle(null)}
+                    className="p-1.5 rounded-full bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition cursor-pointer"
+                    title="Cerrar ventana"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               {/* Modal Body - 2 Column Side-By-Side Grid */}
@@ -1729,12 +1741,25 @@ export default function Vehicles({
                 <span className="text-[11px] text-gray-400 font-medium hidden sm:inline">
                   PUBLI-X BOLIVIA • Espacio publicitario de alta visibilidad
                 </span>
-                <button
-                  onClick={() => setSelectedSpecVehicle(null)}
-                  className="px-6 py-2 bg-slate-900 hover:bg-slate-950 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition cursor-pointer ml-auto"
-                >
-                  Cerrar Detalle
-                </button>
+                <div className="flex items-center space-x-2 ml-auto">
+                  <button
+                    onClick={() => {
+                      const v = selectedSpecVehicle;
+                      setSelectedSpecVehicle(null);
+                      handleEditClick(v);
+                    }}
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs rounded-xl transition flex items-center space-x-1.5 cursor-pointer shadow-xs uppercase tracking-wider"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Editar Datos de Valla</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedSpecVehicle(null)}
+                    className="px-6 py-2 bg-slate-900 hover:bg-slate-950 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition cursor-pointer"
+                  >
+                    Cerrar Detalle
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
