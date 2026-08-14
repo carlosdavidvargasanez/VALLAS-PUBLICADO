@@ -41,23 +41,26 @@ import {
   UserPlus,
   Shield,
   Home,
-  Inbox
+  Inbox,
+  Key
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
   // Global persistent states loaded from simulated SQLite (localStorage)
-  const [clients, setClients] = useState<Client[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [quotations, setQuotations] = useState<Quotation[]>([]);
-  const [contracts, setContracts] = useState<Contract[]>([]);
-  const [followUps, setFollowUps] = useState<FollowUp[]>([]);
-  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
-  const [settings, setSettings] = useState<Settings>({} as Settings);
-  const [users, setUsers] = useState<UserSession[]>([]);
-  const [currentUser, setCurrentUser] = useState<UserSession>({} as UserSession);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [pendingRequestsCount, setPendingRequestsCount] = useState<number>(0);
+  const [clients, setClients] = useState<Client[]>(() => mockDb.getClients());
+  const [vehicles, setVehicles] = useState<Vehicle[]>(() => mockDb.getVehicles());
+  const [quotations, setQuotations] = useState<Quotation[]>(() => mockDb.getQuotations());
+  const [contracts, setContracts] = useState<Contract[]>(() => mockDb.getContracts());
+  const [followUps, setFollowUps] = useState<FollowUp[]>(() => mockDb.getFollowUps());
+  const [templates, setTemplates] = useState<MessageTemplate[]>(() => mockDb.getTemplates());
+  const [settings, setSettings] = useState<Settings>(() => mockDb.getSettings());
+  const [users, setUsers] = useState<UserSession[]>(() => mockDb.getUsers());
+  const [currentUser, setCurrentUser] = useState<UserSession>(() => mockDb.getCurrentUser());
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => mockDb.getAuditLogs());
+  const [pendingRequestsCount, setPendingRequestsCount] = useState<number>(() => {
+    return mockDb.getPendingRequests().filter(r => r.estado === 'Pendiente').length;
+  });
 
   // Selected Active Navigation Tab
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -971,106 +974,100 @@ export default function App() {
               </div>
             </button>
 
-            {/* Dropdown Menu */}
+            {/* Dropdown Menu Seguro */}
             <AnimatePresence>
               {userMenuOpen && (
                 <motion.div
                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute right-0 mt-2 w-72 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl z-50 p-3 space-y-2 text-white"
+                  className="absolute right-0 mt-2 w-80 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl z-50 p-4 space-y-3 text-white"
                 >
-                  <div className="flex items-center justify-between pb-2 border-b border-gray-800 px-2">
-                    <span className="text-[10px] font-extrabold text-amber-500 uppercase tracking-wider">
-                      CAMBIAR USUARIO DE SESIÓN
+                  <div className="flex items-center justify-between pb-2.5 border-b border-gray-800">
+                    <span className="text-[10px] font-extrabold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Shield className="w-3.5 h-3.5 text-amber-400" />
+                      SESIÓN AUTENTICADA
                     </span>
                     <button
                       onClick={() => setUserMenuOpen(false)}
-                      className="text-gray-500 hover:text-white p-0.5 rounded"
+                      className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
 
-                  <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
-                    {users.map((u) => {
-                      const isSelected = currentUser.id === u.id;
-                      return (
-                        <button
-                          key={u.id}
-                          onClick={() => {
-                            handleUserChange(u);
-                            setUserMenuOpen(false);
-                          }}
-                          className={`w-full text-left p-2.5 rounded-xl text-xs flex items-center justify-between transition cursor-pointer ${
-                            isSelected
-                              ? 'bg-amber-500/15 border border-amber-500/40 text-amber-300 font-bold'
-                              : 'hover:bg-gray-800 text-gray-300 border border-transparent'
-                          }`}
-                        >
-                          <div className="flex items-center space-x-2.5">
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${
-                              u.rol === 'Dueño' ? 'bg-amber-500/30 text-amber-400' :
-                              u.rol === 'Jefe' ? 'bg-blue-500/30 text-blue-400' :
-                              u.rol === 'Cliente' ? 'bg-purple-500/30 text-purple-400' :
-                              'bg-emerald-500/30 text-emerald-400'
-                            }`}>
-                              {u.nombre[0]}
-                            </div>
-                            <div>
-                              <div className="font-bold text-white leading-snug">{u.nombre}</div>
-                              <div className="text-[10px] text-gray-400 font-mono">usuario: {u.usuario}</div>
-                            </div>
-                          </div>
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase ${
-                            u.rol === 'Dueño' ? 'bg-amber-500 text-gray-950' :
-                            u.rol === 'Jefe' ? 'bg-blue-600 text-white' :
-                            u.rol === 'Cliente' ? 'bg-purple-600 text-white font-black' :
-                            'bg-emerald-600 text-white'
-                          }`}>
-                            {u.rol}
-                          </span>
-                        </button>
-                      );
-                    })}
+                  {/* Current Active User Profile Card */}
+                  <div className="bg-gray-950/80 border border-gray-800/80 rounded-xl p-3 space-y-2">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shadow-md ${
+                        currentUser.rol === 'Dueño' ? 'bg-amber-500 text-gray-950 ring-2 ring-amber-400/50' :
+                        currentUser.rol === 'Jefe' ? 'bg-blue-600 text-white ring-2 ring-blue-400/50' :
+                        currentUser.rol === 'Cliente' ? 'bg-purple-600 text-white ring-2 ring-purple-400/50' :
+                        'bg-emerald-600 text-white ring-2 ring-emerald-400/50'
+                      }`}>
+                        {currentUser.nombre ? currentUser.nombre[0] : 'U'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-white text-sm truncate">{currentUser.nombre}</div>
+                        <div className="text-[11px] text-gray-400 font-mono flex items-center gap-1">
+                          <span>@{currentUser.usuario}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between pt-1 text-[11px]">
+                      <span className="text-gray-400">Rol asignado:</span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        currentUser.rol === 'Dueño' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' :
+                        currentUser.rol === 'Jefe' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40' :
+                        currentUser.rol === 'Cliente' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40' :
+                        'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                      }`}>
+                        {currentUser.rol === 'Dueño' ? '👑 DUEÑO' : currentUser.rol === 'Jefe' ? '🛡️ SUPERVISOR / JEFE' : currentUser.rol}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Explicit Login Modal & Logout Buttons */}
-                  <div className="pt-2 border-t border-gray-800 space-y-1.5">
+                  {/* Actions Requiring Password / Privileges */}
+                  <div className="space-y-2 pt-1">
                     <button
                       onClick={() => {
                         setUserMenuOpen(false);
                         setShowLoginModal(true);
                       }}
-                      className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-gray-950 font-black rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center space-x-1.5 cursor-pointer shadow-md"
+                      className="w-full py-2.5 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-gray-950 font-black rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center space-x-2 cursor-pointer shadow-lg shadow-amber-500/20"
                     >
-                      <User className="w-3.5 h-3.5" />
-                      <span>Ingresar con Usuario y Clave</span>
+                      <Key className="w-4 h-4 text-gray-950" />
+                      <span>Cambiar de Usuario con Contraseña</span>
                     </button>
+
+                    {(currentUser.rol === 'Dueño' || currentUser.rol === 'Jefe') && (
+                      <button
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          setActiveTab('configuracion');
+                        }}
+                        className="w-full py-2 bg-gray-800 hover:bg-gray-750 text-gray-200 border border-gray-700/80 font-bold rounded-xl text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Gestión de Usuarios & Permisos</span>
+                      </button>
+                    )}
 
                     <button
                       onClick={() => {
                         setUserMenuOpen(false);
                         handleLogout();
                       }}
-                      className="w-full py-1.5 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 text-rose-300 font-bold rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                      className="w-full py-2 bg-rose-950/30 hover:bg-rose-900/50 border border-rose-800/40 text-rose-300 font-bold rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center space-x-1.5 cursor-pointer"
                     >
                       <LogOut className="w-3.5 h-3.5" />
-                      <span>Cerrar Sesión (Página Principal)</span>
+                      <span>Cerrar Sesión</span>
                     </button>
+                  </div>
 
-                    <div className="flex justify-between items-center text-[10px] text-gray-400 px-1 pt-1">
-                      <span>¿Registrar personal?</span>
-                      <button
-                        onClick={() => {
-                          setUserMenuOpen(false);
-                          setActiveTab('configuracion');
-                        }}
-                        className="text-amber-400 hover:underline font-bold uppercase"
-                      >
-                        + Configuración
-                      </button>
-                    </div>
+                  <div className="text-[10px] text-gray-400 text-center pt-1 border-t border-gray-800/60">
+                    Solo usuarios autorizados con contraseña pueden cambiar de cuenta.
                   </div>
                 </motion.div>
               )}
@@ -1344,7 +1341,7 @@ export default function App() {
                 <AuditLogs
                   auditLogs={auditLogs}
                   onClearLogs={() => {
-                    localStorage.setItem('mla_autosender_audit_logs', '[]');
+                    mockDb.clearAuditLogs();
                     setAuditLogs([]);
                   }}
                 />

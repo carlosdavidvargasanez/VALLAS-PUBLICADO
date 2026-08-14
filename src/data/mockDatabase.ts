@@ -428,7 +428,8 @@ const INITIAL_AUDIT_LOGS: AuditLog[] = [
 
 export const mockDb = {
   initialize() {
-    const storedClients = localStorage.getItem(DB_KEYS.CLIENTS);
+    try {
+      const storedClients = localStorage.getItem(DB_KEYS.CLIENTS);
     if (!storedClients) {
       localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(INITIAL_CLIENTS));
     } else {
@@ -557,146 +558,315 @@ export const mockDb = {
     if (!storedUsers) {
       localStorage.setItem(DB_KEYS.USERS, JSON.stringify(DEFAULT_USERS));
     }
-    if (!localStorage.getItem(DB_KEYS.CURRENT_USER)) {
+    if (localStorage.getItem(DB_KEYS.CURRENT_USER) === null) {
       localStorage.setItem(DB_KEYS.CURRENT_USER, JSON.stringify(DEFAULT_USERS[0])); // Carlos as default
     }
-    if (!localStorage.getItem(DB_KEYS.AUDIT_LOGS)) {
+    if (localStorage.getItem(DB_KEYS.AUDIT_LOGS) === null) {
       localStorage.setItem(DB_KEYS.AUDIT_LOGS, JSON.stringify(INITIAL_AUDIT_LOGS));
     }
-    if (!localStorage.getItem(DB_KEYS.PENDING_REQUESTS)) {
+    if (localStorage.getItem(DB_KEYS.PENDING_REQUESTS) === null) {
       localStorage.setItem(DB_KEYS.PENDING_REQUESTS, JSON.stringify(INITIAL_PENDING_REQUESTS));
     }
-  },
+  } catch (err) {
+    console.warn('LocalStorage error during initialize:', err);
+  }
+},
 
   getClients(): Client[] {
     this.initialize();
-    const raw: Client[] = JSON.parse(localStorage.getItem(DB_KEYS.CLIENTS) || '[]');
-    let modified = false;
-    const updated = raw.map(c => {
-      if (!c.usuario_acceso || !c.password_acceso) {
-        const creds = generateClientCredentials(c.nombre, c.celular);
-        modified = true;
-        return {
-          ...c,
-          usuario_acceso: c.usuario_acceso || creds.usuario_acceso,
-          password_acceso: c.password_acceso || creds.password_acceso
-        };
+    try {
+      const raw: Client[] = JSON.parse(localStorage.getItem(DB_KEYS.CLIENTS) || '[]');
+      if (!Array.isArray(raw)) return INITIAL_CLIENTS;
+      let modified = false;
+      const updated = raw.map(c => {
+        if (!c.usuario_acceso || !c.password_acceso) {
+          const creds = generateClientCredentials(c.nombre, c.celular);
+          modified = true;
+          return {
+            ...c,
+            usuario_acceso: c.usuario_acceso || creds.usuario_acceso,
+            password_acceso: c.password_acceso || creds.password_acceso
+          };
+        }
+        return c;
+      });
+      if (modified) {
+        localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(updated));
       }
-      return c;
-    });
-    if (modified) {
-      localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(updated));
+      return updated;
+    } catch {
+      return INITIAL_CLIENTS;
     }
-    return updated;
   },
 
   saveClients(clients: Client[]) {
-    localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(clients));
+    try {
+      localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(clients));
+    } catch (e) {
+      console.error(e);
+    }
   },
 
   getVehicles(): Vehicle[] {
     this.initialize();
-    return JSON.parse(localStorage.getItem(DB_KEYS.VEHICLES) || '[]');
+    try {
+      const parsed = JSON.parse(localStorage.getItem(DB_KEYS.VEHICLES) || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   },
 
   saveVehicles(vehicles: Vehicle[]) {
-    localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(vehicles));
+    try {
+      localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(vehicles));
+    } catch (e) {
+      console.error(e);
+    }
   },
 
   getQuotations(): Quotation[] {
     this.initialize();
-    return JSON.parse(localStorage.getItem(DB_KEYS.QUOTATIONS) || '[]');
+    try {
+      const parsed = JSON.parse(localStorage.getItem(DB_KEYS.QUOTATIONS) || '[]');
+      return Array.isArray(parsed) ? parsed : INITIAL_QUOTATIONS;
+    } catch {
+      return INITIAL_QUOTATIONS;
+    }
   },
 
   saveQuotations(quotations: Quotation[]) {
-    localStorage.setItem(DB_KEYS.QUOTATIONS, JSON.stringify(quotations));
+    try {
+      localStorage.setItem(DB_KEYS.QUOTATIONS, JSON.stringify(quotations));
+    } catch (e) {
+      console.error(e);
+    }
   },
 
   getContracts(): Contract[] {
     this.initialize();
-    return JSON.parse(localStorage.getItem(DB_KEYS.CONTRACTS) || '[]');
+    try {
+      const parsed = JSON.parse(localStorage.getItem(DB_KEYS.CONTRACTS) || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   },
 
   saveContracts(contracts: Contract[]) {
-    localStorage.setItem(DB_KEYS.CONTRACTS, JSON.stringify(contracts));
+    try {
+      localStorage.setItem(DB_KEYS.CONTRACTS, JSON.stringify(contracts));
+    } catch (e) {
+      console.error(e);
+    }
   },
 
   getFollowUps(): FollowUp[] {
     this.initialize();
-    return JSON.parse(localStorage.getItem(DB_KEYS.FOLLOW_UPS) || '[]');
+    try {
+      const parsed = JSON.parse(localStorage.getItem(DB_KEYS.FOLLOW_UPS) || '[]');
+      return Array.isArray(parsed) ? parsed : INITIAL_FOLLOW_UPS;
+    } catch {
+      return INITIAL_FOLLOW_UPS;
+    }
   },
 
   saveFollowUps(followUps: FollowUp[]) {
-    localStorage.setItem(DB_KEYS.FOLLOW_UPS, JSON.stringify(followUps));
+    try {
+      localStorage.setItem(DB_KEYS.FOLLOW_UPS, JSON.stringify(followUps));
+    } catch (e) {
+      console.error(e);
+    }
   },
 
   getTemplates(): MessageTemplate[] {
     this.initialize();
-    return JSON.parse(localStorage.getItem(DB_KEYS.TEMPLATES) || '[]');
+    try {
+      const parsed = JSON.parse(localStorage.getItem(DB_KEYS.TEMPLATES) || '[]');
+      return Array.isArray(parsed) ? parsed : DEFAULT_TEMPLATES;
+    } catch {
+      return DEFAULT_TEMPLATES;
+    }
   },
 
   saveTemplates(templates: MessageTemplate[]) {
-    localStorage.setItem(DB_KEYS.TEMPLATES, JSON.stringify(templates));
+    try {
+      localStorage.setItem(DB_KEYS.TEMPLATES, JSON.stringify(templates));
+    } catch (e) {
+      console.error(e);
+    }
   },
 
   getSettings(): Settings {
     this.initialize();
-    const settings: Settings = JSON.parse(localStorage.getItem(DB_KEYS.SETTINGS) || '{}');
-    if (settings.logo && (settings.logo.includes('photo-') || settings.logo.includes('unsplash'))) {
-      settings.logo = '';
-      this.saveSettings(settings);
+    try {
+      const settings: Settings = JSON.parse(localStorage.getItem(DB_KEYS.SETTINGS) || '{}');
+      if (settings.logo && (settings.logo.includes('photo-') || settings.logo.includes('unsplash'))) {
+        settings.logo = '';
+        this.saveSettings(settings);
+      }
+      return settings && typeof settings === 'object' && settings.nombre_empresa ? settings : DEFAULT_SETTINGS;
+    } catch {
+      return DEFAULT_SETTINGS;
     }
-    return settings;
   },
 
   saveSettings(settings: Settings) {
-    localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify(settings));
+    try {
+      localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify(settings));
+    } catch (e) {
+      console.error(e);
+    }
   },
 
   getUsers(): UserSession[] {
     this.initialize();
-    return JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
+    try {
+      const parsed = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_USERS;
+    } catch {
+      return DEFAULT_USERS;
+    }
   },
 
   saveUsers(users: UserSession[]) {
-    localStorage.setItem(DB_KEYS.USERS, JSON.stringify(users));
+    try {
+      localStorage.setItem(DB_KEYS.USERS, JSON.stringify(users));
+    } catch (e) {
+      console.error(e);
+    }
   },
 
   getCurrentUser(): UserSession {
     this.initialize();
-    return JSON.parse(localStorage.getItem(DB_KEYS.CURRENT_USER) || 'null');
+    try {
+      const raw = localStorage.getItem(DB_KEYS.CURRENT_USER);
+      if (!raw || raw === 'null' || raw === 'undefined') {
+        return DEFAULT_USERS[0];
+      }
+      const user = JSON.parse(raw);
+      if (user && typeof user === 'object' && user.id && user.rol) {
+        return user;
+      }
+      return DEFAULT_USERS[0];
+    } catch {
+      return DEFAULT_USERS[0];
+    }
   },
 
   setCurrentUser(user: UserSession) {
-    localStorage.setItem(DB_KEYS.CURRENT_USER, JSON.stringify(user));
-    this.addAuditLog(user.nombre, 'Cambio de Usuario Sesión', `El usuario cambió sesión activa a rol ${user.rol}`);
+    try {
+      const safeUser = user && user.id ? user : DEFAULT_USERS[0];
+      localStorage.setItem(DB_KEYS.CURRENT_USER, JSON.stringify(safeUser));
+      this.addAuditLog(safeUser.nombre || 'Administrador', 'Cambio de Usuario Sesión', `El usuario cambió sesión activa a rol ${safeUser.rol || 'Dueño'}`);
+    } catch (e) {
+      console.error(e);
+    }
   },
 
   getAuditLogs(): AuditLog[] {
     this.initialize();
-    return JSON.parse(localStorage.getItem(DB_KEYS.AUDIT_LOGS) || '[]');
+    try {
+      const parsed = JSON.parse(localStorage.getItem(DB_KEYS.AUDIT_LOGS) || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   },
 
   getPendingRequests(): PendingQuotationRequest[] {
     this.initialize();
-    return JSON.parse(localStorage.getItem(DB_KEYS.PENDING_REQUESTS) || '[]');
+    try {
+      const parsed = JSON.parse(localStorage.getItem(DB_KEYS.PENDING_REQUESTS) || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   },
 
   savePendingRequests(requests: PendingQuotationRequest[]) {
-    localStorage.setItem(DB_KEYS.PENDING_REQUESTS, JSON.stringify(requests));
+    try {
+      localStorage.setItem(DB_KEYS.PENDING_REQUESTS, JSON.stringify(requests));
+    } catch (e) {
+      console.warn('LocalStorage quota exceeded on savePendingRequests. Applying lightweight compression fallback...', e);
+      // Fallback Level 1: Keep last 25 requests and strip base64 from older ones
+      try {
+        const trimmed = requests.slice(0, 25).map((req, idx) => {
+          if (idx > 2) {
+            return {
+              ...req,
+              imagenes_referencia: (req.imagenes_referencia || []).map(img => 
+                img.startsWith('data:') ? 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=400&q=75' : img
+              )
+            };
+          }
+          return req;
+        });
+        localStorage.setItem(DB_KEYS.PENDING_REQUESTS, JSON.stringify(trimmed));
+      } catch (err2) {
+        console.warn('Applying Level 2 storage fallback for pending requests...', err2);
+        // Fallback Level 2: Strip all base64 data URLs from all requests
+        try {
+          const stripped = requests.slice(0, 15).map(req => ({
+            ...req,
+            imagenes_referencia: (req.imagenes_referencia || []).filter(img => !img.startsWith('data:'))
+          }));
+          localStorage.setItem(DB_KEYS.PENDING_REQUESTS, JSON.stringify(stripped));
+        } catch (err3) {
+          console.error('Failed to store pending requests even with stripped payload:', err3);
+        }
+      }
+    }
+  },
+
+  deletePendingRequest(id: string) {
+    try {
+      const current = this.getPendingRequests();
+      const updated = current.filter(r => r.id !== id);
+      this.savePendingRequests(updated);
+      try {
+        window.dispatchEvent(new Event('publix_new_request'));
+      } catch {}
+    } catch (e) {
+      console.error(e);
+    }
+  },
+
+  clearPendingRequests() {
+    try {
+      localStorage.setItem(DB_KEYS.PENDING_REQUESTS, JSON.stringify([]));
+      try {
+        window.dispatchEvent(new Event('publix_new_request'));
+      } catch {}
+    } catch (e) {
+      console.error(e);
+    }
+  },
+
+  clearAuditLogs() {
+    try {
+      localStorage.setItem(DB_KEYS.AUDIT_LOGS, JSON.stringify([]));
+    } catch (e) {
+      console.error(e);
+    }
   },
 
   addAuditLog(usuario: string, accion: string, detalle: string) {
-    const logs = JSON.parse(localStorage.getItem(DB_KEYS.AUDIT_LOGS) || '[]');
-    const newLog: AuditLog = {
-      id: 'L' + String(logs.length + 1).padStart(3, '0'),
-      usuario,
-      accion,
-      detalle,
-      fecha: new Date().toISOString()
-    };
-    logs.unshift(newLog); // Prepend to show newest first
-    localStorage.setItem(DB_KEYS.AUDIT_LOGS, JSON.stringify(logs));
+    try {
+      const logs = JSON.parse(localStorage.getItem(DB_KEYS.AUDIT_LOGS) || '[]');
+      const newLog: AuditLog = {
+        id: 'L' + String((Array.isArray(logs) ? logs.length : 0) + 1).padStart(3, '0'),
+        usuario: usuario || 'Sistema',
+        accion: accion || 'Acción',
+        detalle: detalle || '',
+        fecha: new Date().toISOString()
+      };
+      const safeLogs = Array.isArray(logs) ? logs : [];
+      safeLogs.unshift(newLog); // Prepend to show newest first
+      localStorage.setItem(DB_KEYS.AUDIT_LOGS, JSON.stringify(safeLogs));
+    } catch (e) {
+      console.error(e);
+    }
   },
 
   // Export full database as string

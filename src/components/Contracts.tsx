@@ -93,21 +93,29 @@ export default function Contracts({
   };
 
   const handleSendWhatsApp = (c: Contract) => {
-    const text = encodeURIComponent(
-      `*CONTRATO PUBLI-X BOLIVIA* 📢\n\n📄 *Contrato N°:* ${c.numero}\n👤 *Cliente:* ${c.cliente_nombre}\n📍 *Estructura:* ${c.valla_nombre}\n💰 *Monto Total:* $${c.total_neto_usd.toLocaleString()} USD (Bs. ${c.total_neto_bob.toLocaleString('es-BO')} BOB)\n📅 *Vigencia:* ${c.fecha_inicio} al ${c.fecha_fin}\n\nQuedamos a su disposición para cualquier consulta.`
-    );
-    const phone = c.cliente_celular.replace(/[^\d]/g, '');
-    const url = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
-    window.open(url, '_blank');
+    try {
+      const text = encodeURIComponent(
+        `*CONTRATO PUBLI-X BOLIVIA* 📢\n\n📄 *Contrato N°:* ${c.numero}\n👤 *Cliente:* ${c.cliente_nombre}\n📍 *Estructura:* ${c.valla_nombre}\n💰 *Monto Total:* $${c.total_neto_usd.toLocaleString()} USD (Bs. ${c.total_neto_bob.toLocaleString('es-BO')} BOB)\n📅 *Vigencia:* ${c.fecha_inicio} al ${c.fecha_fin}\n\nQuedamos a su disposición para cualquier consulta.`
+      );
+      const phone = c.cliente_celular.replace(/[^\d]/g, '');
+      const url = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
+      window.open(url, '_blank');
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleSendEmail = (c: Contract) => {
-    const email = c.cliente_correo || '';
-    const subject = encodeURIComponent(`Contrato ${c.numero} - PUBLI-X BOLIVIA`);
-    const body = encodeURIComponent(
-      `Estimado(a) ${c.cliente_nombre},\n\nLe adjuntamos los detalles del Contrato N° ${c.numero} de alquiler de espacio publicitario en ${c.valla_nombre}.\n\nMonto Total Neto: $${c.total_neto_usd.toLocaleString()} USD (Bs. ${c.total_neto_bob.toLocaleString('es-BO')} BOB).\nVigencia: ${c.fecha_inicio} al ${c.fecha_fin}.\n\nAtentamente,\n${c.vendedor_nombre}\nPUBLI-X BOLIVIA`
-    );
-    window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
+    try {
+      const email = c.cliente_correo || '';
+      const subject = encodeURIComponent(`Contrato ${c.numero} - PUBLI-X BOLIVIA`);
+      const body = encodeURIComponent(
+        `Estimado(a) ${c.cliente_nombre},\n\nLe adjuntamos los detalles del Contrato N° ${c.numero} de alquiler de espacio publicitario en ${c.valla_nombre}.\n\nMonto Total Neto: $${c.total_neto_usd.toLocaleString()} USD (Bs. ${c.total_neto_bob.toLocaleString('es-BO')} BOB).\nVigencia: ${c.fecha_inicio} al ${c.fecha_fin}.\n\nAtentamente,\n${c.vendedor_nombre}\nPUBLI-X BOLIVIA`
+      );
+      window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (

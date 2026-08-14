@@ -435,19 +435,27 @@ export default function ContractModal({
   };
 
   const handleSendWhatsApp = () => {
-    const c = savedContract || buildContractObject();
-    const text = encodeURIComponent(generateContractShareText());
-    const phone = c.cliente_celular.replace(/[^\d]/g, '');
-    const url = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
-    window.open(url, '_blank');
+    try {
+      const c = savedContract || buildContractObject();
+      const text = encodeURIComponent(generateContractShareText());
+      const phone = c.cliente_celular.replace(/[^\d]/g, '');
+      const url = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
+      window.open(url, '_blank');
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleSendEmail = () => {
-    const c = savedContract || buildContractObject();
-    const email = c.cliente_correo || '';
-    const subject = encodeURIComponent(`Contrato ${c.numero} - PUBLI-X BOLIVIA`);
-    const body = encodeURIComponent(generateContractShareText());
-    window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
+    try {
+      const c = savedContract || buildContractObject();
+      const email = c.cliente_correo || '';
+      const subject = encodeURIComponent(`Contrato ${c.numero} - PUBLI-X BOLIVIA`);
+      const body = encodeURIComponent(generateContractShareText());
+      window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handlePrintContract = () => {

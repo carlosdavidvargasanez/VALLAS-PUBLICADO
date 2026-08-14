@@ -1265,11 +1265,15 @@ export default function Vehicles({
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <button
                       onClick={() => {
-                        const imageUrl = formatDriveUrl(selectedSpecVehicle.imagen_principal);
-                        const phone = activeClient?.celular ? activeClient.celular.replace(/[^\d]/g, '') : '';
-                        const encoded = encodeURIComponent(imageUrl);
-                        const waUrl = phone ? `https://wa.me/${phone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
-                        window.open(waUrl, '_blank');
+                        try {
+                          const imageUrl = formatDriveUrl(selectedSpecVehicle.imagen_principal);
+                          const phone = activeClient?.celular ? activeClient.celular.replace(/[^\d]/g, '') : '';
+                          const encoded = encodeURIComponent(imageUrl);
+                          const waUrl = phone ? `https://wa.me/${phone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+                          window.open(waUrl, '_blank');
+                        } catch (e) {
+                          console.error(e);
+                        }
                       }}
                       className="py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition flex items-center justify-center space-x-1.5 text-xs cursor-pointer shadow-xs uppercase tracking-wider"
                       title="Enviar únicamente la foto/link a WhatsApp sin texto"
@@ -1633,9 +1637,13 @@ export default function Vehicles({
 
                           <button
                             onClick={() => {
-                              const cleanPhone = (req.cliente_celular || '').replace(/\+/g, '');
-                              const msg = `Hola ${req.cliente_nombre}, le contactamos de PUBLI-X BOLIVIA 📢 en seguimiento a su solicitud de cotización para ${(req.vallas_nombres || []).length} espacios publicitarios. ¿En qué horario le podemos brindar detalles?`;
-                              window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`, '_blank');
+                              try {
+                                const cleanPhone = (req.cliente_celular || '').replace(/\+/g, '');
+                                const msg = `Hola ${req.cliente_nombre}, le contactamos de PUBLI-X BOLIVIA 📢 en seguimiento a su solicitud de cotización para ${(req.vallas_nombres || []).length} espacios publicitarios. ¿En qué horario le podemos brindar detalles?`;
+                                window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`, '_blank');
+                              } catch (e) {
+                                console.error(e);
+                              }
                             }}
                             className="p-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl hover:bg-emerald-100"
                             title="Contactar vía WhatsApp"

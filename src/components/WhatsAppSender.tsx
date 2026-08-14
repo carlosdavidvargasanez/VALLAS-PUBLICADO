@@ -260,14 +260,24 @@ export default function WhatsAppSender({
     const waLink = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`;
 
     // Open link
-    window.open(waLink, '_blank');
+    try {
+      window.open(waLink, '_blank');
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // Copy to clipboard fallback
   const handleCopyToClipboard = () => {
-    navigator.clipboard.writeText(messageText);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+    try {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(messageText);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (

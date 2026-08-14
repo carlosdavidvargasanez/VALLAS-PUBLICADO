@@ -45,7 +45,11 @@ export default function PendingRequestsManager({
   onSelectActiveClient,
   onRegisterLog
 }: PendingRequestsManagerProps) {
-  const isDuenoOrGerente = currentUser?.rol === 'Dueño' || currentUser?.rol === 'Gerente' || currentUser?.rol === 'Jefe';
+  const isDuenoOrGerente = currentUser?.rol === 'Dueño' || 
+                           currentUser?.rol === 'Gerente' || 
+                           currentUser?.rol === 'Jefe' || 
+                           currentUser?.rol === 'Supervisor' || 
+                           currentUser?.rol === 'Administrador';
 
   // Requests state
   const [requestsList, setRequestsList] = useState<PendingQuotationRequest[]>(() => mockDb.getPendingRequests());
@@ -75,25 +79,65 @@ export default function PendingRequestsManager({
     };
   }, []);
 
+  // User notification message state
+  const [actionNotice, setActionNotice] = useState<{ msg: string; type: 'success' | 'info' | 'error' } | null>(null);
+
+  const showToast = (msg: string, type: 'success' | 'info' | 'error' = 'success') => {
+    setActionNotice({ msg, type });
+    setTimeout(() => setActionNotice(null), 4000);
+  };
+
   // Accept candidate and convert into official CRM Client with username & password
   const handleAcceptCandidate = (req: PendingQuotationRequest) => {
     if (!isDuenoOrGerente) {
-      alert('⛔ Acceso denegado: Únicamente el usuario con rol de Dueño, Gerente o Jefe tiene permisos para aceptar e ingresar nuevos clientes al CRM.');
+      showToast('⛔ Acceso denegado: Únicamente el usuario con rol de Dueño, Gerente, Jefe o Supervisor tiene permisos para aceptar clientes.', 'error');
       return;
     }
 
-    const cleanCell = req.cliente_celular.startsWith('+591') ? req.cliente_celular : `+591${req.cliente_celular.replace(/\D/g, '')}`;
+    const rawCell = (req.cliente_celular || '').trim();
+    let cleanCell = rawCell.startsWith('+591') ? rawCell : `+591${rawCell.replace(/\D/g, '')}`;
+    if (cleanCell === '+591' || cleanCell.length < 8) {
+      cleanCell = `+591${Math.floor(70000000 + Math.random() * 9999999)}`;
+    }
+
+    // Split req.cliente_nombre into nombres and apellidos
+    const nameParts = req.cliente_nombre.trim().split(/\s+/).filter(Boolean);
+    let nombres = req.cliente_nombre;
+    let apellidos = '';
+    if (nameParts.length === 2) {
+      nombres = nameParts[0];
+      apellidos = nameParts[1];
+    } else if (nameParts.length >= 3) {
+      nombres = nameParts.slice(0, nameParts.length - 2).join(' ') || nameParts[0];
+      apellidos = nameParts.slice(-2).join(' ');
+    }
+
+    // Generate credentials strictly based on the candidate's name
+    const creds = generateClientCredentials(req.cliente_nombre, cleanCell);
     
-    // Check if client already exists by phone
-    const existing = clients.find(c => c.celular === cleanCell);
+    // Check if client already exists by phone AND name (avoid hijacking C001 Carlos Vargas default)
+    const currentClients = mockDb.getClients();
+    const existing = currentClients.find(c => 
+      c.celular === cleanCell && 
+      (c.nombre.toLowerCase().trim() === req.cliente_nombre.toLowerCase().trim() && c.id !== 'C001')
+    );
     let targetClient: Client;
 
     if (existing) {
-      targetClient = existing;
+      targetClient = {
+        ...existing,
+        usuario_acceso: existing.usuario_acceso || creds.usuario_acceso,
+        password_acceso: existing.password_acceso || creds.password_acceso,
+        usuario_habilitado: true,
+        acceso_bloqueado: false
+      };
+      const updatedClients = currentClients.map(c => c.id === existing.id ? targetClient : c);
+      mockDb.saveClients(updatedClients);
     } else {
-      const creds = generateClientCredentials(req.cliente_nombre, cleanCell);
-      const newClientData = {
-        nombre: req.cliente_nombre,
+      const newClientData: Omit<Client, 'id' | 'fecha_registro' | 'fecha_actualizacion'> = {
+        nombre: req.cliente_nombre.trim(),
+        nombres: nombres.trim(),
+        apellidos: apellidos.trim(),
         empresa: req.cliente_empresa || '',
         celular: cleanCell,
         correo: req.cliente_correo || '',
@@ -115,7 +159,7 @@ export default function PendingRequestsManager({
       onAddClient(newClientData);
       
       const refreshedClients = mockDb.getClients();
-      targetClient = refreshedClients.find(c => c.celular === cleanCell) || {
+      targetClient = refreshedClients.find(c => c.celular === cleanCell && c.nombre === req.cliente_nombre.trim()) || {
         ...newClientData,
         id: 'C' + Date.now().toString().slice(-4),
         fecha_registro: new Date().toISOString(),
@@ -146,16 +190,17 @@ export default function PendingRequestsManager({
       console.error('Error generating quotation record:', e);
     }
 
-    // Mark request as Cotizado / Approved in mockDb
-    const allReqs = mockDb.getPendingRequests();
-    const updatedReqs = allReqs.map(r => r.id === req.id ? { ...r, estado: 'Cotizado' as const, vendedor_asignado: currentUser.nombre } : r);
-    mockDb.savePendingRequests(updatedReqs);
-    setRequestsList(updatedReqs);
+    // Delete from pending requests so it disappears from this pending inbox
+    mockDb.deletePendingRequest(req.id);
+    setRequestsList(mockDb.getPendingRequests());
+    window.dispatchEvent(new CustomEvent('publix_new_request'));
 
     onRegisterLog(
       'Aceptar Solicitud Cliente',
-      `Se aprobó y creó el cliente oficial ${targetClient.nombre} (${targetClient.celular}) procedente de la solicitud web ${req.codigo}. Usuario: @${targetClient.usuario_acceso}.`
+      `Se aprobó y creó el cliente oficial ${targetClient.nombre} (${targetClient.celular}) procedente de la solicitud web ${req.codigo}. Usuario: @${targetClient.usuario_acceso} | Clave: ${targetClient.password_acceso}.`
     );
+
+    showToast(`✅ Cliente ${targetClient.nombre} agregado al CRM con usuario @${targetClient.usuario_acceso} y clave generada. Retirado de solicitudes pendientes.`);
 
     // Show Welcome WhatsApp Popup with Credentials
     const welcomeInfo = generateClientWelcomeMessage(
@@ -168,13 +213,31 @@ export default function PendingRequestsManager({
   };
 
   const handleCancelRequest = (id: string) => {
-    if (confirm('¿Está seguro de cancelar esta solicitud de cotización?')) {
-      const allReqs = mockDb.getPendingRequests();
-      const updatedReqs = allReqs.map(r => r.id === id ? { ...r, estado: 'Cancelado' as const } : r);
-      mockDb.savePendingRequests(updatedReqs);
-      setRequestsList(updatedReqs);
-      onRegisterLog('Cancelar Solicitud Web', `Se canceló la solicitud ${id} por ${currentUser.nombre}.`);
-    }
+    const allReqs = mockDb.getPendingRequests();
+    const target = allReqs.find(r => r.id === id);
+    mockDb.deletePendingRequest(id);
+    setRequestsList(mockDb.getPendingRequests());
+    window.dispatchEvent(new CustomEvent('publix_new_request'));
+    onRegisterLog('Desestimar Solicitud Web', `Se desestimó y retiró la solicitud de ${target?.cliente_nombre || id} por ${currentUser.nombre}.`);
+    showToast(`Solicitud ${target?.codigo || id} desestimada y retirada del buzón.`, 'info');
+  };
+
+  const handleDeleteRequest = (id: string) => {
+    const allReqs = mockDb.getPendingRequests();
+    const target = allReqs.find(r => r.id === id);
+    mockDb.deletePendingRequest(id);
+    setRequestsList(mockDb.getPendingRequests());
+    window.dispatchEvent(new CustomEvent('publix_new_request'));
+    onRegisterLog('Eliminar Solicitud Web', `Se eliminó definitivamente la solicitud de ${target?.cliente_nombre || id} por ${currentUser.nombre}.`);
+    showToast(`Solicitud ${target?.codigo || id} eliminada permanentemente del buzón.`, 'info');
+  };
+
+  const handleClearAllRequests = () => {
+    mockDb.clearPendingRequests();
+    setRequestsList([]);
+    window.dispatchEvent(new CustomEvent('publix_new_request'));
+    onRegisterLog('Vaciar Buzón Solicitudes', `Se limpió todo el buzón de solicitudes web por ${currentUser.nombre}.`);
+    showToast('Buzón de solicitudes vaciado por completo.', 'info');
   };
 
   // Filter & search logic
@@ -249,13 +312,45 @@ export default function PendingRequestsManager({
           </span>
         </div>
 
-        <button 
-          onClick={refreshRequests} 
-          className="px-3 py-1 bg-white hover:bg-gray-100 border border-amber-300 text-amber-900 rounded-lg text-xs font-bold transition cursor-pointer"
-        >
-          Actualizar Buzón
-        </button>
+        <div className="flex items-center space-x-2">
+          <button 
+            onClick={refreshRequests} 
+            className="px-3 py-1.5 bg-white hover:bg-gray-100 border border-amber-300 text-amber-900 rounded-xl text-xs font-bold transition cursor-pointer shadow-2xs"
+          >
+            Actualizar Buzón
+          </button>
+          {isDuenoOrGerente && requestsList.length > 0 && (
+            <button 
+              onClick={handleClearAllRequests} 
+              className="px-3 py-1.5 bg-rose-100 hover:bg-rose-200 border border-rose-300 text-rose-800 rounded-xl text-xs font-bold transition cursor-pointer flex items-center space-x-1"
+              title="Vaciar todas las solicitudes de cotización"
+            >
+              <span>Vaciar Buzón</span>
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Action Notification Alert */}
+      {actionNotice && (
+        <div className={`p-3.5 rounded-2xl border text-xs font-bold flex items-center justify-between animate-fade-in ${
+          actionNotice.type === 'error'
+            ? 'bg-rose-50 text-rose-800 border-rose-200'
+            : actionNotice.type === 'info'
+            ? 'bg-amber-50 text-amber-800 border-amber-200'
+            : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+        }`}>
+          <div className="flex items-center space-x-2">
+            <span>{actionNotice.msg}</span>
+          </div>
+          <button 
+            onClick={() => setActionNotice(null)} 
+            className="text-gray-400 hover:text-gray-700 text-xs px-2 py-0.5"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Filters & Search Toolbar */}
       <div className="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -485,14 +580,26 @@ export default function PendingRequestsManager({
                       </div>
                     )}
 
-                    {req.estado === 'Pendiente' && (
-                      <button
-                        onClick={() => handleCancelRequest(req.id)}
-                        className="w-full py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-[11px] rounded-xl transition text-center cursor-pointer"
-                      >
-                        Desestimar Solicitud
-                      </button>
-                    )}
+                    <div className="flex items-center space-x-2 pt-1">
+                      {req.estado === 'Pendiente' && (
+                        <button
+                          onClick={() => handleCancelRequest(req.id)}
+                          className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-[11px] rounded-xl transition text-center cursor-pointer"
+                        >
+                          Desestimar
+                        </button>
+                      )}
+                      
+                      {isDuenoOrGerente && (
+                        <button
+                          onClick={() => handleDeleteRequest(req.id)}
+                          className="px-3 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 font-bold text-[11px] rounded-xl transition flex items-center justify-center cursor-pointer"
+                          title="Eliminar esta solicitud"
+                        >
+                          <span>Eliminar</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -604,8 +711,12 @@ export default function PendingRequestsManager({
                 <div className="grid grid-cols-2 gap-3 pt-2">
                   <button
                     onClick={() => {
-                      const text = encodeURIComponent(welcomeClientData.welcomeInfo);
-                      window.open(`https://wa.me/${welcomeClientData.client.celular.replace(/\+/g, '')}?text=${text}`, '_blank');
+                      try {
+                        const text = encodeURIComponent(welcomeClientData.welcomeInfo);
+                        window.open(`https://wa.me/${welcomeClientData.client.celular.replace(/\+/g, '')}?text=${text}`, '_blank');
+                      } catch (e) {
+                        console.error(e);
+                      }
                     }}
                     className="py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-2xl text-xs uppercase transition shadow-lg shadow-emerald-600/20 flex items-center justify-center space-x-1.5 cursor-pointer"
                   >

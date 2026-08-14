@@ -3,6 +3,8 @@ export type ClientState = 'Nuevo' | 'Contactado' | 'Interesado' | 'Cotizado' | '
 export interface Client {
   id: string;
   nombre: string;
+  nombres?: string;
+  apellidos?: string;
   celular: string; // unique
   ciudad: string;
   departamento: string;
@@ -296,7 +298,7 @@ export interface Settings {
   custom_fields?: Record<string, string>;
 }
 
-export type UserRole = 'Dueño' | 'Gerente' | 'Jefe' | 'Vendedor' | 'Cliente';
+export type UserRole = 'Dueño' | 'Gerente' | 'Jefe' | 'Supervisor' | 'Administrador' | 'Vendedor' | 'Cliente';
 
 export interface UserSession {
   id: string;

@@ -58,7 +58,11 @@ export default function Clients({
   exchangeRate,
   clientTimeline
 }: ClientsProps) {
-  const isDuenoOrGerente = currentUser?.rol === 'Dueño' || currentUser?.rol === 'Gerente' || currentUser?.rol === 'Jefe';
+  const isDuenoOrGerente = currentUser?.rol === 'Dueño' || 
+                           currentUser?.rol === 'Gerente' || 
+                           currentUser?.rol === 'Jefe' || 
+                           currentUser?.rol === 'Supervisor' || 
+                           currentUser?.rol === 'Administrador';
 
   // Pending Requests State
   const [showPendingRequestsModal, setShowPendingRequestsModal] = useState(false);
@@ -93,7 +97,8 @@ export default function Clients({
   const [empresa, setEmpresa] = useState('');
   const [razonSocial, setRazonSocial] = useState('');
   const [nitCi, setNitCi] = useState('');
-  const [nombre, setNombre] = useState('');
+  const [nombres, setNombres] = useState('');
+  const [apellidos, setApellidos] = useState('');
   const [celular, setCelular] = useState('');
   const [correo, setCorreo] = useState('');
   const [campania, setCampania] = useState('');
@@ -148,8 +153,9 @@ export default function Clients({
     setFormError('');
     setFormSuccess('');
 
-    // Validations
-    if (!nombre.trim()) return setFormError('El nombre completo es obligatorio.');
+    // Validations: distinct and required nombres and apellidos
+    if (!nombres.trim()) return setFormError('La casilla de Nombres es obligatoria.');
+    if (!apellidos.trim()) return setFormError('La casilla de Apellidos es obligatoria.');
     if (!celular.trim()) return setFormError('El celular es obligatorio.');
     if (presupuestoUsd && (isNaN(Number(presupuestoUsd)) || Number(presupuestoUsd) < 0)) {
       return setFormError('El presupuesto en USD debe ser un número positivo.');
@@ -175,6 +181,10 @@ export default function Clients({
     }
 
     const parsedPresupuesto = presupuestoUsd ? Number(presupuestoUsd) : 0;
+    const cleanNombres = nombres.trim();
+    const cleanApellidos = apellidos.trim();
+    const fullName = `${cleanNombres} ${cleanApellidos}`;
+    const creds = generateClientCredentials(cleanNombres, cleanApellidos, formattedPhone);
 
     if (isEditing) {
       // Check duplicate on other clients
@@ -185,10 +195,11 @@ export default function Clients({
 
       const original = clients.find(c => c.id === editId);
       if (original) {
-        const creds = generateClientCredentials(nombre, formattedPhone);
         onUpdateClient({
           ...original,
-          nombre: nombre.trim(),
+          nombre: fullName,
+          nombres: cleanNombres,
+          apellidos: cleanApellidos,
           empresa: empresa.trim(),
           razon_social: razonSocial.trim(),
           nit_ci: nitCi.trim(),
@@ -200,18 +211,19 @@ export default function Clients({
           estado,
           correo: correo.trim(),
           campania: campania.trim(),
-          usuario_acceso: original.usuario_acceso || creds.usuario_acceso,
-          password_acceso: original.password_acceso || creds.password_acceso,
+          usuario_acceso: creds.usuario_acceso,
+          password_acceso: creds.password_acceso,
           fecha_actualizacion: new Date().toISOString()
         });
-        setFormSuccess('Cliente actualizado con éxito.');
+        setFormSuccess(`Cliente actualizado con éxito. Usuario: @${creds.usuario_acceso} | Contraseña: ${creds.password_acceso}`);
         resetForm();
       }
     } else {
       // Add client
-      const creds = generateClientCredentials(nombre, formattedPhone);
       const success = onAddClient({
-        nombre: nombre.trim(),
+        nombre: fullName,
+        nombres: cleanNombres,
+        apellidos: cleanApellidos,
         empresa: empresa.trim(),
         razon_social: razonSocial.trim(),
         nit_ci: nitCi.trim(),
@@ -225,11 +237,13 @@ export default function Clients({
         correo: correo.trim(),
         campania: campania.trim(),
         usuario_acceso: creds.usuario_acceso,
-        password_acceso: creds.password_acceso
+        password_acceso: creds.password_acceso,
+        usuario_habilitado: true,
+        acceso_bloqueado: false
       });
 
       if (success) {
-        setFormSuccess('Cliente registrado con éxito.');
+        setFormSuccess(`Cliente registrado con éxito. Usuario: @${creds.usuario_acceso} | Contraseña: ${creds.password_acceso}`);
         resetForm();
       } else {
         setFormError('Ya existe un cliente con este número de celular registrado.');
@@ -244,7 +258,8 @@ export default function Clients({
     setEmpresa('');
     setRazonSocial('');
     setNitCi('');
-    setNombre('');
+    setNombres('');
+    setApellidos('');
     setCelular('');
     setCorreo('');
     setCampania('');
@@ -263,14 +278,33 @@ export default function Clients({
     setEmpresa(client.empresa || '');
     setRazonSocial(client.razon_social || '');
     setNitCi(client.nit_ci || '');
-    setNombre(client.nombre);
+    
+    if (client.nombres && client.apellidos) {
+      setNombres(client.nombres);
+      setApellidos(client.apellidos);
+    } else {
+      const parts = (client.nombre || '').trim().split(/\s+/).filter(Boolean);
+      if (parts.length === 1) {
+        setNombres(parts[0]);
+        setApellidos('');
+      } else if (parts.length === 2) {
+        setNombres(parts[0]);
+        setApellidos(parts[1]);
+      } else if (parts.length >= 3) {
+        setNombres(parts.slice(0, parts.length - 2).join(' ') || parts[0]);
+        setApellidos(parts.slice(-2).join(' '));
+      } else {
+        setNombres('');
+        setApellidos('');
+      }
+    }
+
     // Strip leading +591 for display in raw input if needed, or leave formatted
     const rawCell = client.celular.startsWith('+591') ? client.celular.substring(4) : client.celular;
     setCelular(rawCell);
     setCorreo(client.correo || '');
     setCampania(client.campania || '');
     setDepartamento(client.departamento || 'Santa Cruz');
-    setDepartamento(client.departamento);
     setPresupuestoUsd(String(client.presupuesto_usd));
     setObservaciones(client.observaciones);
     setEstado(client.estado);
@@ -278,43 +312,79 @@ export default function Clients({
 
   // Direct WhatsApp sending with prefilled message
   const handleDirectWhatsAppSend = (client: Client) => {
-    const cleanPhone = client.celular.replace(/\+/g, '');
-    const message = `Hola ${client.nombre}, le saluda PUBLI-X BOLIVIA 📢. Vemos que tiene un presupuesto de USD ${client.presupuesto_usd.toLocaleString()} para la difusión de su marca. ¿Qué tipo de Valla Publicitaria o Pantalla LED le gustaría cotizar hoy?`;
-    const url = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+    try {
+      const cleanPhone = client.celular.replace(/\+/g, '');
+      const message = `Hola ${client.nombre}, le saluda PUBLI-X BOLIVIA 📢. Vemos que tiene un presupuesto de USD ${client.presupuesto_usd.toLocaleString()} para la difusión de su marca. ¿Qué tipo de Valla Publicitaria o Pantalla LED le gustaría cotizar hoy?`;
+      const url = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
+      window.open(url, '_blank');
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // Direct Email sending using mailto
   const handleDirectEmailSend = (client: Client) => {
-    if (!client.correo) {
-      alert('Este cliente no tiene correo electrónico registrado. Por favor, edite su ficha para agregarlo.');
-      return;
+    try {
+      if (!client.correo) {
+        return;
+      }
+      const subject = 'Contacto Comercial - PUBLI-X BOLIVIA 📢';
+      const body = `Estimado/a ${client.nombre},\n\nLe escribimos de PUBLI-X BOLIVIA en relación a su interés de vallas publicitarias / pantallas LED registrado en nuestra plataforma.\n\nContamos con un presupuesto registrado de USD ${client.presupuesto_usd.toLocaleString()} para su proyecto. ¿Le gustaría que le preparemos propuestas y opciones exclusivas adaptadas a sus preferencias?\n\nQuedamos a su entera disposición.\n\nAtentamente,\nGerencia Comercial\nPUBLI-X BOLIVIA`;
+      const url = `mailto:${client.correo}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.open(url, '_blank');
+    } catch (e) {
+      console.error(e);
     }
-    const subject = 'Contacto Comercial - PUBLI-X BOLIVIA 📢';
-    const body = `Estimado/a ${client.nombre},\n\nLe escribimos de PUBLI-X BOLIVIA en relación a su interés de vallas publicitarias / pantallas LED registrado en nuestra plataforma.\n\nContamos con un presupuesto registrado de USD ${client.presupuesto_usd.toLocaleString()} para su proyecto. ¿Le gustaría que le preparemos propuestas y opciones exclusivas adaptadas a sus preferencias?\n\nQuedamos a su entera disposición.\n\nAtentamente,\nGerencia Comercial\nPUBLI-X BOLIVIA`;
-    const url = `mailto:${client.correo}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(url, '_blank');
   };
 
   // Accept Candidate and create official Client in CRM
   const handleAcceptPendingCandidate = (req: PendingQuotationRequest) => {
     if (!isDuenoOrGerente) {
-      alert('⛔ Acceso denegado: Únicamente el usuario con rol de Dueño o Gerente tiene permisos para aceptar el ingreso de nuevos clientes.');
+      setFormError('⛔ Acceso denegado: Únicamente el usuario con rol de Dueño o Gerente tiene permisos para aceptar el ingreso de nuevos clientes.');
       return;
     }
 
-    const cleanCell = req.cliente_celular.startsWith('+591') ? req.cliente_celular : `+591${req.cliente_celular.replace(/\D/g, '')}`;
+    const rawCell = (req.cliente_celular || '').trim();
+    let cleanCell = rawCell.startsWith('+591') ? rawCell : `+591${rawCell.replace(/\D/g, '')}`;
+    if (cleanCell === '+591' || cleanCell.length < 8) {
+      cleanCell = `+591${Math.floor(70000000 + Math.random() * 9999999)}`;
+    }
     
-    // Check if client already exists by phone
-    const existing = clients.find(c => c.celular === cleanCell);
+    // Split candidate name into distinct nombres & apellidos
+    const nameParts = req.cliente_nombre.trim().split(/\s+/).filter(Boolean);
+    let n = req.cliente_nombre.trim();
+    let a = '';
+    if (nameParts.length === 2) {
+      n = nameParts[0];
+      a = nameParts[1];
+    } else if (nameParts.length >= 3) {
+      n = nameParts.slice(0, nameParts.length - 2).join(' ') || nameParts[0];
+      a = nameParts.slice(-2).join(' ');
+    }
+
+    const creds = generateClientCredentials(req.cliente_nombre, cleanCell);
+
+    // Check if client already exists by phone AND name (avoid matching C001 Carlos Vargas default)
+    const existing = clients.find(c => 
+      c.celular === cleanCell && 
+      (c.nombre.toLowerCase().trim() === req.cliente_nombre.toLowerCase().trim() && c.id !== 'C001')
+    );
     let targetClient: Client;
 
     if (existing) {
-      targetClient = existing;
+      targetClient = {
+        ...existing,
+        usuario_acceso: existing.usuario_acceso || creds.usuario_acceso,
+        password_acceso: existing.password_acceso || creds.password_acceso,
+        usuario_habilitado: true,
+        acceso_bloqueado: false
+      };
+      onUpdateClient(targetClient);
     } else {
-      const creds = generateClientCredentials(req.cliente_nombre, cleanCell);
       const newClientData = {
-        nombre: req.cliente_nombre,
+        nombre: req.cliente_nombre.trim(),
+        nombres: n,
+        apellidos: a,
         empresa: req.cliente_empresa || '',
         celular: cleanCell,
         correo: req.cliente_correo || '',
@@ -328,13 +398,15 @@ export default function Clients({
         estado: 'Interesado' as const,
         campania: 'Registro Web',
         usuario_acceso: creds.usuario_acceso,
-        password_acceso: creds.password_acceso
+        password_acceso: creds.password_acceso,
+        usuario_habilitado: true,
+        acceso_bloqueado: false
       };
 
       onAddClient(newClientData);
       
       const refreshedClients = mockDb.getClients();
-      targetClient = refreshedClients.find(c => c.celular === cleanCell) || {
+      targetClient = refreshedClients.find(c => c.celular === cleanCell && c.nombre === req.cliente_nombre.trim()) || {
         ...newClientData,
         id: 'C' + Date.now().toString().slice(-4),
         fecha_registro: new Date().toISOString(),
@@ -342,16 +414,15 @@ export default function Clients({
       };
     }
 
-    // Mark request as Cotizado/Atendido in mockDb
-    const allReqs = mockDb.getPendingRequests();
-    const updatedReqs = allReqs.map(r => r.id === req.id ? { ...r, estado: 'Cotizado' as const, vendedor_asignado: currentUser?.nombre || 'Dueño/Gerente' } : r);
-    mockDb.savePendingRequests(updatedReqs);
-    setPendingRequestsList(updatedReqs);
+    // Delete from pending requests so it disappears from this pending section
+    mockDb.deletePendingRequest(req.id);
+    setPendingRequestsList(mockDb.getPendingRequests());
+    window.dispatchEvent(new CustomEvent('publix_new_request'));
 
     mockDb.addAuditLog(
       currentUser?.nombre || 'Dueño/Gerente',
       'Aceptar Solicitud Cliente',
-      `Se aprobó y creó el cliente oficial ${targetClient.nombre} (${targetClient.celular}) procedente de la solicitud web ${req.codigo}.`
+      `Se aprobó y creó el cliente oficial ${targetClient.nombre} (${targetClient.celular}) procedente de la solicitud web ${req.codigo}. Usuario: @${targetClient.usuario_acceso} | Clave: ${targetClient.password_acceso}`
     );
 
     // Show Welcome WhatsApp Popup with Credentials
@@ -362,6 +433,32 @@ export default function Clients({
       targetClient.password_acceso
     );
     setWelcomeClientData({ client: targetClient, welcomeInfo });
+  };
+
+  const handleCancelPendingCandidate = (id: string) => {
+    const allReqs = mockDb.getPendingRequests();
+    const target = allReqs.find(r => r.id === id);
+    mockDb.deletePendingRequest(id);
+    setPendingRequestsList(mockDb.getPendingRequests());
+    window.dispatchEvent(new CustomEvent('publix_new_request'));
+    mockDb.addAuditLog(
+      currentUser?.nombre || 'Dueño/Gerente',
+      'Desestimar Solicitud Web',
+      `Se desestimó y retiró la solicitud web ${target?.codigo || id} de ${target?.cliente_nombre || 'Cliente'}.`
+    );
+  };
+
+  const handleDeletePendingCandidate = (id: string) => {
+    const allReqs = mockDb.getPendingRequests();
+    const target = allReqs.find(r => r.id === id);
+    mockDb.deletePendingRequest(id);
+    setPendingRequestsList(mockDb.getPendingRequests());
+    window.dispatchEvent(new CustomEvent('publix_new_request'));
+    mockDb.addAuditLog(
+      currentUser?.nombre || 'Dueño/Gerente',
+      'Eliminar Solicitud Web',
+      `Se eliminó la solicitud web ${target?.codigo || id} de ${target?.cliente_nombre || 'Cliente'}.`
+    );
   };
 
   // Filter & Search Logic
@@ -527,17 +624,56 @@ export default function Clients({
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Nombre Completo de Contacto *</label>
-              <input
-                type="text"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                placeholder="Ej. Juan Pérez"
-                className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
-                required
-              />
+            {/* NOMBRES Y APELLIDOS SEPARADOS Y OBLIGATORIOS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Nombre(s) *
+                </label>
+                <input
+                  type="text"
+                  value={nombres}
+                  onChange={(e) => setNombres(e.target.value)}
+                  placeholder="Ej. Juan Carlos"
+                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition font-medium"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Apellido(s) *
+                </label>
+                <input
+                  type="text"
+                  value={apellidos}
+                  onChange={(e) => setApellidos(e.target.value)}
+                  placeholder="Ej. Pérez Rodríguez"
+                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition font-medium"
+                  required
+                />
+              </div>
             </div>
+
+            {/* PREVISUALIZACION AUTOMATICA DE CREDENCIALES */}
+            {(nombres.trim() || apellidos.trim()) && (
+              <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-amber-900 text-[11px] flex items-center space-x-1">
+                    <Key className="w-3 h-3 text-amber-600 inline mr-1" />
+                    Credenciales generadas:
+                  </span>
+                  <span className="text-[10px] text-amber-700 font-medium">Auto: primer nombre . primer apellido</span>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5 font-mono text-[11px]">
+                  <span className="bg-white px-2 py-0.5 rounded border border-amber-200 text-gray-800">
+                    Usuario: <strong>@{generateClientCredentials(nombres, apellidos, celular).usuario_acceso}</strong>
+                  </span>
+                  <span className="bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-emerald-800">
+                    Contraseña: <strong>{generateClientCredentials(nombres, apellidos, celular).password_acceso}</strong>
+                  </span>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -663,7 +799,7 @@ export default function Clients({
               >
                 <span>{isEditing ? 'Guardar Cambios' : 'Registrar Cliente'}</span>
               </button>
-              {(isEditing || nombre || celular) && (
+              {(isEditing || nombres || apellidos || celular) && (
                 <button
                   type="button"
                   onClick={resetForm}
@@ -968,10 +1104,15 @@ export default function Clients({
                   <div className="flex flex-wrap items-center gap-2 pt-1">
                     <button
                       onClick={() => {
-                        const u = selectedDetailClient.usuario_acceso || generateClientCredentials(selectedDetailClient.nombre, selectedDetailClient.celular).usuario_acceso;
-                        const p = selectedDetailClient.password_acceso || generateClientCredentials(selectedDetailClient.nombre, selectedDetailClient.celular).password_acceso;
-                        navigator.clipboard.writeText(`Catálogo PUBLI-X BOLIVIA:\nUsuario: ${u}\nContraseña: ${p}`);
-                        alert('✅ Credenciales copiadas al portapapeles.');
+                        try {
+                          const u = selectedDetailClient.usuario_acceso || generateClientCredentials(selectedDetailClient.nombre, selectedDetailClient.celular).usuario_acceso;
+                          const p = selectedDetailClient.password_acceso || generateClientCredentials(selectedDetailClient.nombre, selectedDetailClient.celular).password_acceso;
+                          if (navigator.clipboard) {
+                            navigator.clipboard.writeText(`Catálogo PUBLI-X BOLIVIA:\nUsuario: ${u}\nContraseña: ${p}`);
+                          }
+                        } catch (e) {
+                          console.error(e);
+                        }
                       }}
                       className="px-3 py-1.5 bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold rounded-xl flex items-center space-x-1.5 cursor-pointer transition shadow-2xs"
                     >
@@ -981,10 +1122,14 @@ export default function Clients({
 
                     <button
                       onClick={() => {
-                        const u = selectedDetailClient.usuario_acceso || generateClientCredentials(selectedDetailClient.nombre, selectedDetailClient.celular).usuario_acceso;
-                        const p = selectedDetailClient.password_acceso || generateClientCredentials(selectedDetailClient.nombre, selectedDetailClient.celular).password_acceso;
-                        const msg = encodeURIComponent(`Hola ${selectedDetailClient.nombre}, le compartimos sus datos de acceso para ingresar a nuestro Catálogo Exclusivo de Vallas Publicitarias y Pantallas LED:\n\n👤 *Usuario:* ${u}\n🔑 *Contraseña:* ${p}\n\nPuede explorar las ubicaciones disponibles en línea.`);
-                        window.open(`https://wa.me/${selectedDetailClient.celular.replace(/\+/g, '')}?text=${msg}`, '_blank');
+                        try {
+                          const u = selectedDetailClient.usuario_acceso || generateClientCredentials(selectedDetailClient.nombre, selectedDetailClient.celular).usuario_acceso;
+                          const p = selectedDetailClient.password_acceso || generateClientCredentials(selectedDetailClient.nombre, selectedDetailClient.celular).password_acceso;
+                          const msg = encodeURIComponent(`Hola ${selectedDetailClient.nombre}, le compartimos sus datos de acceso para ingresar a nuestro Catálogo Exclusivo de Vallas Publicitarias y Pantallas LED:\n\n👤 *Usuario:* ${u}\n🔑 *Contraseña:* ${p}\n\nPuede explorar las ubicaciones disponibles en línea.`);
+                          window.open(`https://wa.me/${selectedDetailClient.celular.replace(/\+/g, '')}?text=${msg}`, '_blank');
+                        } catch (e) {
+                          console.error(e);
+                        }
                       }}
                       className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl flex items-center space-x-1.5 cursor-pointer transition shadow-2xs uppercase tracking-wider"
                     >
@@ -1384,23 +1529,43 @@ export default function Clients({
                           {req.estado === 'Pendiente' && isDuenoOrGerente && (
                             <button
                               onClick={() => handleAcceptPendingCandidate(req)}
-                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition text-xs shadow-md shadow-emerald-600/20 flex items-center space-x-1.5 cursor-pointer uppercase tracking-wider"
+                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition text-xs shadow-md shadow-emerald-600/20 flex items-center space-x-1 cursor-pointer"
                             >
-                              <Check className="w-4 h-4" />
-                              <span>Aceptar Cliente & Dar Acceso</span>
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Aceptar Cliente</span>
+                            </button>
+                          )}
+
+                          {req.estado === 'Pendiente' && (
+                            <button
+                              onClick={() => handleCancelPendingCandidate(req.id)}
+                              className="px-2.5 py-1.5 bg-gray-100 hover:bg-amber-100 text-gray-700 hover:text-amber-800 font-bold rounded-xl transition text-xs border border-gray-200 cursor-pointer"
+                              title="Marcar como desestimada"
+                            >
+                              Desestimar
+                            </button>
+                          )}
+
+                          {isDuenoOrGerente && (
+                            <button
+                              onClick={() => handleDeletePendingCandidate(req.id)}
+                              className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
+                              title="Eliminar permanentemente solicitud"
+                            >
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           )}
 
                           {req.estado === 'Pendiente' && !isDuenoOrGerente && (
                             <div className="px-3 py-1.5 bg-rose-100 text-rose-800 text-[11px] font-bold rounded-xl border border-rose-200 flex items-center space-x-1">
                               <Lock className="w-3.5 h-3.5" />
-                              <span>Aprobación Solo Dueño/Gerente</span>
+                              <span>Solo Dueño/Gerente</span>
                             </div>
                           )}
 
                           {req.estado !== 'Pendiente' && (
                             <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
-                              ✅ Aceptado por {req.vendedor_asignado || 'Gerencia'}
+                              ✅ {req.estado}
                             </span>
                           )}
                         </div>

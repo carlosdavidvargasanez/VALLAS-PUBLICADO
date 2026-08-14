@@ -265,19 +265,27 @@ export default function Quotations({
   };
 
   const handleSendWhatsApp = (quote: Quotation) => {
-    const client = clients.find(c => c.id === quote.cliente_id);
-    const text = encodeURIComponent(generateQuoteText(quote));
-    const phone = client ? client.celular.replace(/[^\d]/g, '') : '';
-    const url = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
-    window.open(url, '_blank');
+    try {
+      const client = clients.find(c => c.id === quote.cliente_id);
+      const text = encodeURIComponent(generateQuoteText(quote));
+      const phone = client ? client.celular.replace(/[^\d]/g, '') : '';
+      const url = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
+      window.open(url, '_blank');
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleSendEmail = (quote: Quotation) => {
-    const client = clients.find(c => c.id === quote.cliente_id);
-    const email = client?.correo || '';
-    const subject = encodeURIComponent(`Cotización Formal ${quote.numero} - PUBLI-X BOLIVIA`);
-    const body = encodeURIComponent(generateQuoteText(quote));
-    window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
+    try {
+      const client = clients.find(c => c.id === quote.cliente_id);
+      const email = client?.correo || '';
+      const subject = encodeURIComponent(`Cotización Formal ${quote.numero} - PUBLI-X BOLIVIA`);
+      const body = encodeURIComponent(generateQuoteText(quote));
+      window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleSendBoth = (quote: Quotation) => {

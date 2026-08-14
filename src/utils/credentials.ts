@@ -1,31 +1,65 @@
 /**
- * Helper to generate client credentials automatically from client name and phone.
- * Username: First name + First surname (e.g. "Carlos Vargas" -> "carlos.vargas")
- * Password: Phone number without country prefix or non-digits (e.g. "+591 70000000" -> "70000000")
+ * Helper to generate client credentials automatically from client name, separate first name & surname, or phone.
+ * Rule: 
+ * Username (usuario_acceso): first name + '.' + first surname in lowercase (e.g. "juan.perez")
+ * Password (password_acceso): first name + '.' + first surname in lowercase (e.g. "juan.perez")
  */
-export function generateClientCredentials(nombre: string, celular: string): { usuario_acceso: string; password_acceso: string } {
-  if (!nombre) {
-    return { usuario_acceso: 'cliente.invitado', password_acceso: '70000000' };
+export function generateClientCredentials(
+  nombresOrFullName: string,
+  apellidosOrPhone?: string,
+  maybePhone?: string
+): { usuario_acceso: string; password_acceso: string } {
+  if (!nombresOrFullName && !apellidosOrPhone) {
+    return { usuario_acceso: 'cliente.nuevo', password_acceso: 'cliente.nuevo' };
   }
 
-  // Clean name and normalize diacritics
-  const cleanName = nombre.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const parts = cleanName.split(/\s+/).filter(Boolean);
+  let first = 'cliente';
+  let last = 'usuario';
 
-  let first = parts[0] || 'cliente';
-  let last = parts.length > 1 ? parts[parts.length - 1] : 'bolivia';
+  if (maybePhone !== undefined) {
+    // 3 parameters: (nombres, apellidos, phone)
+    const cleanNombres = (nombresOrFullName || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const cleanApellidos = (apellidosOrPhone || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-  if (parts.length >= 3) {
-    // e.g. "Carlos David Vargas" -> primer nombre ("carlos") + primer apellido ("vargas")
-    first = parts[0];
-    last = parts[2] || parts[1];
+    const nParts = cleanNombres.split(/\s+/).filter(Boolean);
+    const aParts = cleanApellidos.split(/\s+/).filter(Boolean);
+
+    first = nParts[0] || 'cliente';
+    last = aParts[0] || 'usuario';
+  } else {
+    // 2 parameters: (fullName, phone) or (nombres, apellidos)
+    const cleanFirst = (nombresOrFullName || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const cleanSecond = (apellidosOrPhone || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    const isSecondPhone = /^\+?[0-9\s-]+$/.test(cleanSecond) && cleanSecond.replace(/\D/g, '').length >= 7;
+
+    if (isSecondPhone) {
+      // (fullName, phone)
+      const parts = cleanFirst.split(/\s+/).filter(Boolean);
+      first = parts[0] || 'cliente';
+      if (parts.length >= 3) {
+        // e.g. "Carlos David Vargas" -> parts[0]="carlos", parts[2]="vargas"
+        last = parts[2] || parts[1] || 'usuario';
+      } else if (parts.length === 2) {
+        last = parts[1];
+      } else {
+        last = parts[0] || 'usuario';
+      }
+    } else {
+      // (nombres, apellidos)
+      const nParts = cleanFirst.split(/\s+/).filter(Boolean);
+      const aParts = cleanSecond.split(/\s+/).filter(Boolean);
+      first = nParts[0] || 'cliente';
+      last = aParts[0] || 'usuario';
+    }
   }
 
-  const usuario_acceso = `${first}.${last}`.replace(/[^a-z0-0.]/g, '');
+  // Sanitize to lowercase alphanumeric without special characters
+  first = first.replace(/[^a-z0-9]/g, '') || 'cliente';
+  last = last.replace(/[^a-z0-9]/g, '') || 'usuario';
 
-  // Clean phone number (strip +591 or non-digits)
-  const cleanPhone = (celular || '').replace(/\+591/g, '').replace(/\D/g, '');
-  const password_acceso = cleanPhone.length > 0 ? cleanPhone : '70000000';
+  const usuario_acceso = `${first}.${last}`;
+  const password_acceso = `${first}.${last}`;
 
   return { usuario_acceso, password_acceso };
 }
@@ -52,15 +86,16 @@ export function generateClientWelcomeMessage(
   const message = `*¡Bienvenido a PUBLI-X BOLIVIA!* 📢\n\n` +
     `Estimado/a *${nombre || 'Cliente'}*,\n` +
     `¡Muchas gracias por elegirnos! Elegir *PUBLI-X* es sin duda la mejor opción para potenciar la presencia, el impacto y la visibilidad de su marca.\n\n` +
-    `A continuación le facilitamos sus credenciales para ingresar a nuestro *Portal Exclusivo de Vallas Publicitarias y Pantallas LED*:\n\n` +
-    `👤 *Nombre de Usuario:* ${u}\n` +
-    `🔑 *PIN / Clave de Acceso:* ${p}\n\n` +
-    `🌐 *Acceso Web:* https://publi-x.bo\n\n` +
-    `Desde nuestro portal podrá explorar el catálogo en tiempo real, revisar ubicaciones de alto impacto, descargar cotizaciones en PDF y dar seguimiento a sus proyectos.\n\n` +
+    `A continuación le facilitamos sus credenciales de acceso a nuestro *Portal Exclusivo de Vallas Publicitarias y Pantallas LED*:\n\n` +
+    `👤 *Usuario de Acceso:* ${u}\n` +
+    `🔑 *Contraseña:* ${p}\n\n` +
+    `🌐 *Portal Web:* https://publi-x.bo\n\n` +
+    `Desde nuestro portal podrá explorar el catálogo en tiempo real, revisar ubicaciones estratégicas, descargar cotizaciones en PDF y dar seguimiento a sus campañas.\n\n` +
     `Estamos a su entera disposición para cualquier consulta. ¡Éxito total en sus campañas!`;
 
   const waUrl = `https://api.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(message)}`;
 
   return { cleanPhone: digits, message, waUrl, usuario: u, password: p };
 }
+
 

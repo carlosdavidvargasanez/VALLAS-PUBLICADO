@@ -24,6 +24,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import Logo from './Logo';
 import { mockDb } from '../data/mockDatabase';
 import { Client, UserSession, PendingQuotationRequest } from '../types';
+import { compressImageFile } from '../utils/imageCompressor';
 
 interface OOHInquiryModalProps {
   isOpen: boolean;
@@ -117,57 +118,48 @@ export default function OOHInquiryModal({
     const detected = `${deviceType} (${browserName}) - ${navigator.language || 'es-BO'}`;
     setDeviceInfo(detected);
 
-    // Auto-fill if user is logged in or active client exists
-    if (activeClient) {
-      setNombre(activeClient.nombre || '');
-      setEmpresa(activeClient.empresa || activeClient.observaciones?.slice(0, 30) || 'Cliente Registrado');
-      setCelular(activeClient.celular || '');
-      setCorreo(activeClient.correo || '');
-      setCiudad(activeClient.ciudad || activeClient.departamento || 'La Paz');
-    } else if (currentUser && currentUser.rol === 'Cliente') {
+    // Clean inputs for fresh inquiry submission unless user is logged in as a Client in portal
+    if (currentUser && currentUser.rol === 'Cliente') {
       setNombre(currentUser.nombre || '');
-      setEmpresa(currentUser.empresa || 'Empresa Registrada');
-      setCelular(currentUser.celular || '+591 70000000');
+      setEmpresa(currentUser.empresa || '');
+      setCelular(currentUser.celular || '');
       setCorreo(currentUser.email || '');
     } else {
-      // For unauthenticated/public visitors, ensure clean blank fields
+      // For public visitors or staff, ensure fresh blank fields
       setNombre('');
       setEmpresa('');
       setCelular('');
       setCorreo('');
-      setCiudad('La Paz');
+      setCiudad('Santa Cruz');
       setSugerencia('');
       setImagenesReferencia([]);
       setFormError('');
     }
-  }, [isOpen, currentUser, activeClient]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  // Handle File Uploads (Drag & Drop or File Input)
-  const handleFileUpload = (files: FileList | File[]) => {
+  // Handle File Uploads (Drag & Drop or File Input) with client-side image compression
+  const handleFileUpload = async (files: FileList | File[]) => {
     setFormError('');
     const fileArray = Array.from(files);
-    fileArray.forEach(file => {
-      if (!file.type.startsWith('image/')) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        if (result) {
-          const sizeKb = (file.size / 1024).toFixed(1) + ' KB';
-          setImagenesReferencia(prev => [
-            ...prev,
-            {
-              id: 'IMG_' + Date.now() + Math.random().toString(36).substring(2, 5),
-              name: file.name,
-              url: result,
-              size: sizeKb
-            }
-          ]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+    for (const file of fileArray) {
+      if (!file.type.startsWith('image/')) continue;
+      try {
+        const compressed = await compressImageFile(file, 800, 0.65);
+        setImagenesReferencia(prev => [
+          ...prev,
+          {
+            id: 'IMG_' + Date.now() + Math.random().toString(36).substring(2, 5),
+            name: compressed.name,
+            url: compressed.dataUrl,
+            size: compressed.sizeKb
+          }
+        ]);
+      } catch (err) {
+        console.error('Error compressing image:', err);
+      }
+    }
   };
 
   // Quick preset sample images for easy testing
@@ -279,8 +271,14 @@ export default function OOHInquiryModal({
       `💻 *Dispositivo:* ${submittedData.dispositivo_detectado}\n\n` +
       `Quedo atento a su propuesta y presupuesto comercial. ¡Muchas gracias!`
     );
-    window.open(`https://wa.me/59170000000?text=${text}`, '_blank');
+    try {
+      window.open(`https://wa.me/59170000000?text=${text}`, '_blank');
+    } catch (e) {
+      console.error(e);
+    }
   };
+
+  if (!isOpen) return null;
 
   return (
     <AnimatePresence>
@@ -422,7 +420,7 @@ export default function OOHInquiryModal({
               </div>
             ) : (
               /* FORM STATE */
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form noValidate onSubmit={handleSubmit} className="space-y-6">
                 
                 {/* Form Error Banner */}
                 {formError && (

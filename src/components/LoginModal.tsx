@@ -66,8 +66,20 @@ export default function LoginModal({ isOpen, onClose, users, clients, onLoginSuc
     }
 
     if (staffMatch) {
-      // Allow login with password 70000000, 123, 4579387, or any entered password
-      setSuccessMsg(`¡Bienvenido/a ${staffMatch.nombre}!`);
+      // Validate password for staff role
+      const validPasses = ['70000000', '123', '123456', '4579387', 'admin', 'publix', 'admin123', 'gerente123', 'ventas123'];
+      const isDueño = staffMatch.rol === 'Dueño' || cleanUser.includes('carlos') || cleanUser === 'admin' || cleanUser === 'dueño';
+      
+      const isValidPassword = validPasses.includes(cleanPass) || 
+                              (isDueño && (cleanPass === '4579387' || cleanPass === '70000000')) ||
+                              cleanPass === '70000000';
+
+      if (!isValidPassword) {
+        handleFailedAttempt('Contraseña incorrecta para el usuario ingresado. (Clave por defecto: 70000000)');
+        return;
+      }
+
+      setSuccessMsg(`¡Bienvenido/a ${staffMatch.nombre} (${staffMatch.rol})!`);
       setTimeout(() => {
         onLoginSuccess(staffMatch!);
         onClose();
@@ -96,14 +108,22 @@ export default function LoginModal({ isOpen, onClose, users, clients, onLoginSuc
       }
 
       const creds = generateClientCredentials(clientMatch.nombre, clientMatch.celular);
-      const expectedPass = clientMatch.password_acceso || creds.password_acceso;
+      const expectedPass = (clientMatch.password_acceso || creds.password_acceso || '').toLowerCase().trim();
       const cleanExpectedPass = expectedPass.replace(/\+591/g, '').replace(/\D/g, '');
 
-      if (cleanPass === cleanExpectedPass || cleanPass === '70000000' || cleanPass === '123' || cleanPass.length > 0) {
+      const isPassCorrect = 
+        cleanPass === expectedPass ||
+        cleanPass === expectedPass.replace(/\./g, '') ||
+        (cleanExpectedPass.length > 0 && cleanPass === cleanExpectedPass) ||
+        cleanPass === '70000000' || 
+        cleanPass === '123' || 
+        cleanPass === '123456';
+
+      if (isPassCorrect) {
         const clientUserSession: UserSession = {
           id: clientMatch.id,
           nombre: clientMatch.nombre,
-          usuario: cleanUser,
+          usuario: clientMatch.usuario_acceso || cleanUser,
           rol: 'Cliente',
           estado: 'Activo'
         };
@@ -115,26 +135,31 @@ export default function LoginModal({ isOpen, onClose, users, clients, onLoginSuc
         }, 400);
         return;
       } else {
-        handleFailedAttempt('Contraseña de cliente incorrecta.');
+        handleFailedAttempt(`Contraseña incorrecta. (Clave generada: "${expectedPass}")`);
         return;
       }
     }
 
     // 3. Check for special demo user "cliente.upds"
     if (cleanUser.includes('upds') || cleanUser === 'cliente.upds') {
-      const demoClient: UserSession = {
-        id: 'U004',
-        nombre: 'Universidad Privada Domingo Savio (UPDS)',
-        usuario: 'cliente.upds',
-        rol: 'Cliente',
-        estado: 'Activo'
-      };
-      setSuccessMsg(`¡Bienvenido/a UPDS!`);
-      setTimeout(() => {
-        onLoginSuccess(demoClient);
-        onClose();
-      }, 400);
-      return;
+      if (cleanPass === '70000000' || cleanPass === '123' || cleanPass === '123456' || cleanPass === '72012345') {
+        const demoClient: UserSession = {
+          id: 'U004',
+          nombre: 'Universidad Privada Domingo Savio (UPDS)',
+          usuario: 'cliente.upds',
+          rol: 'Cliente',
+          estado: 'Activo'
+        };
+        setSuccessMsg(`¡Bienvenido/a UPDS!`);
+        setTimeout(() => {
+          onLoginSuccess(demoClient);
+          onClose();
+        }, 400);
+        return;
+      } else {
+        handleFailedAttempt('Contraseña incorrecta para UPDS. (Clave: 70000000)');
+        return;
+      }
     }
 
     handleFailedAttempt('Usuario no registrado. Verifique su usuario o comuníquese con administración.');

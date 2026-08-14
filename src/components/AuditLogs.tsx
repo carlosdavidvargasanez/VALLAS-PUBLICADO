@@ -34,13 +34,14 @@ export default function AuditLogs({ auditLogs, onClearLogs }: AuditLogsProps) {
           {onClearLogs && (
             <button
               onClick={() => {
-                if (confirm('¿Desea limpiar el historial de auditoría? El registro maestro se reiniciará.')) {
+                if (window.confirm('¿Está seguro de vaciar todo el registro de auditoría? Se eliminarán todos los eventos registrados hasta la fecha.')) {
                   onClearLogs();
                 }
               }}
-              className="text-xs font-semibold text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-100 transition"
+              className="text-xs font-bold text-rose-600 hover:text-white hover:bg-rose-600 px-3.5 py-1.5 rounded-xl border border-rose-200 transition flex items-center space-x-1.5 cursor-pointer shadow-2xs"
             >
-              Vaciar Auditoría
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Vaciar Auditoría</span>
             </button>
           )}
         </div>
