@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { Vehicle, Client, Settings } from '../types';
 import { getFieldLabel } from './fieldLabels';
+import logoImg from '../assets/images/publi_x_logo_1786377194733.jpg';
 
 // Helper to convert an image URL to Base64 with CORS handling
 const getBase64ImageFromUrl = (url: string): Promise<string | null> => {
@@ -682,3 +683,557 @@ const drawFallbackPlaceholder = (
   doc.setFontSize(7.5);
   doc.text(`PUBLI-X BOLIVIA - ${brand}`, x + (w / 2) - 20, y + (h / 2) + 4);
 };
+
+// =========================================================================
+// 3. GENERADOR AUTOMÁTICO DE COTIZACIONES CON PRECIO DE LONAS Y CONTRATO
+// =========================================================================
+
+export interface AutoQuotationVallaDetail {
+  id: string;
+  nombre: string;
+  tipo: string;
+  medidas: string;
+  ciudad: string;
+  avenida: string;
+  cara: string;
+  alquilerMensualUsd: number;
+  alquilerMensualBob: number;
+  areaM2: number;
+  costoLonaM2Bs: number;
+  costoLonaTotalBs: number;
+  costoLonaTotalUsd: number;
+  iluminacion?: string;
+  imagen?: string;
+}
+
+export interface GenerateAutoQuotationPdfParams {
+  quoteNumber: string;
+  fechaEmision: string;
+  validezDias?: number;
+  client: Client;
+  vallas: AutoQuotationVallaDetail[];
+  costoMontajeUsd?: number;
+  costoMantenimientoUsd?: number;
+  descuentoUsd?: number;
+  totalAlquilerUsd: number;
+  totalLonasUsd: number;
+  totalGeneralUsd: number;
+  totalGeneralBob: number;
+  exchangeRate: number;
+  emitterName: string;
+  emitterRole: 'Gerente' | 'Vendedor' | 'Dueño' | string;
+  emitterPhone?: string;
+  emitterEmail?: string;
+  includeContract?: boolean;
+  observaciones?: string;
+  settings?: Settings;
+  onProgress?: (msg: string) => void;
+}
+
+export const generateAutoQuotationWithContractPdf = async (
+  params: GenerateAutoQuotationPdfParams
+): Promise<void> => {
+  const {
+    quoteNumber,
+    fechaEmision,
+    validezDias = 15,
+    client,
+    vallas,
+    costoMontajeUsd = 0,
+    costoMantenimientoUsd = 0,
+    descuentoUsd = 0,
+    totalAlquilerUsd,
+    totalLonasUsd,
+    totalGeneralUsd,
+    totalGeneralBob,
+    exchangeRate,
+    emitterName,
+    emitterRole,
+    emitterPhone = '+591 70000000',
+    emitterEmail = 'ventas@publix.bo',
+    includeContract = true,
+    observaciones = '',
+    settings,
+    onProgress
+  } = params;
+
+  onProgress?.('Iniciando generador automático de cotización OOH...');
+
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = 210;
+  const pageHeight = 297;
+  const marginX = 14;
+  const contentWidth = pageWidth - (marginX * 2); // 182mm
+
+  // Palette
+  const cDark = [15, 23, 42]; // Slate-900
+  const cAmber = [245, 158, 11]; // Amber-500
+  const cAmberDark = [180, 83, 9]; // Amber-700
+  const cGrayText = [100, 116, 139]; // Slate-500
+  const cBorder = [226, 232, 240]; // Slate-200
+  const cBgSoft = [248, 250, 252]; // Slate-50
+
+  // -------------------------------------------------------------
+  // PÁGINA 1: COTIZACIÓN FORMAL OOH & DESGLOSE DE LONAS
+  // -------------------------------------------------------------
+  onProgress?.('Renderizando membrete corporativo y datos del cliente...');
+
+  // Top Accent Bar
+  doc.setFillColor(cDark[0], cDark[1], cDark[2]);
+  doc.rect(0, 0, pageWidth, 28, 'F');
+  doc.setFillColor(cAmber[0], cAmber[1], cAmber[2]);
+  doc.rect(0, 28, pageWidth, 2.5, 'F');
+
+  // Load and place Logo
+  try {
+    const logoBase64 = await getBase64ImageFromUrl(settings?.logo || logoImg);
+    if (logoBase64) {
+      doc.addImage(logoBase64, 'JPEG', marginX, 4, 46, 20);
+    } else {
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(cAmber[0], cAmber[1], cAmber[2]);
+      doc.text('PUBLI-X', marginX, 15);
+      doc.setFontSize(8);
+      doc.setTextColor(255, 255, 255);
+      doc.text('COBERTURA NACIONAL | IMPACTO TOTAL', marginX, 21);
+    }
+  } catch {
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(cAmber[0], cAmber[1], cAmber[2]);
+    doc.text('PUBLI-X', marginX, 15);
+  }
+
+  // Header Right: Title and Doc Number
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(255, 255, 255);
+  doc.text('COTIZACIÓN FORMAL DE PUBLICIDAD EXTERIOR', pageWidth - marginX, 10, { align: 'right' });
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(cAmber[0], cAmber[1], cAmber[2]);
+  doc.text(`N° ${quoteNumber}`, pageWidth - marginX, 16, { align: 'right' });
+
+  doc.setTextColor(200, 200, 200);
+  doc.setFontSize(7.5);
+  doc.text(`Fecha de Emisión: ${fechaEmision} • Validez: ${validezDias} días`, pageWidth - marginX, 22, { align: 'right' });
+
+  let currentY = 36;
+
+  // -------------------------------------------------------------
+  // CARDS: EMISOR (GERENTE/VENDEDOR) & DESTINATARIO (CLIENTE)
+  // -------------------------------------------------------------
+  const cardWidth = (contentWidth - 6) / 2;
+  const cardHeight = 32;
+
+  // 1. EMISOR CARD (Requerimiento d: detector/selector de Gerente o Vendedor)
+  doc.setFillColor(cBgSoft[0], cBgSoft[1], cBgSoft[2]);
+  doc.roundedRect(marginX, currentY, cardWidth, cardHeight, 2, 2, 'F');
+  doc.setDrawColor(cBorder[0], cBorder[1], cBorder[2]);
+  doc.roundedRect(marginX, currentY, cardWidth, cardHeight, 2, 2, 'S');
+
+  doc.setFillColor(cDark[0], cDark[1], cDark[2]);
+  doc.roundedRect(marginX, currentY, cardWidth, 6.5, 2, 2, 'F');
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(cAmber[0], cAmber[1], cAmber[2]);
+  doc.text('I. ASESOR / EMISOR RESPONSABLE', marginX + 3, currentY + 4.5);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(cDark[0], cDark[1], cDark[2]);
+  doc.text(emitterName, marginX + 3, currentY + 12);
+
+  // Role Badge
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(cAmberDark[0], cAmberDark[1], cAmberDark[2]);
+  const roleDisplay = emitterRole === 'Gerente' || emitterRole === 'Dueño' ? 'GERENTE GENERAL / DIRECCIÓN' : 'ASESOR COMERCIAL DE CUENTAS';
+  doc.text(`• ${roleDisplay}`, marginX + 3, currentY + 17);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(cGrayText[0], cGrayText[1], cGrayText[2]);
+  doc.text(`Empresa: ${settings?.nombre_empresa || 'PUBLI-X BOLIVIA'}`, marginX + 3, currentY + 22);
+  doc.text(`WhatsApp: ${emitterPhone} • Correo: ${emitterEmail}`, marginX + 3, currentY + 27);
+
+  // 2. RECEPTOR / CLIENTE CARD
+  const clientCardX = marginX + cardWidth + 6;
+  doc.setFillColor(cBgSoft[0], cBgSoft[1], cBgSoft[2]);
+  doc.roundedRect(clientCardX, currentY, cardWidth, cardHeight, 2, 2, 'F');
+  doc.setDrawColor(cBorder[0], cBorder[1], cBorder[2]);
+  doc.roundedRect(clientCardX, currentY, cardWidth, cardHeight, 2, 2, 'S');
+
+  doc.setFillColor(cDark[0], cDark[1], cDark[2]);
+  doc.roundedRect(clientCardX, currentY, cardWidth, 6.5, 2, 2, 'F');
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text('II. CLIENTE / DESTINATARIO DE LA PROPUESTA', clientCardX + 3, currentY + 4.5);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(cDark[0], cDark[1], cDark[2]);
+  const clientNameFull = client.empresa ? `${client.nombre} (${client.empresa})` : client.nombre;
+  doc.text(clientNameFull, clientCardX + 3, currentY + 12);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(cGrayText[0], cGrayText[1], cGrayText[2]);
+  if (client.nit_ci) {
+    doc.text(`NIT / CI: ${client.nit_ci}`, clientCardX + 3, currentY + 17);
+  } else {
+    doc.text(`Contacto Comercial: ${client.nombre}`, clientCardX + 3, currentY + 17);
+  }
+  doc.text(`Celular / WhatsApp: ${client.celular || 'No registrado'}`, clientCardX + 3, currentY + 22);
+  doc.text(`Ciudad: ${client.ciudad || 'Santa Cruz'} - Bolivia • T/C: Bs. ${exchangeRate}`, clientCardX + 3, currentY + 27);
+
+  currentY += cardHeight + 6;
+
+  // -------------------------------------------------------------
+  // TABLA 1: ESPACIOS PUBLICITARIOS COTIZADOS (VALLAS SELECCIONADAS)
+  // -------------------------------------------------------------
+  onProgress?.('Generando tabla de vallas y soportes seleccionados...');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(cDark[0], cDark[1], cDark[2]);
+  doc.text('III. ESPACIOS PUBLICITARIOS SELECCIONADOS (ALQUILER MENSUAL)', marginX, currentY);
+
+  currentY += 3;
+
+  // Table Header
+  const colWidths = [8, 38, 62, 28, 22, 24]; // Total 182mm
+  doc.setFillColor(cDark[0], cDark[1], cDark[2]);
+  doc.rect(marginX, currentY, contentWidth, 6, 'F');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(6.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text('#', marginX + 2, currentY + 4);
+  doc.text('TIPO / FORMATO', marginX + 10, currentY + 4);
+  doc.text('UBICACIÓN & AVENIDA ESTRATÉGICA', marginX + 48, currentY + 4);
+  doc.text('MEDIDAS / CARA', marginX + 112, currentY + 4);
+  doc.text('ALQUILER USD', marginX + 140, currentY + 4, { align: 'right' });
+  doc.text('EQUIV. EN BOB', marginX + 164, currentY + 4, { align: 'right' });
+
+  currentY += 6;
+
+  // Rows
+  doc.setFontSize(7);
+  vallas.forEach((v, idx) => {
+    const isEven = idx % 2 === 0;
+    doc.setFillColor(isEven ? 255 : 248, isEven ? 255 : 250, isEven ? 255 : 252);
+    doc.rect(marginX, currentY, contentWidth, 7, 'F');
+    doc.setDrawColor(cBorder[0], cBorder[1], cBorder[2]);
+    doc.rect(marginX, currentY, contentWidth, 7, 'S');
+
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(cDark[0], cDark[1], cDark[2]);
+    doc.text(String(idx + 1), marginX + 2, currentY + 4.5);
+
+    doc.setFont('Helvetica', 'bold');
+    doc.text((v.tipo || 'Valla Unipolar').substring(0, 22), marginX + 10, currentY + 4.5);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.text((v.avenida || v.nombre || 'Ubicación Estratégica').substring(0, 42), marginX + 48, currentY + 4.5);
+
+    doc.text(`${v.medidas || '12x4m'} (${v.cara || 'Cara A'})`, marginX + 112, currentY + 4.5);
+
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(cAmberDark[0], cAmberDark[1], cAmberDark[2]);
+    doc.text(`$${v.alquilerMensualUsd.toLocaleString()}`, marginX + 140, currentY + 4.5, { align: 'right' });
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(cDark[0], cDark[1], cDark[2]);
+    doc.text(`Bs. ${v.alquilerMensualBob.toLocaleString('es-BO')}`, marginX + 164, currentY + 4.5, { align: 'right' });
+
+    currentY += 7;
+  });
+
+  currentY += 4;
+
+  // -------------------------------------------------------------
+  // TABLA 2: DESGLOSE DETALLADO DE CONFECCIÓN DE LONAS (REQUERIMIENTO a)
+  // -------------------------------------------------------------
+  onProgress?.('Calculando y desglosando costos de impresión y confección de lonas...');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(cDark[0], cDark[1], cDark[2]);
+  doc.text('IV. DESGLOSE INDIVIDUAL DE CONFECCIÓN E IMPRESIÓN DE LONAS', marginX, currentY);
+
+  currentY += 3;
+
+  // Header Lonas
+  doc.setFillColor(cAmberDark[0], cAmberDark[1], cAmberDark[2]);
+  doc.rect(marginX, currentY, contentWidth, 6, 'F');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(6.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text('VALLA / SOPORTE DESTINO', marginX + 3, currentY + 4);
+  doc.text('DIMENSIONES', marginX + 70, currentY + 4);
+  doc.text('ÁREA (M²)', marginX + 98, currentY + 4, { align: 'right' });
+  doc.text('PRECIO / M²', marginX + 120, currentY + 4, { align: 'right' });
+  doc.text('SUBTOTAL LONAS (BOB)', marginX + 150, currentY + 4, { align: 'right' });
+  doc.text('TOTAL (USD)', marginX + 178, currentY + 4, { align: 'right' });
+
+  currentY += 6;
+
+  doc.setFontSize(7);
+  let sumAreaM2 = 0;
+  let sumLonasBob = 0;
+
+  vallas.forEach((v, idx) => {
+    sumAreaM2 += v.areaM2;
+    sumLonasBob += v.costoLonaTotalBs;
+
+    const isEven = idx % 2 === 0;
+    doc.setFillColor(isEven ? 255 : 254, isEven ? 255 : 252, isEven ? 255 : 243);
+    doc.rect(marginX, currentY, contentWidth, 7, 'F');
+    doc.setDrawColor(cBorder[0], cBorder[1], cBorder[2]);
+    doc.rect(marginX, currentY, contentWidth, 7, 'S');
+
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(cDark[0], cDark[1], cDark[2]);
+    doc.text((v.avenida || v.nombre || 'Valla Publicitaria').substring(0, 36), marginX + 3, currentY + 4.5);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.text(v.medidas || '12x4m', marginX + 70, currentY + 4.5);
+
+    doc.text(`${v.areaM2} m²`, marginX + 98, currentY + 4.5, { align: 'right' });
+    doc.text(`Bs. ${v.costoLonaM2Bs || 65}`, marginX + 120, currentY + 4.5, { align: 'right' });
+
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(cDark[0], cDark[1], cDark[2]);
+    doc.text(`Bs. ${v.costoLonaTotalBs.toLocaleString('es-BO')}`, marginX + 150, currentY + 4.5, { align: 'right' });
+
+    doc.setTextColor(cAmberDark[0], cAmberDark[1], cAmberDark[2]);
+    doc.text(`$${v.costoLonaTotalUsd.toLocaleString()}`, marginX + 178, currentY + 4.5, { align: 'right' });
+
+    currentY += 7;
+  });
+
+  // Total Lonas Row
+  doc.setFillColor(254, 243, 199); // Amber-100
+  doc.rect(marginX, currentY, contentWidth, 7, 'F');
+  doc.setDrawColor(cAmber[0], cAmber[1], cAmber[2]);
+  doc.rect(marginX, currentY, contentWidth, 7, 'S');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(146, 64, 14); // Amber-900
+  doc.text('TOTAL IMPRESIÓN DE LONAS FRONTLIGHT 13OZ:', marginX + 3, currentY + 4.8);
+  doc.text(`${sumAreaM2} m² totales`, marginX + 98, currentY + 4.8, { align: 'right' });
+  doc.text(`Bs. ${sumLonasBob.toLocaleString('es-BO')} BOB`, marginX + 150, currentY + 4.8, { align: 'right' });
+  doc.text(`$${totalLonasUsd.toLocaleString()} USD`, marginX + 178, currentY + 4.8, { align: 'right' });
+
+  currentY += 11;
+
+  // -------------------------------------------------------------
+  // RESUMEN ECONÓMICO FINAL
+  // -------------------------------------------------------------
+  doc.setFillColor(cDark[0], cDark[1], cDark[2]);
+  doc.roundedRect(marginX, currentY, contentWidth, 38, 2, 2, 'F');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(cAmber[0], cAmber[1], cAmber[2]);
+  doc.text('V. RESUMEN FINANCIERO TOTAL DE LA PROPUESTA OOH', marginX + 4, currentY + 6);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(255, 255, 255);
+
+  doc.text(`• Subtotal Alquiler Mensual (${vallas.length} espacios):`, marginX + 4, currentY + 13);
+  doc.text(`$${totalAlquilerUsd.toLocaleString()} USD  (Bs. ${Math.round(totalAlquilerUsd * exchangeRate).toLocaleString('es-BO')})`, marginX + 120, currentY + 13);
+
+  doc.text(`• Subtotal Impresión & Confección Lonas (${sumAreaM2} m²):`, marginX + 4, currentY + 18);
+  doc.text(`$${totalLonasUsd.toLocaleString()} USD  (Bs. ${sumLonasBob.toLocaleString('es-BO')})`, marginX + 120, currentY + 18);
+
+  doc.text('• Montaje en Estructura, Tensado & Iluminación LED Nocturna:', marginX + 4, currentY + 23);
+  doc.text(`$${costoMontajeUsd + costoMantenimientoUsd} USD  (INCLUIDO / GARANTIZADO)`, marginX + 120, currentY + 23);
+
+  if (descuentoUsd > 0) {
+    doc.setTextColor(cAmber[0], cAmber[1], cAmber[2]);
+    doc.text(`• Descuento Comercial Especial Aplicado:`, marginX + 4, currentY + 28);
+    doc.text(`- $${descuentoUsd.toLocaleString()} USD  (- Bs. ${Math.round(descuentoUsd * exchangeRate).toLocaleString('es-BO')})`, marginX + 120, currentY + 28);
+  }
+
+  // Total Highlight Bar inside Summary
+  doc.setFillColor(cAmber[0], cAmber[1], cAmber[2]);
+  doc.roundedRect(marginX + 2, currentY + 29, contentWidth - 4, 7.5, 1.5, 1.5, 'F');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(cDark[0], cDark[1], cDark[2]);
+  doc.text('TOTAL GENERAL DE LA INVERSIÓN:', marginX + 5, currentY + 34);
+  doc.text(`$${totalGeneralUsd.toLocaleString()} USD  |  Bs. ${totalGeneralBob.toLocaleString('es-BO')} BOB`, pageWidth - marginX - 5, currentY + 34, { align: 'right' });
+
+  // Page 1 Footer
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(cGrayText[0], cGrayText[1], cGrayText[2]);
+  doc.text('PUBLI-X BOLIVIA • Cobertura Nacional en Vallas Gigantes y Pantallas LED • www.publix.bo • Santa Cruz, Bolivia', marginX, 290);
+  doc.text('Página 1 de 2', pageWidth - marginX, 290, { align: 'right' });
+
+  // -------------------------------------------------------------
+  // PÁGINA 2: CONTRATO ASOCIADO & TÉRMINOS DEL SERVICIO (REQUERIMIENTO b)
+  // -------------------------------------------------------------
+  if (includeContract) {
+    onProgress?.('Generando contrato de servicio y términos legales asociados...');
+
+    doc.addPage();
+
+    // Top Header Banner
+    doc.setFillColor(cDark[0], cDark[1], cDark[2]);
+    doc.rect(0, 0, pageWidth, 20, 'F');
+    doc.setFillColor(cAmber[0], cAmber[1], cAmber[2]);
+    doc.rect(0, 20, pageWidth, 2, 'F');
+
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(10.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text('CONTRATO DE ARRENDAMIENTO DE ESPACIOS PUBLICITARIOS (OOH)', marginX, 10);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(cAmber[0], cAmber[1], cAmber[2]);
+    doc.text(`DOCUMENTO ASOCIADO A LA COTIZACIÓN N° ${quoteNumber} • PUBLI-X BOLIVIA`, marginX, 16);
+
+    let contractY = 28;
+
+    // Preamble
+    doc.setFillColor(cBgSoft[0], cBgSoft[1], cBgSoft[2]);
+    doc.roundedRect(marginX, contractY, contentWidth, 14, 2, 2, 'F');
+    doc.setDrawColor(cBorder[0], cBorder[1], cBorder[2]);
+    doc.roundedRect(marginX, contractY, contentWidth, 14, 2, 2, 'S');
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(cDark[0], cDark[1], cDark[2]);
+    const preamble = `Conste por el presente documento privado de términos y condiciones de servicio comercial que se suscribe entre PUBLI-X BOLIVIA (El Arrendador) y ${client.empresa || client.nombre} (El Arrendatario), bajo las siguientes cláusulas y estipulaciones de mutuo acuerdo:`;
+    const splitPreamble = doc.splitTextToSize(preamble, contentWidth - 6);
+    doc.text(splitPreamble, marginX + 3, contractY + 5);
+
+    contractY += 18;
+
+    // Clauses List
+    const clauses = [
+      {
+        title: 'CLÁUSULA PRIMERA (OBJETO DEL ARRENDAMIENTO):',
+        text: `EL ARRENDADOR concede a favor de EL ARRENDATARIO el uso temporal y exclusivo de los ${vallas.length} espacios de publicidad exterior (Vallas / Pantallas) detallados en la carátula económica, asegurando el despeje visual y la exhibición de la marca contratada durante el periodo estipulado.`
+      },
+      {
+        title: 'CLÁUSULA SEGUNDA (CONFECCIÓN, IMPRESIÓN Y MONTAJE DE LONAS):',
+        text: `La confección de las lonas publicitarias se realizará en material Frontlight 13oz de alta tenacidad con tintas UV resistentes a la intemperie. La instalación y tensado en estructura metálica será ejecutada por personal técnico especializado con equipo de seguridad y altura certificado por PUBLI-X.`
+      },
+      {
+        title: 'CLÁUSULA TERCERA (SISTEMA DE ILUMINACIÓN LED Y MANTENIMIENTO):',
+        text: 'EL ARRENDADOR garantiza el encendido diario ininterrumpido del sistema de iluminación LED desde las 18:30 hasta las 24:00 horas todos los días del año. Asimismo, se compromete al mantenimiento preventivo de reflectores, estructura y re-tensado ante eventuales inclemencias climáticas severas.'
+      },
+      {
+        title: 'CLÁUSULA CUARTA (PRECIO, FACTURACIÓN Y FORMA DE PAGO):',
+        text: `El canon total convenido es de $${totalGeneralUsd.toLocaleString()} USD (Equivalente a Bs. ${totalGeneralBob.toLocaleString('es-BO')} BOB facturados al tipo de cambio oficial de Bs. ${exchangeRate}). El pago se realizará dentro de los primeros cinco (5) días calendario de cada periodo mensual convenido.`
+      },
+      {
+        title: 'CLÁUSULA QUINTA (RESPONSABILIDAD DEL CONTENIDO PUBLICITARIO):',
+        text: 'EL ARRENDATARIO declara ser el titular legítimo o contar con las autorizaciones debidas sobre las marcas, artes y diseños expuestos, deslindando a PUBLI-X de toda responsabilidad respecto al contenido comercial exhibido.'
+      },
+      {
+        title: 'CLÁUSULA SEXTA (JURISDICCIÓN, CONCILIACIÓN Y CONFORMIDAD):',
+        text: 'Para la interpretación o cumplimiento del presente instrumento, las partes renuncian a su fuero y se someten al Centro de Conciliación y Arbitraje Comercial de CAINCO (Santa Cruz) o juzgados competentes según la legislación del Estado Plurinacional de Bolivia.'
+      }
+    ];
+
+    clauses.forEach((c) => {
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(cAmberDark[0], cAmberDark[1], cAmberDark[2]);
+      doc.text(c.title, marginX, contractY);
+
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(cDark[0], cDark[1], cDark[2]);
+      const splitText = doc.splitTextToSize(c.text, contentWidth);
+      doc.text(splitText, marginX, contractY + 4);
+
+      contractY += 5 + (splitText.length * 3.4) + 2;
+    });
+
+    if (observaciones && observaciones.trim()) {
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(cDark[0], cDark[1], cDark[2]);
+      doc.text('OBSERVACIONES PARTICULARES:', marginX, contractY);
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(7);
+      const splitObs = doc.splitTextToSize(observaciones.trim(), contentWidth);
+      doc.text(splitObs, marginX, contractY + 4);
+      contractY += 5 + (splitObs.length * 3.4) + 2;
+    }
+
+    // -------------------------------------------------------------
+    // SIGNATURE BLOCKS (EMISOR Y CLIENTE)
+    // -------------------------------------------------------------
+    const signY = 248;
+    const signBoxWidth = (contentWidth - 20) / 2;
+
+    // Signature 1: Emitter (Gerente / Vendedor)
+    doc.setDrawColor(cDark[0], cDark[1], cDark[2]);
+    doc.setLineWidth(0.4);
+    doc.line(marginX + 5, signY + 16, marginX + 5 + signBoxWidth, signY + 16);
+
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(cDark[0], cDark[1], cDark[2]);
+    doc.text(emitterName, marginX + 5 + (signBoxWidth / 2), signY + 21, { align: 'center' });
+
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(cAmberDark[0], cAmberDark[1], cAmberDark[2]);
+    doc.text(`${emitterRole.toUpperCase()} - PUBLI-X BOLIVIA`, marginX + 5 + (signBoxWidth / 2), signY + 25, { align: 'center' });
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(cGrayText[0], cGrayText[1], cGrayText[2]);
+    doc.text('El Arrendador • Firma Autorizada', marginX + 5 + (signBoxWidth / 2), signY + 29, { align: 'center' });
+
+    // Signature 2: Cliente / Arrendatario
+    const clientSignX = marginX + signBoxWidth + 20;
+    doc.line(clientSignX, signY + 16, clientSignX + signBoxWidth, signY + 16);
+
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(cDark[0], cDark[1], cDark[2]);
+    doc.text(client.nombre, clientSignX + (signBoxWidth / 2), signY + 21, { align: 'center' });
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(cGrayText[0], cGrayText[1], cGrayText[2]);
+    doc.text(client.empresa ? `Representante Legal (${client.empresa})` : 'El Arrendatario / Cliente', clientSignX + (signBoxWidth / 2), signY + 25, { align: 'center' });
+    doc.text('Conformidad y Aceptación de Términos', clientSignX + (signBoxWidth / 2), signY + 29, { align: 'center' });
+
+    // Page 2 Footer
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(cGrayText[0], cGrayText[1], cGrayText[2]);
+    doc.text('PUBLI-X BOLIVIA • Cobertura Nacional en Vallas Gigantes y Pantallas LED • www.publix.bo • Santa Cruz, Bolivia', marginX, 290);
+    doc.text('Página 2 de 2', pageWidth - marginX, 290, { align: 'right' });
+  }
+
+  // Save the PDF
+  onProgress?.('Guardando archivo PDF en su dispositivo...');
+  const safeClient = (client.empresa || client.nombre).replace(/[^a-zA-Z0-9]/g, '_');
+  const filename = `Cotizacion_Contrato_PUBLIX_${quoteNumber}_${safeClient}.pdf`;
+  doc.save(filename);
+};
+

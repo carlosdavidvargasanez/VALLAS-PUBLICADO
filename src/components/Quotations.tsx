@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import Logo from './Logo';
-import { Client, Vehicle, Quotation, QuotationState, Settings, Contract } from '../types';
+import { Client, Vehicle, Quotation, QuotationState, Settings, Contract, QuotationVallaItem } from '../types';
+import { generateAutoQuotationWithContractPdf, AutoQuotationVallaDetail } from '../utils/pdfGenerator';
+import AutoQuotationGeneratorModal from './AutoQuotationGeneratorModal';
 import { 
   FileText, 
   Plus, 
@@ -23,7 +25,9 @@ import {
   MessageSquare,
   Share2,
   FileCheck,
-  Edit3
+  Edit3,
+  Sparkles,
+  Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ContractModal from './ContractModal';
@@ -76,6 +80,9 @@ export default function Quotations({
   const [contractModalQuote, setContractModalQuote] = useState<Quotation | null>(null);
   const [showContractModal, setShowContractModal] = useState<boolean>(false);
 
+  // Auto Quotation Multi-Valla Generator Modal
+  const [showAutoGeneratorModal, setShowAutoGeneratorModal] = useState<boolean>(false);
+
   // Form states (Fees breakdown)
   const [precioVehiculo, setPrecioVehiculo] = useState('');
   const [gastosImportacion, setGastosImportacion] = useState('1800'); // defaults
@@ -85,6 +92,90 @@ export default function Quotations({
   const [observaciones, setObservaciones] = useState('');
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
+
+  // Generate and download full PDF for any quotation
+  const handleDownloadQuotePdf = async (quote: Quotation) => {
+    const client = clients.find(c => c.id === quote.cliente_id);
+    if (!client) return;
+
+    let vallaList: AutoQuotationVallaDetail[] = [];
+    if (quote.vallas_seleccionadas && quote.vallas_seleccionadas.length > 0) {
+      vallaList = quote.vallas_seleccionadas.map(v => {
+        const lonaTotalBs = (v.area_m2 || 40) * (v.costo_lona_m2_bs || 65);
+        return {
+          id: v.vehiculo_id,
+          nombre: v.valla_nombre,
+          tipo: v.valla_tipo,
+          medidas: v.valla_medidas,
+          ciudad: v.valla_ciudad,
+          avenida: v.valla_avenida,
+          cara: v.valla_cara,
+          alquilerMensualUsd: v.precio_alquiler_usd,
+          alquilerMensualBob: Math.round(v.precio_alquiler_usd * settings.tipo_cambio),
+          areaM2: v.area_m2 || 40,
+          costoLonaM2Bs: v.costo_lona_m2_bs || 65,
+          costoLonaTotalBs: lonaTotalBs,
+          costoLonaTotalUsd: v.costo_lona_usd || Math.round(lonaTotalBs / settings.tipo_cambio),
+          imagen: v.imagen
+        };
+      });
+    } else {
+      const vehicle = vehicles.find(v => v.id === quote.vehiculo_id);
+      let area = 40;
+      if (vehicle?.medidas) {
+        const nums = vehicle.medidas.match(/(\d+(?:\.\d+)?)/g);
+        if (nums && nums.length >= 2) {
+          const w = parseFloat(nums[0]);
+          const h = parseFloat(nums[1]);
+          if (w > 0 && h > 0) area = Math.round(w * h);
+        }
+      }
+      const lonaUnitBs = vehicle?.costo_lona_m2_bs || 65;
+      const lonaTotalBs = area * lonaUnitBs;
+      vallaList = [{
+        id: vehicle?.id || 'v1',
+        nombre: vehicle ? `${vehicle.tipo_valla || vehicle.tipo} - ${vehicle.avenida_calle || vehicle.modelo}` : 'Valla Publicitaria',
+        tipo: vehicle?.tipo_valla || vehicle?.tipo || 'Valla Unipolar',
+        medidas: vehicle?.medidas || '12.00 x 4.00 m',
+        ciudad: vehicle?.ciudad || 'Santa Cruz',
+        avenida: vehicle?.avenida_calle || vehicle?.modelo || 'Ubicación Estratégica',
+        cara: vehicle?.cara || 'Cara A',
+        alquilerMensualUsd: quote.precio_vehiculo || 1500,
+        alquilerMensualBob: Math.round((quote.precio_vehiculo || 1500) * settings.tipo_cambio),
+        areaM2: area,
+        costoLonaM2Bs: lonaUnitBs,
+        costoLonaTotalBs: lonaTotalBs,
+        costoLonaTotalUsd: quote.gastos_importacion || Math.round(lonaTotalBs / settings.tipo_cambio),
+        imagen: vehicle?.foto_principal || ''
+      }];
+    }
+
+    const totalAlq = vallaList.reduce((a, c) => a + c.alquilerMensualUsd, 0);
+    const totalLon = vallaList.reduce((a, c) => a + c.costoLonaTotalUsd, 0);
+
+    await generateAutoQuotationWithContractPdf({
+      quoteNumber: quote.numero,
+      fechaEmision: new Date(quote.fecha).toLocaleDateString('es-ES'),
+      validezDias: 15,
+      client,
+      vallas: vallaList,
+      costoMontajeUsd: quote.gastos_aduana || 0,
+      costoMantenimientoUsd: quote.gastos_logistica || 0,
+      descuentoUsd: quote.descuento_usd || 0,
+      totalAlquilerUsd: totalAlq,
+      totalLonasUsd: totalLon,
+      totalGeneralUsd: quote.total,
+      totalGeneralBob: Math.round(quote.total * settings.tipo_cambio),
+      exchangeRate: settings.tipo_cambio,
+      emitterName: quote.emisor_nombre || currentUserNombre || 'Lic. Carlos David Vargas',
+      emitterRole: quote.emisor_rol || 'Gerente General',
+      emitterPhone: settings.telefono || '+591 70000000',
+      emitterEmail: settings.correo || 'ventas@publix.bo',
+      includeContract: quote.incluye_contrato !== false,
+      observaciones: quote.observaciones,
+      settings
+    });
+  };
 
   // Close preview modal cleanly
   const handleClosePreview = () => {
@@ -342,16 +433,27 @@ export default function Quotations({
           />
         </div>
 
-        <button
-          onClick={() => {
-            resetForm();
-            setShowForm(prev => !prev);
-          }}
-          className="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-4 rounded-lg transition text-sm shadow-xs flex items-center space-x-1.5 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Nueva Cotización Formal</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setShowAutoGeneratorModal(true)}
+            className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black py-2 px-3.5 rounded-lg transition text-xs shadow-xs flex items-center space-x-1.5 cursor-pointer uppercase tracking-tight"
+            title="Generador automático con selección múltiple de vallas, cálculo de lonas y contrato"
+          >
+            <Sparkles className="w-4 h-4 text-slate-950" />
+            <span>⚡ Generador Automático (Vallas + Lonas + PDF)</span>
+          </button>
+
+          <button
+            onClick={() => {
+              resetForm();
+              setShowForm(prev => !prev);
+            }}
+            className="bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2 px-3.5 rounded-lg transition text-xs shadow-xs flex items-center space-x-1.5 cursor-pointer"
+          >
+            <Plus className="w-4 h-4 text-amber-400" />
+            <span>Calculadora Rápida</span>
+          </button>
+        </div>
       </div>
 
       {/* Form: Create Quote */}
@@ -622,6 +724,16 @@ export default function Quotations({
                       <td className="py-3.5 px-4">
                         <div className="flex items-center justify-center space-x-1">
                           
+                          {/* Descargar PDF con Lonas y Contrato */}
+                          <button
+                            onClick={() => handleDownloadQuotePdf(quote)}
+                            className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-[10px] rounded-md transition flex items-center space-x-1 shadow-2xs cursor-pointer"
+                            title="Descargar PDF Corporativo Oficial con desglose de lonas y contrato legal"
+                          >
+                            <Download className="w-3.5 h-3.5 text-slate-950" />
+                            <span>PDF Lonas</span>
+                          </button>
+
                           {/* Previsualizar y Editar Proforma */}
                           <button
                             onClick={() => handleOpenPreview(quote, false)}
@@ -973,34 +1085,30 @@ export default function Quotations({
                   <div className="p-8 bg-white text-gray-800 space-y-6 overflow-y-auto" id="printable-area">
                     
                     {/* Letterhead */}
-                    <div className="flex justify-between items-start pb-5 border-b border-gray-100">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <Logo size="sm" logoUrl={settings.logo} />
-                          <h2 className="text-xl font-extrabold font-display tracking-tight text-gray-900">
-                            {settings.nombre_empresa || 'PUBLI-X BOLIVIA'}
-                          </h2>
-                        </div>
-                        <p className="text-[10px] text-amber-600 font-bold tracking-wider uppercase">
+                    <div className="flex flex-col sm:flex-row justify-between items-start pb-5 border-b-2 border-slate-900 gap-4">
+                      <div className="space-y-1 max-w-md">
+                        <Logo size="md" logoUrl={settings.logo} />
+                        <p className="text-[11px] text-amber-600 font-extrabold tracking-wider uppercase pt-1">
                           Publicidad Exterior • Vallas Gigantes & Pantallas LED en Bolivia
                         </p>
-                        <div className="text-[10px] text-gray-400 leading-normal pt-1.5">
-                          <p>{settings.direccion}</p>
-                          <p>{settings.ciudad}, {settings.departamento}, {settings.pais}</p>
-                          <p>Tel: {settings.telefono} • WhatsApp: {settings.whatsapp}</p>
-                          <p>Email: {settings.correo} • Web: {settings.web}</p>
+                        <div className="text-[10px] text-gray-500 leading-normal pt-1">
+                          <p><strong>Empresa:</strong> {settings.nombre_empresa || 'PUBLI-X BOLIVIA'}</p>
+                          <p><strong>Dirección:</strong> {settings.direccion}</p>
+                          <p><strong>Ubicación:</strong> {settings.ciudad}, {settings.departamento}, {settings.pais}</p>
+                          <p><strong>Contacto:</strong> Tel: {settings.telefono} • WhatsApp: {settings.whatsapp}</p>
+                          <p><strong>Digital:</strong> {settings.correo} • {settings.web}</p>
                         </div>
                       </div>
 
-                      <div className="text-right space-y-2">
-                        <div className="inline-block px-3.5 py-1 bg-amber-50 border border-amber-100 rounded text-[11px] font-bold text-amber-800">
+                      <div className="text-left sm:text-right space-y-2 w-full sm:w-auto">
+                        <div className="inline-block px-3.5 py-1 bg-amber-500 text-slate-950 rounded-lg text-xs font-black uppercase tracking-wider shadow-xs">
                           COTIZACIÓN FORMAL / PROFORMA
                         </div>
                         <div className="font-mono text-xs">
                           <p className="text-gray-400">Nº de Control:</p>
-                          <p className="font-bold text-gray-900 text-sm">{displayQuote.numero}</p>
+                          <p className="font-black text-gray-900 text-sm">{displayQuote.numero}</p>
                         </div>
-                        <div className="font-mono text-[10px] text-gray-400">
+                        <div className="font-mono text-[10px] text-gray-500">
                           <p>Fecha Emisión: {new Date(displayQuote.fecha).toLocaleDateString()}</p>
                           <p>Validez: 15 días calendario</p>
                         </div>
@@ -1144,6 +1252,23 @@ export default function Quotations({
           );
         })()}
       </AnimatePresence>
+
+      {/* Auto Quotation Multi-Valla Generator Modal */}
+      {showAutoGeneratorModal && (
+        <AutoQuotationGeneratorModal
+          clients={clients}
+          vehicles={vehicles}
+          settings={settings}
+          currentUserNombre={currentUserNombre}
+          initialClient={activeClient}
+          initialVehicle={activeVehicle}
+          onSaveQuotation={(quoteData) => {
+            onAddQuotation(quoteData as any);
+            setShowAutoGeneratorModal(false);
+          }}
+          onClose={() => setShowAutoGeneratorModal(false)}
+        />
+      )}
 
       {/* Contract Generation Modal */}
       {showContractModal && (

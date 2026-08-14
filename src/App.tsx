@@ -8,6 +8,7 @@ import Recommendation from './components/Recommendation';
 import WhatsAppSender from './components/WhatsAppSender';
 import Quotations from './components/Quotations';
 import Contracts from './components/Contracts';
+import DocumentManager from './components/DocumentManager';
 import Agenda from './components/Agenda';
 import ImportExport from './components/ImportExport';
 import AuditLogs from './components/AuditLogs';
@@ -80,10 +81,29 @@ export default function App() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [initialCategoryFilter, setInitialCategoryFilter] = useState<string>('Todos');
 
-  // Load all initial data from local SQLite simulator on startup
+  // Load all initial data from local SQLite simulator on startup and check auto-backup
   useEffect(() => {
     mockDb.initialize();
     loadAllStates();
+
+    // Check and trigger auto backup if due
+    try {
+      const currentSettings = mockDb.getSettings();
+      const autoEnabled = currentSettings.backup_auto_enabled ?? true;
+      const intervalHours = currentSettings.backup_interval_hours ?? 24;
+      const lastBackupIso = mockDb.getLastBackupTimestamp();
+      
+      const lastBackupDate = new Date(lastBackupIso).getTime();
+      const now = Date.now();
+      const elapsedHours = (now - lastBackupDate) / (1000 * 60 * 60);
+
+      // Create snapshot if never created or if interval elapsed
+      if (autoEnabled && (elapsedHours >= intervalHours || mockDb.getAutoBackups().length === 0)) {
+        mockDb.createAutoBackup(`Respaldo automático programado (Ciclo cada ${intervalHours}h)`);
+      }
+    } catch (e) {
+      console.warn('Auto backup check:', e);
+    }
 
     const handleSyncRequests = () => {
       setPendingRequestsCount(mockDb.getPendingRequests().filter(r => r.estado === 'Pendiente').length);
@@ -91,9 +111,27 @@ export default function App() {
       setClients(mockDb.getClients());
     };
 
+    // Periodic interval to check auto backup every 15 minutes while app is running
+    const backupInterval = setInterval(() => {
+      try {
+        const currentSettings = mockDb.getSettings();
+        const autoEnabled = currentSettings.backup_auto_enabled ?? true;
+        const intervalHours = currentSettings.backup_interval_hours ?? 24;
+        const lastBackupIso = mockDb.getLastBackupTimestamp();
+        const elapsedHours = (Date.now() - new Date(lastBackupIso).getTime()) / (1000 * 60 * 60);
+
+        if (autoEnabled && elapsedHours >= intervalHours) {
+          mockDb.createAutoBackup(`Respaldo periódico automático (${intervalHours}h)`);
+        }
+      } catch (e) {
+        console.warn('Periodic backup trigger error:', e);
+      }
+    }, 15 * 60 * 1000);
+
     window.addEventListener('publix_new_request', handleSyncRequests);
     window.addEventListener('storage', handleSyncRequests);
     return () => {
+      clearInterval(backupInterval);
       window.removeEventListener('publix_new_request', handleSyncRequests);
       window.removeEventListener('storage', handleSyncRequests);
     };
@@ -597,7 +635,8 @@ export default function App() {
     const list = mockDb.getUsers();
     const newUser: UserSession = {
       ...newUserData,
-      id: 'U' + String(list.length + 1).padStart(3, '0')
+      id: 'U' + String(list.length + 1).padStart(3, '0'),
+      password: newUserData.password || (newUserData.celular ? newUserData.celular.replace(/\D/g, '') : '70000000')
     };
     const updated = [...list, newUser];
     mockDb.saveUsers(updated);
@@ -606,9 +645,45 @@ export default function App() {
     mockDb.addAuditLog(
       currentUser.nombre,
       'Creación de Usuario',
-      `Se creó el usuario "${newUser.nombre}" con el rol "${newUser.rol}" y alias @${newUser.usuario}.`
+      `Se creó el usuario "${newUser.nombre}" con el rol "${newUser.rol}", alias @${newUser.usuario} y contraseña por defecto celular (${newUser.celular || '70000000'}).`
     );
     setAuditLogs(mockDb.getAuditLogs());
+  };
+
+  const handleResetUserPassword = (userId: string) => {
+    const res = mockDb.resetUserPassword(userId);
+    if (res.success) {
+      setUsers(mockDb.getUsers());
+      setCurrentUser(mockDb.getCurrentUser());
+      setAuditLogs(mockDb.getAuditLogs());
+    }
+    return res;
+  };
+
+  const handleChangeMyPassword = (userId: string, newPass: string) => {
+    const res = mockDb.changeUserPassword(userId, newPass);
+    if (res.success) {
+      setUsers(mockDb.getUsers());
+      setCurrentUser(mockDb.getCurrentUser());
+      setAuditLogs(mockDb.getAuditLogs());
+    }
+    return res;
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    const list = mockDb.getUsers();
+    const userToDelete = list.find(u => u.id === userId);
+    if (userToDelete && userToDelete.rol !== 'Dueño') {
+      const updated = list.filter(u => u.id !== userId);
+      mockDb.saveUsers(updated);
+      setUsers(updated);
+      mockDb.addAuditLog(
+        currentUser.nombre,
+        'Eliminación de Usuario',
+        `Se eliminó al usuario @${userToDelete.usuario} (${userToDelete.nombre}) del sistema.`
+      );
+      setAuditLogs(mockDb.getAuditLogs());
+    }
   };
 
   // Database Backup downloads (JSON)
@@ -1130,6 +1205,7 @@ export default function App() {
                   { id: 'recomendacion', label: 'RECOMENDADOR IA', icon: Sparkles, badge: null },
                   { id: 'whatsapp', label: 'WHATSAPP COMERCIAL', icon: MessageSquare, badge: null },
                   { id: 'cotizaciones', label: 'COTIZACIONES PDF', icon: FileText, badge: displayQuotations.length },
+                  { id: 'documentos', label: 'CENTRO DE DOCUMENTOS', icon: FolderSync, badge: 'PRO' },
                   { id: 'contratos', label: 'CONTRATOS CRM', icon: FileCheck, badge: displayContracts.length },
                   { id: 'agenda', label: 'SEGUIMIENTOS AGENDA', icon: Calendar, badge: followUps.filter(f => f.estado === 'Pendiente').length },
                   { id: 'importar', label: 'EXCEL IMPORT / EXPORT', icon: Database, badge: null },
@@ -1303,6 +1379,19 @@ export default function App() {
                 />
               )}
 
+              {activeTab === 'documentos' && (
+                <DocumentManager
+                  quotations={displayQuotations}
+                  contracts={displayContracts}
+                  clients={clients}
+                  vehicles={vehicles}
+                  settings={settings}
+                  currentUserNombre={currentUser.nombre}
+                  onSaveQuotation={handleUpdateQuotation}
+                  onSaveContract={handleAddContract}
+                />
+              )}
+
               {activeTab === 'contratos' && (
                 <Contracts
                   contracts={displayContracts}
@@ -1358,6 +1447,9 @@ export default function App() {
                   onUploadBackup={handleUploadBackup}
                   onResetAll={handleResetAll}
                   onAddUser={handleAddUser}
+                  onResetPassword={handleResetUserPassword}
+                  onChangeMyPassword={handleChangeMyPassword}
+                  onDeleteUser={handleDeleteUser}
                 />
               )}
 

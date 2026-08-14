@@ -67,15 +67,28 @@ export default function LoginModal({ isOpen, onClose, users, clients, onLoginSuc
 
     if (staffMatch) {
       // Validate password for staff role
-      const validPasses = ['70000000', '123', '123456', '4579387', 'admin', 'publix', 'admin123', 'gerente123', 'ventas123'];
+      const staffPhone = staffMatch.celular ? staffMatch.celular.replace(/\D/g, '') : '';
+      const validPasses = [
+        staffMatch.password,
+        staffPhone,
+        '70000000',
+        '123',
+        '123456',
+        '4579387',
+        'admin',
+        'publix',
+        'admin123',
+        'gerente123',
+        'ventas123'
+      ].filter(Boolean);
       const isDueño = staffMatch.rol === 'Dueño' || cleanUser.includes('carlos') || cleanUser === 'admin' || cleanUser === 'dueño';
       
       const isValidPassword = validPasses.includes(cleanPass) || 
                               (isDueño && (cleanPass === '4579387' || cleanPass === '70000000')) ||
-                              cleanPass === '70000000';
+                              (staffMatch.password && cleanPass === staffMatch.password);
 
       if (!isValidPassword) {
-        handleFailedAttempt('Contraseña incorrecta para el usuario ingresado. (Clave por defecto: 70000000)');
+        handleFailedAttempt(`Contraseña incorrecta para el usuario ingresado. (Clave por defecto: ${staffPhone || '70000000'})`);
         return;
       }
 

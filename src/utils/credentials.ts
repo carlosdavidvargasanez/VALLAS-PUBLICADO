@@ -98,4 +98,41 @@ export function generateClientWelcomeMessage(
   return { cleanPhone: digits, message, waUrl, usuario: u, password: p };
 }
 
+/**
+ * Automatically generates username for Staff (Gerente, Vendedor)
+ * Rule: primer nombre + '.' + primer apellido in lowercase without accents/spaces
+ * Example: "Mariana Suárez López" -> "mariana.suarez"
+ * Example: ("Mariana", "Suárez López") -> "mariana.suarez"
+ */
+export function generateStaffUsername(nombresOrFullName: string, apellidos?: string): string {
+  if (!nombresOrFullName && !apellidos) return '';
+
+  const cleanFirst = (nombresOrFullName || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const cleanSecond = (apellidos || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  let first = '';
+  let last = '';
+
+  if (cleanSecond) {
+    const nParts = cleanFirst.split(/\s+/).filter(Boolean);
+    const aParts = cleanSecond.split(/\s+/).filter(Boolean);
+    first = nParts[0] || '';
+    last = aParts[0] || '';
+  } else {
+    const parts = cleanFirst.split(/\s+/).filter(Boolean);
+    first = parts[0] || '';
+    if (parts.length >= 2) {
+      last = parts[1] || '';
+    }
+  }
+
+  // Remove any non-alphanumeric character
+  first = first.replace(/[^a-z0-9]/g, '');
+  last = last.replace(/[^a-z0-9]/g, '');
+
+  if (!first) return '';
+  if (!last) return first;
+  return `${first}.${last}`;
+}
+
 

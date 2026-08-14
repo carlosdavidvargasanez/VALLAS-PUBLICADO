@@ -94,6 +94,8 @@ export interface Vehicle {
   estado: ProductState;
   imagen_principal: string;
   imagenes: string[];
+  foto_principal?: string;
+  galeria?: string[];
   fecha_registro: string;
   fecha_actualizacion: string;
 }
@@ -122,6 +124,21 @@ export interface PendingQuotationRequest {
 
 export type QuotationState = 'Borrador' | 'Enviada' | 'Vista por cliente' | 'Negociación' | 'Aceptada' | 'Rechazada' | 'Vencida';
 
+export interface QuotationVallaItem {
+  vehiculo_id: string;
+  valla_nombre: string;
+  valla_tipo: string;
+  valla_medidas: string;
+  valla_ciudad: string;
+  valla_avenida: string;
+  valla_cara: string;
+  precio_alquiler_usd: number;
+  costo_lona_usd: number;
+  area_m2: number;
+  costo_lona_m2_bs?: number;
+  imagen?: string;
+}
+
 export interface Quotation {
   id: string;
   numero: string; // format: PUB-YYYYMMDD-XXXXXX
@@ -136,6 +153,14 @@ export interface Quotation {
   estado: QuotationState;
   observaciones: string;
   fecha: string;
+  
+  // Enhanced Multi-Valla & Contract features
+  vallas_seleccionadas?: QuotationVallaItem[];
+  emisor_nombre?: string;
+  emisor_rol?: string;
+  incluye_contrato?: boolean;
+  terminos_contrato?: string;
+  descuento_usd?: number;
 }
 
 export type ContractStatus = 'Borrador' | 'Pendiente Firma' | 'Vigente' | 'Finalizado' | 'Cancelado';
@@ -243,12 +268,17 @@ export interface Contract {
   fecha_inicio: string;
   fecha_fin: string;
   periodo_meses: number;
+  plazo_meses?: number;
   forma_pago: string;
   clausulas_especiales?: string;
+  clausulas_adicionales?: string;
   
   estado: ContractStatus;
   diseno_plantilla?: ContractTemplateDesign;
   vendedor_nombre: string;
+  vendedor_celular?: string;
+  vendedor_correo?: string;
+  observaciones?: string;
 }
 
 export type FollowUpType = 'Llamada' | 'WhatsApp' | 'Correo' | 'Reunión' | 'Envío catálogo' | 'Envío cotización' | 'Nota interna';
@@ -297,6 +327,14 @@ export interface Settings {
   tipo_cambio: number; // e.g. 10.10
   terminos_cotizacion: string;
   custom_fields?: Record<string, string>;
+
+  // Auto Backup Configuration
+  backup_auto_enabled?: boolean;
+  backup_interval_hours?: number; // 1, 6, 12, 24
+  backup_on_critical_change?: boolean;
+  backup_last_timestamp?: string;
+  backup_on_save?: boolean;
+  backup_retention_count?: number;
 }
 
 export type UserRole = 'Dueño' | 'Gerente' | 'Jefe' | 'Supervisor' | 'Administrador' | 'Vendedor' | 'Cliente';
@@ -304,12 +342,15 @@ export type UserRole = 'Dueño' | 'Gerente' | 'Jefe' | 'Supervisor' | 'Administr
 export interface UserSession {
   id: string;
   nombre: string;
+  nombres?: string;
+  apellidos?: string;
   usuario: string;
   rol: UserRole;
   estado: 'Activo' | 'Inactivo' | 'Bloqueado';
   empresa?: string;
   celular?: string;
   email?: string;
+  password?: string;
 }
 
 export interface BackupRecord {
