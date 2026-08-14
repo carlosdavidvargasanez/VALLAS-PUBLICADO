@@ -300,45 +300,99 @@ function generate350Clients(): Client[] {
 }
 
 function generate350Vehicles(): Vehicle[] {
-  const categories: Vehicle['tipo'][] = [
-    'Valla Publicitaria',
-    'Pantalla LED',
-    'Letrero & Banner',
-    'Letras Corpóreas',
-    'Impresión de Lonas',
-    'Estructura Metálica',
-    'Trabajo Especial'
+  const billboardTypes: { tipo_valla: Vehicle['tipo_valla']; tipo: string; defaultMedidas: string; defaultIlum: string; minPrice: number; maxPrice: number }[] = [
+    { tipo_valla: 'Unipolar', tipo: 'Unipolar', defaultMedidas: '12 x 4 m', defaultIlum: 'Iluminación LED Nocturna 24/7', minPrice: 1100, maxPrice: 2200 },
+    { tipo_valla: 'Estructural', tipo: 'Estructural', defaultMedidas: '10 x 4 m', defaultIlum: 'Reflectores LED 400W', minPrice: 950, maxPrice: 1800 },
+    { tipo_valla: 'Pantalla LED', tipo: 'Pantalla LED', defaultMedidas: '8 x 4 m', defaultIlum: 'Pantalla Digital LED', minPrice: 1600, maxPrice: 3200 },
+    { tipo_valla: 'Pasarela / Puente Peatonal', tipo: 'Pasarela / Puente Peatonal', defaultMedidas: '16 x 3 m', defaultIlum: 'Iluminación LED Nocturna 24/7', minPrice: 1400, maxPrice: 2500 },
+    { tipo_valla: 'Vía Peatonal', tipo: 'Vía Peatonal', defaultMedidas: '1.8 x 1.2 m', defaultIlum: 'Caja de Luz Backlight', minPrice: 350, maxPrice: 750 },
+    { tipo_valla: 'Mural', tipo: 'Mural', defaultMedidas: '15 x 6 m', defaultIlum: 'Iluminación LED Nocturna 24/7', minPrice: 850, maxPrice: 1600 },
+    { tipo_valla: 'Parada de bus', tipo: 'Parada de bus', defaultMedidas: '1.8 x 1.2 m', defaultIlum: 'Caja de Luz Backlight', minPrice: 300, maxPrice: 600 },
+    { tipo_valla: 'Teleféricos', tipo: 'Teleféricos', defaultMedidas: '6 x 2.5 m', defaultIlum: 'Iluminación LED Nocturna 24/7', minPrice: 700, maxPrice: 1300 },
+    { tipo_valla: 'Letrero luminoso', tipo: 'Letrero luminoso', defaultMedidas: '6 x 2 m', defaultIlum: 'Caja de Luz Backlight', minPrice: 400, maxPrice: 900 }
   ];
 
-  const locations = [
-    'Santa Cruz - Av. Cristo Redentor y 5to Anillo',
-    'Santa Cruz - Doble Vía La Guardia y 3er Anillo',
-    'La Paz - Av. Ballivián Calle 21 Calacoto',
-    'La Paz - Autopista La Paz - El Alto (Ceja)',
-    'Cochabamba - Av. América y Pando',
-    'Cochabamba - Av. Blanco Galindo Km 4',
-    'Tarija - Av. Las Panteras y Circunvalación',
-    'Sucre - Av. Jaime Mendoza y Plaza España',
-    'Oruro - Av. 6 de Agosto y Villarroel'
+  const cityData: {
+    ciudad: string;
+    provincia: string;
+    zonasYAvenidas: { zona: string; avenidas: string[] }[];
+  }[] = [
+    {
+      ciudad: 'Santa Cruz',
+      provincia: 'Andrés Ibáñez',
+      zonasYAvenidas: [
+        { zona: 'Equipetrol', avenidas: ['Av. San Martín y Calle 5', 'Av. San Martín y 4to Anillo', 'Av. Marcelo Terceros (Sirari)'] },
+        { zona: 'Zona Norte', avenidas: ['Av. Banzer y 3er Anillo', 'Av. Banzer y 4to Anillo', 'Av. Banzer y 5to Anillo', 'Av. Banzer y 7mo Anillo'] },
+        { zona: 'Cristo Redentor', avenidas: ['Av. Cristo Redentor y 2do Anillo', 'Av. Cristo Redentor y 4to Anillo', 'Av. Cristo Redentor y 6to Anillo'] },
+        { zona: '3er Anillo', avenidas: ['3er Anillo Interno Canal Cotoca', '3er Anillo Interno entre Bush y San Martín', '3er Anillo Externo Av. Beni'] },
+        { zona: 'Doble Vía La Guardia', avenidas: ['Doble Vía La Guardia y 3er Anillo', 'Doble Vía La Guardia y 5to Anillo', 'Doble Vía La Guardia Km 6'] },
+        { zona: 'Urubó', avenidas: ['Puente Foianini / Entrada Urubó', 'Av. Principal Urubó Village', 'Rotonda Urubó Mall'] },
+        { zona: 'Centro / 1er Anillo', avenidas: ['1er Anillo Av. Cañoto', '1er Anillo Av. Brasil', 'Calle René Moreno y 24 de Septiembre'] },
+        { zona: 'Av. Santos Dumont', avenidas: ['Av. Santos Dumont y 3er Anillo', 'Av. Santos Dumont y 4to Anillo'] }
+      ]
+    },
+    {
+      ciudad: 'La Paz',
+      provincia: 'Murillo',
+      zonasYAvenidas: [
+        { zona: 'Sopocachi', avenidas: ['Plaza Abaroa - Sopocachi', 'Av. 20 de Octubre y Guachalla', 'Av. 6 de Agosto y Aspiazu'] },
+        { zona: 'Zona Sur / Calacoto', avenidas: ['Av. Ballivián Calle 21 Calacoto', 'Av. Ballivián Calle 12', 'Av. Ballivián Calle 8', 'Av. Inofuentes y Calle 18'] },
+        { zona: 'San Miguel / Achumani', avenidas: ['Av. Montenegro - San Miguel', 'Av. Fuerza Naval y Calle 21', 'Av. Alexander - Achumani'] },
+        { zona: 'Centro / El Prado', avenidas: ['Av. 16 de Julio (El Prado)', 'Av. Mariscal Santa Cruz y Obelisco', 'Av. Montes y Pérez Velasco'] },
+        { zona: 'Miraflores', avenidas: ['Av. Saavedra y Plaza Uyuni', 'Av. Bush y Plaza Triangular', 'Av. Germán Busch y Villalobos'] },
+        { zona: 'San Pedro', avenidas: ['Plaza Sucre (San Pedro)', 'Av. 20 de Octubre y Plaza Israel'] }
+      ]
+    },
+    {
+      ciudad: 'Cochabamba',
+      provincia: 'Cercado',
+      zonasYAvenidas: [
+        { zona: 'Cala Cala / Av. América', avenidas: ['Av. América y Pando', 'Av. América y Santa Cruz', 'Av. América y Melchor Pérez'] },
+        { zona: 'Av. Blanco Galindo', avenidas: ['Av. Blanco Galindo Km 2', 'Av. Blanco Galindo Km 4', 'Av. Blanco Galindo Km 7 (Quillacollo)'] },
+        { zona: 'Centro Histórico', avenidas: ['Av. Heroínas y Ayacucho', 'Av. Heroínas y San Martín', 'Plaza 14 de Septiembre y Bolívar'] },
+        { zona: 'Sarco / Melchor Pérez', avenidas: ['Av. Melchor Pérez de Holguín y D\'Orbigny', 'Av. América Oeste y Beijing'] },
+        { zona: 'Av. Ballivián (El Prado)', avenidas: ['Av. Ballivián y Plaza Colón', 'Av. Ballivián y Calle México'] },
+        { zona: 'Circunvalación', avenidas: ['Av. Circunvalación Norte y Atahuallpa', 'Av. Circunvalación y Cruce Taquiña'] }
+      ]
+    },
+    {
+      ciudad: 'El Alto',
+      provincia: 'Murillo',
+      zonasYAvenidas: [
+        { zona: 'La Ceja / Autopista', avenidas: ['Autopista La Paz - El Alto Km 12 (Peaje)', 'Av. 6 de Marzo y Ceja', 'Av. Juan Pablo II y Distribuidor Ceja'] },
+        { zona: 'Av. Juan Pablo II', avenidas: ['Av. Juan Pablo II frente a la UPEA', 'Av. Juan Pablo II y Chacaltaya', 'Av. Juan Pablo II y Río Seco'] },
+        { zona: 'Av. 6 de Marzo', avenidas: ['Av. 6 de Marzo y Cruce Viacha', 'Av. 6 de Marzo y Calle 4', 'Av. 6 de Marzo y Senkata'] },
+        { zona: 'Aeropuerto / Satélite', avenidas: ['Rotonda del Aeropuerto Internacional', 'Av. Cívica - Ciudad Satélite'] }
+      ]
+    },
+    {
+      ciudad: 'Tarija',
+      provincia: 'Cercado',
+      zonasYAvenidas: [
+        { zona: 'Centro / Av. Víctor Paz', avenidas: ['Av. Víctor Paz Estenssoro y Senador Rosas', 'Av. Víctor Paz y Puente San Martín'] },
+        { zona: 'Av. Las Panteras / Circunvalación', avenidas: ['Av. Circunvalación y Av. Froilán Tejerina', 'Av. Las Panteras y Rotonda Aeropuerto'] }
+      ]
+    },
+    {
+      ciudad: 'Sucre',
+      provincia: 'Oropeza',
+      zonasYAvenidas: [
+        { zona: 'Plaza España / Parque Bolívar', avenidas: ['Av. Jaime Mendoza y Plaza España', 'Av. Germán Mendoza y Destacamento 111'] },
+        { zona: 'Centro Colonial', avenidas: ['Av. Hernando Siles y Junín', 'Av. Las Américas y Destacamento Chuquisaca'] }
+      ]
+    },
+    {
+      ciudad: 'Oruro',
+      provincia: 'Cercado',
+      zonasYAvenidas: [
+        { zona: 'Centro / 6 de Agosto', avenidas: ['Av. 6 de Agosto y Villarroel', 'Av. 6 de Agosto y Bolívar'] },
+        { zona: 'Zona Norte', avenidas: ['Av. Circunvalación y Tomás Barrón (Entrada Oruro)'] }
+      ]
+    }
   ];
 
-  const dimensions = [
-    '12m x 4m (48 m²)',
-    '10m x 4m (40 m²)',
-    '8m x 4m (32 m²)',
-    '6m x 3m (18 m²)',
-    '15m x 5m (75 m²)',
-    'Personalizado / Proyecto en Obra'
-  ];
-
-  const specifications = [
-    'Lona Frontlight 13oz 1440 DPI + Iluminación LED',
-    'Pantalla LED Pitch P3.91mm Outdoor 6500 nits',
-    'Acrílico Fundido 4mm + Módulos LED 12V IP67',
-    'Lona Backlight 15oz + Caja de Luz c/ Aluzinc',
-    'Estructura Tubo Acero ASTM A53 14" + Base Hormigón',
-    'Impresión Ecosolvente HD Lona PVC 500 m²/día'
-  ];
+  const faces: ('Cara A' | 'Cara B' | 'Ambas Caras')[] = ['Cara A', 'Cara B', 'Ambas Caras'];
+  const states: Vehicle['estado'][] = ['Disponible', 'Disponible', 'Disponible', 'Reservado', 'En instalación', 'Próximamente', 'Ocupado / Alquilado'];
 
   const images = [
     'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=600',
@@ -349,45 +403,60 @@ function generate350Vehicles(): Vehicle[] {
     'https://images.unsplash.com/photo-1508873696983-2df515122519?auto=format&fit=crop&q=80&w=600'
   ];
 
-  const states: Vehicle['estado'][] = ['Disponible', 'Reservado', 'En producción', 'En mantenimiento', 'Ocupado / Alquilado'];
-
   const vehiclesList: Vehicle[] = [...INITIAL_VEHICLES];
   let currentId = vehiclesList.length + 1;
-  
+
   while (vehiclesList.length < 350) {
-    const cat = categories[Math.floor(Math.random() * categories.length)];
-    const loc = locations[Math.floor(Math.random() * locations.length)];
-    const dim = dimensions[Math.floor(Math.random() * dimensions.length)];
-    const spec = specifications[Math.floor(Math.random() * specifications.length)];
-    const img = images[Math.floor(Math.random() * images.length)];
+    const typeObj = billboardTypes[Math.floor(Math.random() * billboardTypes.length)];
+    const cData = cityData[Math.floor(Math.random() * cityData.length)];
+    const zObj = cData.zonasYAvenidas[Math.floor(Math.random() * cData.zonasYAvenidas.length)];
+    const ave = zObj.avenidas[Math.floor(Math.random() * zObj.avenidas.length)];
+    const face = faces[Math.floor(Math.random() * faces.length)];
     const state = states[Math.floor(Math.random() * states.length)];
-    const price = Math.floor(Math.random() * 25 + 2) * 100; // $200 - $2700
+    const isAltoImpacto = Math.random() > 0.65 || typeObj.tipo_valla === 'Pantalla LED' || typeObj.tipo_valla === 'Pasarela / Puente Peatonal';
+    const price = Math.round((Math.floor(Math.random() * (typeObj.maxPrice - typeObj.minPrice)) + typeObj.minPrice) / 50) * 50;
+    const img = images[Math.floor(Math.random() * images.length)];
+    const traffic = `${Math.floor(Math.random() * 160 + 60)},000 vehículos y peatones/día`;
 
     vehiclesList.push({
       id: 'V' + String(currentId).padStart(3, '0'),
       codigo: `PUB-${String(currentId).padStart(4, '0')}`,
-      nombre: `${cat} - ${loc.split('-')[1]?.trim() || loc}`,
-      ubicacion: loc,
-      dimensiones: dim,
-      especificacion: spec,
-      modalidad: cat.includes('Valla') || cat.includes('Pantalla') ? 'Alquiler Mensual' : 'Venta / Fabricación Directa',
-      iluminacion: cat.includes('LED') || cat.includes('Valla') ? 'Iluminación LED Nocturna 24/7' : 'Opcional / Según requerimiento',
-      marca: cat,
-      modelo: loc,
-      version: `${dim} - ${spec}`,
+      nombre: `${typeObj.tipo_valla} - ${ave}`,
+      ubicacion: `${cData.ciudad} - ${ave} (${zObj.zona})`,
+      dimensiones: typeObj.defaultMedidas,
+      medidas: typeObj.defaultMedidas,
+      especificacion: typeObj.tipo_valla === 'Pantalla LED'
+        ? 'Pitch P3.91mm HD Outdoor 6500 nits Ultra Brillo'
+        : 'Lona Frontlight 13oz Alta Resistencia + Iluminación LED',
+      modalidad: 'Alquiler Mensual',
+      iluminacion: typeObj.defaultIlum,
+      marca: typeObj.tipo_valla === 'Pantalla LED' ? 'Pantalla LED' : 'Valla Publicitaria',
+      modelo: ave,
+      version: `${typeObj.defaultMedidas} - ${face}`,
       anio: 2026,
-      tipo: cat,
-      motor: `${Math.floor(Math.random() * 150 + 50)},000 vehículos/día`,
-      combustible: 'Estructura Metálica + Impresión HD',
-      transmision: cat.includes('Valla') || cat.includes('Pantalla') ? 'Alquiler Mensual' : 'Fabricación e Instalación',
-      traccion: 'Iluminación LED Incluida',
+      tipo: typeObj.tipo,
+      tipo_valla: typeObj.tipo_valla,
+      alto_impacto: isAltoImpacto,
+      ciudad: cData.ciudad,
+      zona: zObj.zona,
+      avenida_calle: ave,
+      cara: face,
+      provincia: cData.provincia,
+      transitabilidad_trafico: traffic,
+      costo_lona_m2_bs: typeObj.tipo_valla === 'Pantalla LED' ? 0 : 65,
+      motor: traffic,
+      combustible: 'Estructura Metálica Certificada',
+      transmision: 'Alquiler Mensual',
+      traccion: typeObj.defaultIlum,
       color: 'Acabado Estructural Anti-Reflejo',
       precio_usd: price,
-      descripcion: `Excelente solución de publicidad exterior. Alta visibilidad, gran flujo vehicular/peatonal y materiales certificados para alta intemperie.`,
+      precio_original_usd: price,
+      descripcion: `Excelente espacio de publicidad exterior OOH ubicado en ${ave}, zona ${zObj.zona} de ${cData.ciudad}. Gran ángulo de visibilidad frontal y alto tráfico diario garantizado.`,
+      detalle: `Soporte publicitario ${typeObj.tipo_valla}, dimensiones ${typeObj.defaultMedidas}, orientación ${face}, con sistema de ${typeObj.defaultIlum}.`,
       estado: state,
       imagen_principal: img,
       imagenes: [img],
-      fecha_registro: new Date(Date.now() - Math.random() * 60 * 24 * 3600 * 1000).toISOString(),
+      fecha_registro: new Date(Date.now() - Math.random() * 90 * 24 * 3600 * 1000).toISOString(),
       fecha_actualizacion: new Date().toISOString()
     });
     currentId++;
@@ -421,7 +490,7 @@ const INITIAL_AUDIT_LOGS: AuditLog[] = [
     id: 'L001',
     usuario: 'Carlos Vargas',
     accion: 'Inicialización de Base de Datos',
-    detalle: 'Se creó la base de datos de alta capacidad con 350 vehículos en el catálogo y 350 clientes en el CRM.',
+    detalle: 'Se creó la base de datos de alta capacidad con 350 vallas y pantallas en el catálogo y clientes en el CRM.',
     fecha: '2026-07-11T16:34:50-07:00'
   }
 ];
@@ -430,36 +499,33 @@ export const mockDb = {
   initialize() {
     try {
       const storedClients = localStorage.getItem(DB_KEYS.CLIENTS);
-    if (!storedClients) {
-      localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(INITIAL_CLIENTS));
-    } else {
-      try {
-        const parsed = JSON.parse(storedClients);
-        if (Array.isArray(parsed) && parsed.length > 4) {
+      if (!storedClients) {
+        localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(INITIAL_CLIENTS));
+      } else {
+        try {
+          const parsed = JSON.parse(storedClients);
+          if (Array.isArray(parsed) && parsed.length > 4) {
+            localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(INITIAL_CLIENTS));
+          }
+        } catch (err) {
           localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(INITIAL_CLIENTS));
         }
-      } catch (err) {
-        localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(INITIAL_CLIENTS));
       }
-    }
-    
-    // Auto-migrate legacy automotive data if stored
-    const storedVehicles = localStorage.getItem(DB_KEYS.VEHICLES);
-    if (!storedVehicles) {
-      localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(generate350Vehicles()));
-    } else {
-      try {
-        const parsed = JSON.parse(storedVehicles);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const first = parsed[0];
-          if (first.marca === 'Toyota' || first.marca === 'BMW' || first.tipo === 'SUV' || first.tipo === 'Camioneta' || !first.tipo_valla) {
+      
+      // Auto-migrate legacy data to 350 clean OOH billboard stock
+      const storedVehicles = localStorage.getItem(DB_KEYS.VEHICLES);
+      if (!storedVehicles) {
+        localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(generate350Vehicles()));
+      } else {
+        try {
+          const parsed = JSON.parse(storedVehicles);
+          if (!Array.isArray(parsed) || parsed.length === 0 || !parsed[0].tipo_valla || !parsed[0].medidas || !parsed[0].avenida_calle) {
             localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(generate350Vehicles()));
           }
+        } catch (err) {
+          localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(generate350Vehicles()));
         }
-      } catch (err) {
-        localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(generate350Vehicles()));
       }
-    }
 
     if (!localStorage.getItem(DB_KEYS.QUOTATIONS)) {
       localStorage.setItem(DB_KEYS.QUOTATIONS, JSON.stringify(INITIAL_QUOTATIONS));

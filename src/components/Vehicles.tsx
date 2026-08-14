@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Vehicle, VehicleState, Client, Settings, UserSession, PendingQuotationRequest, VallaCategory } from '../types';
 import { 
   Plus, 
@@ -25,7 +25,10 @@ import {
   ExternalLink,
   Calculator,
   Grid,
-  ArrowLeft
+  ArrowLeft,
+  RotateCcw,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { generateCatalogPdf, generateSingleVallaPdf } from '../utils/pdfGenerator';
@@ -84,7 +87,7 @@ export const VALLA_CATEGORIES: VallaCategory[] = [
   'Mural',
   'Parada de bus',
   'Teleféricos',
-  'Puente Peatonal',
+  'Pasarela / Puente Peatonal',
   'Letrero luminoso'
 ];
 
@@ -110,12 +113,17 @@ export default function Vehicles({
   const isVendedor = currentUser.rol === 'Vendedor';
   const isCliente = currentUser.rol === 'Cliente';
 
-  // Filters states
+  // Filters states - Full Granular OOH Filtering
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory || 'Todos');
   const [selectedCity, setSelectedCity] = useState<string>('Todos');
+  const [selectedZone, setSelectedZone] = useState<string>('Todos');
+  const [selectedAvenue, setSelectedAvenue] = useState<string>('Todos');
+  const [selectedFace, setSelectedFace] = useState<string>('Todos');
+  const [selectedIllumination, setSelectedIllumination] = useState<string>('Todos');
   const [selectedStatus, setSelectedStatus] = useState<string>('Todos');
-  const [maxPrice, setMaxPrice] = useState<number>(10000);
+  const [onlyAltoImpacto, setOnlyAltoImpacto] = useState<boolean>(false);
+  const [maxPrice, setMaxPrice] = useState<number>(15000);
 
   // Sync initialCategory if passed
   useEffect(() => {
@@ -167,6 +175,42 @@ export default function Vehicles({
   const [formSuccess, setFormSuccess] = useState('');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
+  // Dynamic unique zones from stock
+  const uniqueZones = useMemo(() => {
+    const set = new Set<string>();
+    vehicles.forEach(v => {
+      if (v.zona && (selectedCity === 'Todos' || v.ciudad === selectedCity)) {
+        set.add(v.zona.trim());
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [vehicles, selectedCity]);
+
+  // Dynamic unique avenues from stock
+  const uniqueAvenues = useMemo(() => {
+    const set = new Set<string>();
+    vehicles.forEach(v => {
+      if (v.avenida_calle && (selectedCity === 'Todos' || v.ciudad === selectedCity) && (selectedZone === 'Todos' || v.zona === selectedZone)) {
+        set.add(v.avenida_calle.trim());
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [vehicles, selectedCity, selectedZone]);
+
+  // Reset all filters to default
+  const handleResetFilters = () => {
+    setSearch('');
+    setSelectedCategory('Todos');
+    setSelectedCity('Todos');
+    setSelectedZone('Todos');
+    setSelectedAvenue('Todos');
+    setSelectedFace('Todos');
+    setSelectedIllumination('Todos');
+    setSelectedStatus('Todos');
+    setOnlyAltoImpacto(false);
+    setMaxPrice(15000);
+  };
+
   // Sync active client
   React.useEffect(() => {
     if (activeClient) {
@@ -192,19 +236,27 @@ export default function Vehicles({
     };
   }, []);
 
-  // Toggle multi-select item
+  // Toggle single item in multi-select
   const handleToggleSelectVehicle = (id: string) => {
     setSelectedVehicleIds(prev => {
       if (prev.includes(id)) {
         return prev.filter(vid => vid !== id);
       } else {
-        if (prev.length >= 20) {
-          alert('Límite de Selección: Puede seleccionar un máximo de hasta 20 vallas/pantallas para la presentación.');
-          return prev;
-        }
         return [...prev, id];
       }
     });
+  };
+
+  // Select ALL currently filtered items with 1 click
+  const handleSelectAllFiltered = () => {
+    setIsMultiSelect(true);
+    const allFilteredIds = filteredVehicles.map(v => v.id);
+    setSelectedVehicleIds(allFilteredIds);
+  };
+
+  // Deselect all items
+  const handleDeselectAll = () => {
+    setSelectedVehicleIds([]);
   };
 
   // Claim/Take pending request by seller
@@ -427,23 +479,34 @@ export default function Vehicles({
     }, 1200);
   };
 
-  // Filter vehicles/vallas list
+  // Filter vehicles/vallas list with full granular parameters
   const filteredVehicles = vehicles.filter(v => {
-    const query = search.toLowerCase();
+    const query = search.trim().toLowerCase();
     const vCategory = v.tipo_valla || v.tipo || '';
-    const vLocation = `${v.ciudad} ${v.zona} ${v.avenida_calle} ${v.modelo} ${v.provincia}`.toLowerCase();
+    const vLocation = `${v.ciudad || ''} ${v.zona || ''} ${v.avenida_calle || ''} ${v.modelo || ''} ${v.provincia || ''} ${v.detalle || ''} ${v.especificacion || ''}`.toLowerCase();
 
-    const matchesSearch = vLocation.includes(query) || vCategory.toLowerCase().includes(query) || v.id.includes(query);
+    const matchesSearch = !query 
+      || vLocation.includes(query) 
+      || vCategory.toLowerCase().includes(query) 
+      || (v.id && v.id.toLowerCase().includes(query))
+      || (v.codigo && v.codigo.toLowerCase().includes(query));
+
     const matchesCategory = selectedCategory === 'Todos'
       ? true
       : selectedCategory === 'Alto Impacto'
       ? (v.alto_impacto === true || vCategory === 'Unipolar' || vCategory === 'Estructural' || (v.zona && v.zona.toLowerCase().includes('alto impacto')))
       : vCategory === selectedCategory;
+
     const matchesCity = selectedCity === 'Todos' || v.ciudad === selectedCity;
+    const matchesZone = selectedZone === 'Todos' || v.zona === selectedZone;
+    const matchesAvenue = selectedAvenue === 'Todos' || v.avenida_calle === selectedAvenue;
+    const matchesFace = selectedFace === 'Todos' || v.cara === selectedFace;
+    const matchesIllumination = selectedIllumination === 'Todos' || (v.iluminacion && v.iluminacion.toLowerCase().includes(selectedIllumination.toLowerCase()));
     const matchesStatus = selectedStatus === 'Todos' || v.estado === selectedStatus;
+    const matchesAltoImpacto = !onlyAltoImpacto || v.alto_impacto === true;
     const matchesPrice = v.precio_usd <= maxPrice;
 
-    return matchesSearch && matchesCategory && matchesCity && matchesStatus && matchesPrice;
+    return matchesSearch && matchesCategory && matchesCity && matchesZone && matchesAvenue && matchesFace && matchesIllumination && matchesStatus && matchesAltoImpacto && matchesPrice;
   });
 
   const pendingCount = pendingRequests.filter(r => r.estado === 'Pendiente').length;
@@ -578,6 +641,67 @@ export default function Vehicles({
         </div>
       </div>
 
+      {/* Real-time Inventory & Stock OOH Summary Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-2xs">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 block">Total en Stock</span>
+          <div className="flex items-baseline space-x-1.5 mt-0.5">
+            <span className="text-xl font-black font-mono text-gray-900">{vehicles.length}</span>
+            <span className="text-[10px] font-bold text-gray-400">vallas / OOH</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-3.5 rounded-2xl border border-emerald-100 shadow-2xs bg-gradient-to-br from-white to-emerald-50/40">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 block">Disponibles</span>
+          <div className="flex items-baseline space-x-1.5 mt-0.5">
+            <span className="text-xl font-black font-mono text-emerald-600">
+              {vehicles.filter(v => v.estado === 'Disponible').length}
+            </span>
+            <span className="text-[10px] font-bold text-emerald-600">libres</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-3.5 rounded-2xl border border-amber-100 shadow-2xs bg-gradient-to-br from-white to-amber-50/40">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700 block">Reservados</span>
+          <div className="flex items-baseline space-x-1.5 mt-0.5">
+            <span className="text-xl font-black font-mono text-amber-600">
+              {vehicles.filter(v => v.estado === 'Reservado').length}
+            </span>
+            <span className="text-[10px] font-bold text-amber-600">en proceso</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-3.5 rounded-2xl border border-blue-100 shadow-2xs bg-gradient-to-br from-white to-blue-50/40">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-700 block">Pantallas LED</span>
+          <div className="flex items-baseline space-x-1.5 mt-0.5">
+            <span className="text-xl font-black font-mono text-blue-600">
+              {vehicles.filter(v => (v.tipo_valla || v.tipo) === 'Pantalla LED').length}
+            </span>
+            <span className="text-[10px] font-bold text-blue-600">digitales HD</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-3.5 rounded-2xl border border-purple-100 shadow-2xs bg-gradient-to-br from-white to-purple-50/40">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-700 block">Vallas Unipolares</span>
+          <div className="flex items-baseline space-x-1.5 mt-0.5">
+            <span className="text-xl font-black font-mono text-purple-600">
+              {vehicles.filter(v => (v.tipo_valla || v.tipo) === 'Unipolar').length}
+            </span>
+            <span className="text-[10px] font-bold text-purple-600">monumentales</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-3.5 rounded-2xl border border-orange-100 shadow-2xs bg-gradient-to-br from-white to-orange-50/40">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-orange-700 block">Alto Impacto ⭐</span>
+          <div className="flex items-baseline space-x-1.5 mt-0.5">
+            <span className="text-xl font-black font-mono text-orange-600">
+              {vehicles.filter(v => v.alto_impacto || (v.tipo_valla || v.tipo) === 'Unipolar' || (v.tipo_valla || v.tipo) === 'Estructural').length}
+            </span>
+            <span className="text-[10px] font-bold text-orange-600">puntos top</span>
+          </div>
+        </div>
+      </div>
+
       {/* Categories quick bar */}
       <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-2xs overflow-x-auto flex items-center space-x-2">
         <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider px-2 whitespace-nowrap">Categorías:</span>
@@ -620,6 +744,78 @@ export default function Vehicles({
           );
         })}
       </div>
+
+      {/* Persistent Multi-Select Action Toolbar (Select All in 1-Click) */}
+      {isMultiSelect && (
+        <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-orange-600 text-white p-3.5 sm:p-4 rounded-2xl shadow-md border border-amber-400/40 flex flex-wrap items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center font-black">
+              <Presentation className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h4 className="font-extrabold text-sm uppercase tracking-wide font-display">
+                Modo Selección de Vallas para PDF
+              </h4>
+              <p className="text-xs text-amber-100 font-medium">
+                {selectedVehicleIds.length} {selectedVehicleIds.length === 1 ? 'valla seleccionada' : 'vallas seleccionadas'} de {filteredVehicles.length} visibles
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center flex-wrap gap-2 text-xs">
+            {/* 1-CLICK SELECT ALL */}
+            <button
+              onClick={handleSelectAllFiltered}
+              className="px-3.5 py-2 bg-white text-amber-900 hover:bg-amber-50 font-black rounded-xl transition cursor-pointer shadow-xs flex items-center space-x-1.5"
+              title="Seleccionar todas las vallas mostradas con un solo clic"
+            >
+              <CheckSquare className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
+              <span>Seleccionar Todas ({filteredVehicles.length})</span>
+            </button>
+
+            {/* DESELECT ALL */}
+            {selectedVehicleIds.length > 0 && (
+              <button
+                onClick={handleDeselectAll}
+                className="px-3 py-2 bg-amber-900/40 hover:bg-amber-900/60 text-white font-bold rounded-xl transition cursor-pointer flex items-center space-x-1"
+              >
+                <Square className="w-3.5 h-3.5" />
+                <span>Limpiar ({selectedVehicleIds.length})</span>
+              </button>
+            )}
+
+            {/* GENERATE PDF / ACTION */}
+            <button
+              onClick={handleOpenPdfModal}
+              disabled={selectedVehicleIds.length === 0}
+              className={`px-4 py-2 font-black rounded-xl transition cursor-pointer shadow-md flex items-center space-x-1.5 uppercase tracking-wider ${
+                selectedVehicleIds.length > 0
+                  ? 'bg-slate-950 hover:bg-black text-white'
+                  : 'bg-amber-700/50 text-amber-200 cursor-not-allowed'
+              }`}
+            >
+              <FileText className="w-4 h-4 text-amber-400" />
+              <span>
+                {isCliente
+                  ? `Enviar Solicitud (${selectedVehicleIds.length})`
+                  : `Crear Presentación PDF (${selectedVehicleIds.length})`}
+              </span>
+            </button>
+
+            {/* EXIT MULTI-SELECT */}
+            <button
+              onClick={() => {
+                setIsMultiSelect(false);
+                setSelectedVehicleIds([]);
+              }}
+              className="p-2 bg-black/20 hover:bg-black/40 rounded-xl text-white transition cursor-pointer"
+              title="Cerrar Modo Selección"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* FORM MODAL FOR ADDING / EDITING PRODUCTS */}
       <AnimatePresence>
@@ -897,73 +1093,182 @@ export default function Vehicles({
         
         {/* Left Filter Sidebar */}
         <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs h-fit space-y-5">
-          <div className="flex items-center space-x-2 pb-3 border-b border-gray-50 text-gray-700">
-            <SlidersHorizontal className="w-4 h-4 text-amber-500" />
-            <h4 className="font-extrabold text-xs uppercase tracking-wider font-display">Filtros de Búsqueda</h4>
+          <div className="flex items-center justify-between pb-3 border-b border-gray-100 text-gray-700">
+            <div className="flex items-center space-x-2">
+              <SlidersHorizontal className="w-4 h-4 text-amber-500" />
+              <h4 className="font-extrabold text-xs uppercase tracking-wider font-display">Filtros de Búsqueda</h4>
+            </div>
+            <button
+              onClick={handleResetFilters}
+              className="text-[11px] font-bold text-amber-700 hover:text-amber-900 flex items-center space-x-1 cursor-pointer bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 transition"
+              title="Restablecer todos los filtros"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Limpiar</span>
+            </button>
           </div>
 
           <div className="space-y-4 text-xs">
             
-            {/* Search Input */}
+            {/* 1. Search Input */}
             <div>
-              <label className="block font-bold text-gray-400 uppercase tracking-wider mb-1">Búsqueda Rápida</label>
+              <label className="block font-bold text-gray-500 uppercase tracking-wider mb-1">Búsqueda Rápida</label>
               <div className="relative">
                 <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Calle, zona, código..."
+                  placeholder="Avenida, zona, código, ciudad..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-medium focus:outline-none focus:border-amber-500"
+                  className="w-full pl-8 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-medium focus:outline-none focus:border-amber-500 text-gray-800"
                 />
               </div>
             </div>
 
-            {/* City Filter */}
+            {/* 2. Tipo de Valla / Soporte */}
             <div>
-              <label className="block font-bold text-gray-400 uppercase tracking-wider mb-1">Ciudad</label>
+              <label className="block font-bold text-gray-500 uppercase tracking-wider mb-1">Tipo de Valla / Soporte</label>
               <select
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700 cursor-pointer"
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-800 cursor-pointer focus:outline-none focus:border-amber-500"
               >
-                <option value="Todos">Todas las ciudades</option>
-                <option value="Santa Cruz">Santa Cruz</option>
-                <option value="La Paz">La Paz</option>
-                <option value="Cochabamba">Cochabamba</option>
-                <option value="Tarija">Tarija</option>
-                <option value="Sucre">Sucre</option>
-                <option value="Oruro">Oruro</option>
+                <option value="Todos">Todos los tipos de valla</option>
+                <option value="Alto Impacto">⭐ Solo Alto Impacto</option>
+                {VALLA_CATEGORIES.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
               </select>
             </div>
 
-            {/* Status Filter */}
+            {/* 3. Cara / Orientación */}
             <div>
-              <label className="block font-bold text-gray-400 uppercase tracking-wider mb-1">Estado de Disponibilidad</label>
+              <label className="block font-bold text-gray-500 uppercase tracking-wider mb-1">Cara / Orientación</label>
+              <select
+                value={selectedFace}
+                onChange={(e) => setSelectedFace(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-800 cursor-pointer focus:outline-none focus:border-amber-500"
+              >
+                <option value="Todos">Todas las caras (A, B, Ambas)</option>
+                <option value="Cara A">Cara A (Sentido Principal)</option>
+                <option value="Cara B">Cara B (Retorno / Secundario)</option>
+                <option value="Ambas Caras">Ambas Caras (Doble Exposición)</option>
+              </select>
+            </div>
+
+            {/* 4. Ciudad / Departamento */}
+            <div>
+              <label className="block font-bold text-gray-500 uppercase tracking-wider mb-1">Ciudad / Departamento</label>
+              <select
+                value={selectedCity}
+                onChange={(e) => {
+                  setSelectedCity(e.target.value);
+                  setSelectedZone('Todos');
+                  setSelectedAvenue('Todos');
+                }}
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-800 cursor-pointer focus:outline-none focus:border-amber-500"
+              >
+                <option value="Todos">Todas las ciudades ({vehicles.length})</option>
+                <option value="Santa Cruz">Santa Cruz ({vehicles.filter(v => v.ciudad === 'Santa Cruz').length})</option>
+                <option value="La Paz">La Paz ({vehicles.filter(v => v.ciudad === 'La Paz').length})</option>
+                <option value="Cochabamba">Cochabamba ({vehicles.filter(v => v.ciudad === 'Cochabamba').length})</option>
+                <option value="El Alto">El Alto ({vehicles.filter(v => v.ciudad === 'El Alto').length})</option>
+                <option value="Tarija">Tarija ({vehicles.filter(v => v.ciudad === 'Tarija').length})</option>
+                <option value="Sucre">Sucre ({vehicles.filter(v => v.ciudad === 'Sucre').length})</option>
+                <option value="Oruro">Oruro ({vehicles.filter(v => v.ciudad === 'Oruro').length})</option>
+              </select>
+            </div>
+
+            {/* 5. Zona / Barrio */}
+            <div>
+              <label className="block font-bold text-gray-500 uppercase tracking-wider mb-1">Zona / Distrito</label>
+              <select
+                value={selectedZone}
+                onChange={(e) => {
+                  setSelectedZone(e.target.value);
+                  setSelectedAvenue('Todos');
+                }}
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 cursor-pointer focus:outline-none focus:border-amber-500"
+              >
+                <option value="Todos">Todas las zonas ({uniqueZones.length})</option>
+                {uniqueZones.map(z => (
+                  <option key={z} value={z}>{z}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* 6. Avenida / Calle */}
+            <div>
+              <label className="block font-bold text-gray-500 uppercase tracking-wider mb-1">Avenida / Calle</label>
+              <select
+                value={selectedAvenue}
+                onChange={(e) => setSelectedAvenue(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 cursor-pointer focus:outline-none focus:border-amber-500"
+              >
+                <option value="Todos">Todas las avenidas ({uniqueAvenues.length})</option>
+                {uniqueAvenues.map(ave => (
+                  <option key={ave} value={ave}>{ave}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* 7. Iluminación */}
+            <div>
+              <label className="block font-bold text-gray-500 uppercase tracking-wider mb-1">Tipo de Iluminación</label>
+              <select
+                value={selectedIllumination}
+                onChange={(e) => setSelectedIllumination(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 cursor-pointer focus:outline-none focus:border-amber-500"
+              >
+                <option value="Todos">Cualquier iluminación</option>
+                <option value="Iluminación LED Nocturna 24/7">Iluminación LED Nocturna 24/7</option>
+                <option value="Pantalla Digital LED">Pantalla Digital LED</option>
+                <option value="Reflectores LED 400W">Reflectores LED 400W</option>
+                <option value="Caja de Luz Backlight">Caja de Luz Backlight</option>
+              </select>
+            </div>
+
+            {/* 8. Estado de Disponibilidad */}
+            <div>
+              <label className="block font-bold text-gray-500 uppercase tracking-wider mb-1">Estado de Disponibilidad</label>
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700 cursor-pointer"
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-800 cursor-pointer focus:outline-none focus:border-amber-500"
               >
                 <option value="Todos">Todos los estados</option>
-                <option value="Disponible">Disponible</option>
-                <option value="Reservado">Reservado</option>
-                <option value="En instalación">En instalación</option>
-                <option value="Próximamente">Próximamente</option>
+                <option value="Disponible">🟢 Disponible ({vehicles.filter(v => v.estado === 'Disponible').length})</option>
+                <option value="Reservado">🟡 Reservado ({vehicles.filter(v => v.estado === 'Reservado').length})</option>
+                <option value="En instalación">🔵 En instalación ({vehicles.filter(v => v.estado === 'En instalación').length})</option>
+                <option value="Próximamente">🟣 Próximamente ({vehicles.filter(v => v.estado === 'Próximamente').length})</option>
+                <option value="Ocupado / Alquilado">🔴 Ocupado / Alquilado ({vehicles.filter(v => v.estado === 'Ocupado / Alquilado').length})</option>
               </select>
             </div>
 
-            {/* Price Slider */}
+            {/* 9. Solo Alto Impacto Checkbox */}
+            <div className="pt-1">
+              <label className="flex items-center space-x-2 cursor-pointer bg-amber-50/70 hover:bg-amber-100/70 p-2.5 rounded-xl border border-amber-200/60 transition">
+                <input
+                  type="checkbox"
+                  checked={onlyAltoImpacto}
+                  onChange={(e) => setOnlyAltoImpacto(e.target.checked)}
+                  className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500 cursor-pointer"
+                />
+                <span className="text-xs font-black text-amber-900">⭐ Solo Alto Impacto</span>
+              </label>
+            </div>
+
+            {/* 10. Price Slider */}
             <div>
               <div className="flex justify-between items-center mb-1">
-                <label className="font-bold text-gray-400 uppercase tracking-wider">Precio Máx ($us)</label>
-                <span className="font-mono font-bold text-amber-600">${maxPrice.toLocaleString()} USD</span>
+                <label className="font-bold text-gray-500 uppercase tracking-wider">Precio Máx ($us)</label>
+                <span className="font-mono font-black text-amber-600">${maxPrice.toLocaleString()} USD</span>
               </div>
               <input
                 type="range"
                 min={200}
                 max={15000}
-                step={200}
+                step={100}
                 value={maxPrice}
                 onChange={(e) => setMaxPrice(Number(e.target.value))}
                 className="w-full accent-amber-500 cursor-pointer h-1.5 bg-gray-200 rounded-lg"
@@ -975,13 +1280,44 @@ export default function Vehicles({
         {/* Right Product Grid */}
         <div className="lg:col-span-3 space-y-4">
           
-          <div className="flex justify-between items-center text-xs text-gray-500 font-medium">
-            <span>Se encontraron <b>{filteredVehicles.length}</b> espacios de publicidad</span>
-            {isMultiSelect && (
-              <span className="text-amber-700 font-bold bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 animate-pulse">
-                Modo Selección Activo: {selectedVehicleIds.length} vallas marcadas
+          <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-2xs flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center space-x-2 text-gray-600 font-medium">
+              <Layers className="w-4 h-4 text-amber-600" />
+              <span>
+                Mostrando <b className="text-gray-900 font-black">{filteredVehicles.length}</b> de <b className="text-gray-900 font-black">{vehicles.length}</b> vallas en stock
               </span>
-            )}
+            </div>
+
+            <div className="flex items-center space-x-2">
+              {!isMultiSelect ? (
+                <button
+                  onClick={() => setIsMultiSelect(true)}
+                  className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl font-bold transition flex items-center space-x-1.5 cursor-pointer"
+                >
+                  <Presentation className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Activar Selección para PDF</span>
+                </button>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={handleSelectAllFiltered}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition flex items-center space-x-1 cursor-pointer shadow-2xs"
+                  >
+                    <CheckSquare className="w-3.5 h-3.5" />
+                    <span>Seleccionar Todas ({filteredVehicles.length})</span>
+                  </button>
+                  {selectedVehicleIds.length > 0 && (
+                    <button
+                      onClick={handleDeselectAll}
+                      className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold transition flex items-center space-x-1 cursor-pointer"
+                    >
+                      <Square className="w-3.5 h-3.5" />
+                      <span>Limpiar Selección ({selectedVehicleIds.length})</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">

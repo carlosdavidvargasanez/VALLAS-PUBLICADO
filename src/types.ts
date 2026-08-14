@@ -34,6 +34,7 @@ export type VallaCategory =
   | 'Parada de bus'
   | 'Teleféricos'
   | 'Puente Peatonal'
+  | 'Pasarela / Puente Peatonal'
   | 'Letrero luminoso';
 
 export type ProductType = 
