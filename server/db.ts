@@ -1,4 +1,6 @@
 import pg from 'pg';
+import fs from 'fs';
+import path from 'path';
 import { Client, Vehicle, Quotation, Contract, FollowUp, MessageTemplate, AuditLog, Settings, UserSession, PendingQuotationRequest } from '../src/types';
 
 const { Pool } = pg;
@@ -8,6 +10,8 @@ const DATABASE_URL = process.env.DATABASE_URL;
 
 export let pool: pg.Pool | null = null;
 export let isPostgresConnected = false;
+
+const STORAGE_FILE = path.join(process.cwd(), 'server', 'data_storage.json');
 
 // Fallback in-memory store when DATABASE_URL is not yet provided
 export const memoryStore = {
@@ -41,6 +45,44 @@ export const memoryStore = {
   } as Settings
 };
 
+export function saveStoreToDisk() {
+  try {
+    const dir = path.dirname(STORAGE_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(STORAGE_FILE, JSON.stringify(memoryStore, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('⚠️ Error saving data store to disk:', err);
+  }
+}
+
+export function loadStoreFromDisk(): boolean {
+  try {
+    if (fs.existsSync(STORAGE_FILE)) {
+      const content = fs.readFileSync(STORAGE_FILE, 'utf-8');
+      const data = JSON.parse(content);
+      if (data && typeof data === 'object') {
+        if (Array.isArray(data.clients)) memoryStore.clients = data.clients;
+        if (Array.isArray(data.vehicles)) memoryStore.vehicles = data.vehicles;
+        if (Array.isArray(data.quotations)) memoryStore.quotations = data.quotations;
+        if (Array.isArray(data.contracts)) memoryStore.contracts = data.contracts;
+        if (Array.isArray(data.followUps)) memoryStore.followUps = data.followUps;
+        if (Array.isArray(data.templates)) memoryStore.templates = data.templates;
+        if (Array.isArray(data.auditLogs)) memoryStore.auditLogs = data.auditLogs;
+        if (Array.isArray(data.users)) memoryStore.users = data.users;
+        if (Array.isArray(data.pendingRequests)) memoryStore.pendingRequests = data.pendingRequests;
+        if (data.settings && typeof data.settings === 'object') memoryStore.settings = { ...memoryStore.settings, ...data.settings };
+        console.log('✅ Persistent data store loaded from disk file.');
+        return true;
+      }
+    }
+  } catch (err) {
+    console.error('⚠️ Error loading data store from disk:', err);
+  }
+  return false;
+}
+
 export async function initDb() {
   if (DATABASE_URL) {
     try {
@@ -63,17 +105,21 @@ export async function initDb() {
       return;
     } catch (err) {
       console.error('⚠️ Could not connect to PostgreSQL via DATABASE_URL:', err);
-      console.log('Falling back to robust in-memory data store until valid connection is ready.');
+      console.log('Falling back to robust file-persisted data store.');
       isPostgresConnected = false;
       pool = null;
     }
   } else {
-    console.log('ℹ️ No DATABASE_URL provided in environment. Running with in-memory store.');
+    console.log('ℹ️ No DATABASE_URL provided in environment. Running with file-persisted JSON store.');
     isPostgresConnected = false;
   }
 
-  // Seed memory store with default starter dataset
-  seedMemoryStore();
+  // Load from disk if file exists; if not, seed and save to disk
+  const loaded = loadStoreFromDisk();
+  if (!loaded) {
+    seedMemoryStore();
+    saveStoreToDisk();
+  }
 }
 
 async function runMigration() {

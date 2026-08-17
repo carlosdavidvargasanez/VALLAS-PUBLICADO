@@ -239,28 +239,26 @@ export default function App() {
 
   const handleDeleteClient = async (id: string) => {
     const list = mockDb.getClients();
-    const client = list.find(c => c.id === id);
-    if (client) {
-      const updated = list.filter(c => c.id !== id);
-      setClients(updated);
-      await mockDb.deleteClient(id);
+    const client = list.find(c => c.id === id) || clients.find(c => c.id === id);
+    setClients(prev => prev.filter(c => c.id !== id));
+    await mockDb.deleteClient(id);
 
+    if (client) {
       mockDb.addAuditLog(
         currentUser.nombre,
         'Eliminación Cliente',
         `Se eliminó de la base de datos la ficha de ${client.nombre} (${client.celular}).`
       );
       setAuditLogs(mockDb.getAuditLogs());
+    }
 
-      if (activeClient && activeClient.id === id) {
-        setActiveClient(null);
-      }
+    if (activeClient && activeClient.id === id) {
+      setActiveClient(null);
     }
   };
 
   // Vehicles Mutations
   const handleAddVehicle = async (vehicleData: Omit<Vehicle, 'id' | 'fecha_registro' | 'fecha_actualizacion'>) => {
-    const list = mockDb.getVehicles();
     const newVehicle: Vehicle = {
       ...vehicleData,
       id: 'V' + String(Date.now()).slice(-4),
@@ -268,28 +266,25 @@ export default function App() {
       fecha_actualizacion: new Date().toISOString()
     };
 
-    const updated = [newVehicle, ...list];
-    setVehicles(updated);
+    setVehicles(prev => [newVehicle, ...prev]);
     await mockDb.addVehicle(newVehicle);
 
     mockDb.addAuditLog(
       currentUser.nombre,
-      'Carga Vehículo Catálogo',
-      `Se agregó la unidad ${newVehicle.marca} ${newVehicle.modelo} (${newVehicle.anio}) al inventario de importación por $${newVehicle.precio_usd.toLocaleString()} USD.`
+      'Carga Valla / Pantalla Catálogo',
+      `Se agregó el soporte publicitario ${newVehicle.tipo_valla || newVehicle.tipo} (${newVehicle.avenida_calle || newVehicle.modelo}) al catálogo por $${newVehicle.precio_usd.toLocaleString()} USD.`
     );
     setAuditLogs(mockDb.getAuditLogs());
   };
 
   const handleUpdateVehicle = async (updatedVehicle: Vehicle) => {
-    const list = mockDb.getVehicles();
-    const updated = list.map(v => v.id === updatedVehicle.id ? updatedVehicle : v);
-    setVehicles(updated);
+    setVehicles(prev => prev.map(v => v.id === updatedVehicle.id ? updatedVehicle : v));
     await mockDb.updateVehicle(updatedVehicle.id, updatedVehicle);
 
     mockDb.addAuditLog(
       currentUser.nombre,
-      'Actualización Vehículo',
-      `Se modificó el precio/estado de la unidad ${updatedVehicle.marca} ${updatedVehicle.modelo} a estado: "${updatedVehicle.estado}" y precio $${updatedVehicle.precio_usd.toLocaleString()}.`
+      'Actualización Valla / Pantalla',
+      `Se modificó la ficha de la valla/pantalla ${updatedVehicle.tipo_valla || updatedVehicle.tipo} (${updatedVehicle.avenida_calle || updatedVehicle.modelo}) a estado: "${updatedVehicle.estado}" y precio $${updatedVehicle.precio_usd.toLocaleString()}.`
     );
     setAuditLogs(mockDb.getAuditLogs());
 
@@ -299,23 +294,21 @@ export default function App() {
   };
 
   const handleDeleteVehicle = async (id: string) => {
-    const list = mockDb.getVehicles();
-    const vehicle = list.find(v => v.id === id);
-    if (vehicle) {
-      const updated = list.filter(v => v.id !== id);
-      setVehicles(updated);
-      await mockDb.deleteVehicle(id);
+    const vehicle = vehicles.find(v => v.id === id) || mockDb.getVehicles().find(v => v.id === id);
+    setVehicles(prev => prev.filter(v => v.id !== id));
+    await mockDb.deleteVehicle(id);
 
+    if (vehicle) {
       mockDb.addAuditLog(
         currentUser.nombre,
-        'Eliminación Vehículo',
-        `Se eliminó la unidad ${vehicle.marca} ${vehicle.modelo} del catálogo de importación.`
+        'Eliminación Valla / Pantalla',
+        `Se eliminó la valla/pantalla ${vehicle.tipo_valla || vehicle.tipo} (${vehicle.avenida_calle || vehicle.modelo}) del catálogo.`
       );
       setAuditLogs(mockDb.getAuditLogs());
+    }
 
-      if (activeVehicle && activeVehicle.id === id) {
-        setActiveVehicle(null);
-      }
+    if (activeVehicle && activeVehicle.id === id) {
+      setActiveVehicle(null);
     }
   };
 

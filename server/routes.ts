@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { pool, isPostgresConnected, memoryStore } from './db';
+import { pool, isPostgresConnected, memoryStore, saveStoreToDisk } from './db';
 import { Client, Vehicle, Quotation, Contract, FollowUp, MessageTemplate, AuditLog, Settings, UserSession, PendingQuotationRequest } from '../src/types';
 
 export const apiRouter = Router();
@@ -148,6 +148,7 @@ apiRouter.post('/clients', async (req: Request, res: Response) => {
     } else {
       memoryStore.clients.unshift(client);
     }
+    saveStoreToDisk();
     res.status(201).json(client);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -190,6 +191,7 @@ apiRouter.put('/clients/:id', async (req: Request, res: Response) => {
     const idx = memoryStore.clients.findIndex(c => c.id === id);
     if (idx >= 0) {
       memoryStore.clients[idx] = { ...memoryStore.clients[idx], ...client };
+      saveStoreToDisk();
       return res.json(memoryStore.clients[idx]);
     }
     res.status(404).json({ error: 'Client not found' });
@@ -206,6 +208,7 @@ apiRouter.delete('/clients/:id', async (req: Request, res: Response) => {
       return res.json({ success: true, id });
     }
     memoryStore.clients = memoryStore.clients.filter(c => c.id !== id);
+    saveStoreToDisk();
     res.json({ success: true, id });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -275,6 +278,7 @@ apiRouter.post('/vehicles', async (req: Request, res: Response) => {
     } else {
       memoryStore.vehicles.unshift(v);
     }
+    saveStoreToDisk();
     res.status(201).json(v);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -326,6 +330,7 @@ apiRouter.put('/vehicles/:id', async (req: Request, res: Response) => {
     const idx = memoryStore.vehicles.findIndex(x => x.id === id);
     if (idx >= 0) {
       memoryStore.vehicles[idx] = { ...memoryStore.vehicles[idx], ...update };
+      saveStoreToDisk();
       return res.json(memoryStore.vehicles[idx]);
     }
     res.status(404).json({ error: 'Vehicle not found' });
@@ -342,6 +347,7 @@ apiRouter.delete('/vehicles/:id', async (req: Request, res: Response) => {
       return res.json({ success: true, id });
     }
     memoryStore.vehicles = memoryStore.vehicles.filter(x => x.id !== id);
+    saveStoreToDisk();
     res.json({ success: true, id });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -401,6 +407,7 @@ apiRouter.post('/quotations', async (req: Request, res: Response) => {
     } else {
       memoryStore.quotations.unshift(q);
     }
+    saveStoreToDisk();
     res.status(201).json(q);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -415,6 +422,7 @@ apiRouter.delete('/quotations/:id', async (req: Request, res: Response) => {
       return res.json({ success: true, id });
     }
     memoryStore.quotations = memoryStore.quotations.filter(x => x.id !== id);
+    saveStoreToDisk();
     res.json({ success: true, id });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -503,6 +511,7 @@ apiRouter.post('/contracts', async (req: Request, res: Response) => {
     } else {
       memoryStore.contracts.unshift(c);
     }
+    saveStoreToDisk();
     res.status(201).json(c);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -517,6 +526,7 @@ apiRouter.delete('/contracts/:id', async (req: Request, res: Response) => {
       return res.json({ success: true, id });
     }
     memoryStore.contracts = memoryStore.contracts.filter(x => x.id !== id);
+    saveStoreToDisk();
     res.json({ success: true, id });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -564,6 +574,7 @@ apiRouter.post('/follow-ups', async (req: Request, res: Response) => {
     } else {
       memoryStore.followUps.unshift(f);
     }
+    saveStoreToDisk();
     res.status(201).json(f);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -590,6 +601,7 @@ apiRouter.put('/follow-ups/:id', async (req: Request, res: Response) => {
     const idx = memoryStore.followUps.findIndex(x => x.id === id);
     if (idx >= 0) {
       memoryStore.followUps[idx] = { ...memoryStore.followUps[idx], ...update };
+      saveStoreToDisk();
       return res.json(memoryStore.followUps[idx]);
     }
     res.status(404).json({ error: 'Follow up not found' });
@@ -606,6 +618,7 @@ apiRouter.delete('/follow-ups/:id', async (req: Request, res: Response) => {
       return res.json({ success: true, id });
     }
     memoryStore.followUps = memoryStore.followUps.filter(x => x.id !== id);
+    saveStoreToDisk();
     res.json({ success: true, id });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -651,6 +664,7 @@ apiRouter.post('/templates', async (req: Request, res: Response) => {
     } else {
       memoryStore.templates.push(t);
     }
+    saveStoreToDisk();
     res.status(201).json(t);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -674,6 +688,7 @@ apiRouter.put('/templates', async (req: Request, res: Response) => {
         return res.json(templates);
       }
       memoryStore.templates = templates;
+      saveStoreToDisk();
       return res.json(templates);
     }
     res.status(400).json({ error: 'Expected array of templates' });
@@ -736,6 +751,7 @@ apiRouter.post('/settings', async (req: Request, res: Response) => {
       return res.json(s);
     }
     memoryStore.settings = { ...memoryStore.settings, ...s };
+    saveStoreToDisk();
     res.json(memoryStore.settings);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -786,6 +802,7 @@ apiRouter.post('/users', async (req: Request, res: Response) => {
     } else {
       memoryStore.users.push(u);
     }
+    saveStoreToDisk();
     res.status(201).json(u);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -810,6 +827,7 @@ apiRouter.post('/users/:id/reset-password', async (req: Request, res: Response) 
     if (user) {
       const defaultPass = user.celular ? user.celular.replace(/\D/g, '') : '70000000';
       user.password = defaultPass;
+      saveStoreToDisk();
       return res.json({ success: true, newPassword: defaultPass });
     }
     res.status(404).json({ error: 'User not found' });
@@ -834,6 +852,7 @@ apiRouter.post('/users/:id/change-password', async (req: Request, res: Response)
     const user = memoryStore.users.find(x => x.id === id);
     if (user) {
       user.password = newPassword.trim();
+      saveStoreToDisk();
       return res.json({ success: true });
     }
     res.status(404).json({ error: 'User not found' });
@@ -850,6 +869,7 @@ apiRouter.delete('/users/:id', async (req: Request, res: Response) => {
       return res.json({ success: true, id });
     }
     memoryStore.users = memoryStore.users.filter(x => x.id !== id);
+    saveStoreToDisk();
     res.json({ success: true, id });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -889,6 +909,7 @@ apiRouter.post('/audit-logs', async (req: Request, res: Response) => {
     }
 
     memoryStore.auditLogs.unshift(log);
+    saveStoreToDisk();
     res.status(201).json(log);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -943,6 +964,7 @@ apiRouter.post('/pending-requests', async (req: Request, res: Response) => {
     } else {
       memoryStore.pendingRequests.unshift(r);
     }
+    saveStoreToDisk();
     res.status(201).json(r);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -957,6 +979,7 @@ apiRouter.delete('/pending-requests/:id', async (req: Request, res: Response) =>
       return res.json({ success: true, id });
     }
     memoryStore.pendingRequests = memoryStore.pendingRequests.filter(x => x.id !== id);
+    saveStoreToDisk();
     res.json({ success: true, id });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -970,6 +993,7 @@ apiRouter.delete('/pending-requests', async (req: Request, res: Response) => {
       return res.json({ success: true });
     }
     memoryStore.pendingRequests = [];
+    saveStoreToDisk();
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -1043,6 +1067,7 @@ apiRouter.post('/backup/import', async (req: Request, res: Response) => {
     if (Array.isArray(backup.contracts)) memoryStore.contracts = backup.contracts;
     if (Array.isArray(backup.followUps)) memoryStore.followUps = backup.followUps;
     if (backup.settings) memoryStore.settings = { ...memoryStore.settings, ...backup.settings };
+    saveStoreToDisk();
 
     res.json({ success: true, message: 'Backup successfully imported into PostgreSQL database' });
   } catch (err: any) {
