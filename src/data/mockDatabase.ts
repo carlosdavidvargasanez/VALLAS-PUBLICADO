@@ -295,38 +295,42 @@ const INITIAL_AUDIT_LOGS: AuditLog[] = [
 export const mockDb = {
   initialize() {
     try {
-      if (!localStorage.getItem(DB_KEYS.CLIENTS)) {
-        localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(INITIAL_CLIENTS));
-      }
-      if (!localStorage.getItem(DB_KEYS.VEHICLES)) {
-        localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(INITIAL_VEHICLES));
-      }
-      if (!localStorage.getItem(DB_KEYS.QUOTATIONS)) {
-        localStorage.setItem(DB_KEYS.QUOTATIONS, JSON.stringify(INITIAL_QUOTATIONS));
-      }
-      if (!localStorage.getItem(DB_KEYS.CONTRACTS)) {
-        localStorage.setItem(DB_KEYS.CONTRACTS, JSON.stringify(INITIAL_CONTRACTS));
-      }
-      if (!localStorage.getItem(DB_KEYS.FOLLOW_UPS)) {
-        localStorage.setItem(DB_KEYS.FOLLOW_UPS, JSON.stringify(INITIAL_FOLLOW_UPS));
-      }
-      if (!localStorage.getItem(DB_KEYS.TEMPLATES)) {
-        localStorage.setItem(DB_KEYS.TEMPLATES, JSON.stringify(DEFAULT_TEMPLATES));
-      }
-      if (!localStorage.getItem(DB_KEYS.SETTINGS)) {
-        localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
-      }
-      if (!localStorage.getItem(DB_KEYS.USERS)) {
-        localStorage.setItem(DB_KEYS.USERS, JSON.stringify(DEFAULT_USERS));
-      }
-      if (localStorage.getItem(DB_KEYS.CURRENT_USER) === null) {
-        localStorage.setItem(DB_KEYS.CURRENT_USER, JSON.stringify(DEFAULT_USERS[0]));
-      }
-      if (localStorage.getItem(DB_KEYS.AUDIT_LOGS) === null) {
-        localStorage.setItem(DB_KEYS.AUDIT_LOGS, JSON.stringify(INITIAL_AUDIT_LOGS));
-      }
-      if (localStorage.getItem(DB_KEYS.PENDING_REQUESTS) === null) {
-        localStorage.setItem(DB_KEYS.PENDING_REQUESTS, JSON.stringify(INITIAL_PENDING_REQUESTS));
+      const isInit = localStorage.getItem('publix_db_initialized_v3');
+      if (!isInit) {
+        if (localStorage.getItem(DB_KEYS.CLIENTS) === null) {
+          localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(INITIAL_CLIENTS));
+        }
+        if (localStorage.getItem(DB_KEYS.VEHICLES) === null) {
+          localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(INITIAL_VEHICLES));
+        }
+        if (localStorage.getItem(DB_KEYS.QUOTATIONS) === null) {
+          localStorage.setItem(DB_KEYS.QUOTATIONS, JSON.stringify(INITIAL_QUOTATIONS));
+        }
+        if (localStorage.getItem(DB_KEYS.CONTRACTS) === null) {
+          localStorage.setItem(DB_KEYS.CONTRACTS, JSON.stringify(INITIAL_CONTRACTS));
+        }
+        if (localStorage.getItem(DB_KEYS.FOLLOW_UPS) === null) {
+          localStorage.setItem(DB_KEYS.FOLLOW_UPS, JSON.stringify(INITIAL_FOLLOW_UPS));
+        }
+        if (localStorage.getItem(DB_KEYS.TEMPLATES) === null) {
+          localStorage.setItem(DB_KEYS.TEMPLATES, JSON.stringify(DEFAULT_TEMPLATES));
+        }
+        if (localStorage.getItem(DB_KEYS.SETTINGS) === null) {
+          localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
+        }
+        if (localStorage.getItem(DB_KEYS.USERS) === null) {
+          localStorage.setItem(DB_KEYS.USERS, JSON.stringify(DEFAULT_USERS));
+        }
+        if (localStorage.getItem(DB_KEYS.CURRENT_USER) === null) {
+          localStorage.setItem(DB_KEYS.CURRENT_USER, JSON.stringify(DEFAULT_USERS[0]));
+        }
+        if (localStorage.getItem(DB_KEYS.AUDIT_LOGS) === null) {
+          localStorage.setItem(DB_KEYS.AUDIT_LOGS, JSON.stringify(INITIAL_AUDIT_LOGS));
+        }
+        if (localStorage.getItem(DB_KEYS.PENDING_REQUESTS) === null) {
+          localStorage.setItem(DB_KEYS.PENDING_REQUESTS, JSON.stringify(INITIAL_PENDING_REQUESTS));
+        }
+        localStorage.setItem('publix_db_initialized_v3', 'true');
       }
     } catch (err) {
       console.warn('LocalStorage error during initialize:', err);
@@ -366,11 +370,12 @@ export const mockDb = {
   getClients(): Client[] {
     this.initialize();
     try {
-      const raw: Client[] = JSON.parse(localStorage.getItem(DB_KEYS.CLIENTS) || '[]');
-      if (!Array.isArray(raw) || raw.length === 0) return INITIAL_CLIENTS;
-      return raw;
+      const raw = localStorage.getItem(DB_KEYS.CLIENTS);
+      if (raw === null) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
-      return INITIAL_CLIENTS;
+      return [];
     }
   },
 
@@ -391,6 +396,7 @@ export const mockDb = {
       list.unshift(client);
     }
     this.saveClients(list);
+    this.checkTriggerCriticalBackup(`Actualización de cliente: ${client.nombre}`);
     try {
       await api.createClient(client);
     } catch (e) {
@@ -404,6 +410,7 @@ export const mockDb = {
     if (idx >= 0) {
       list[idx] = { ...list[idx], ...update, fecha_actualizacion: new Date().toISOString() };
       this.saveClients(list);
+      this.checkTriggerCriticalBackup(`Modificación de cliente: ${list[idx].nombre}`);
       try {
         await api.updateClient(id, update);
       } catch (e) {
@@ -415,6 +422,7 @@ export const mockDb = {
   async deleteClient(id: string) {
     const list = this.getClients().filter(c => c.id !== id);
     this.saveClients(list);
+    this.checkTriggerCriticalBackup(`Eliminación de cliente ID ${id}`);
     try {
       await api.deleteClient(id);
     } catch (e) {
@@ -425,10 +433,12 @@ export const mockDb = {
   getVehicles(): Vehicle[] {
     this.initialize();
     try {
-      const parsed = JSON.parse(localStorage.getItem(DB_KEYS.VEHICLES) || '[]');
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_VEHICLES;
+      const raw = localStorage.getItem(DB_KEYS.VEHICLES);
+      if (raw === null) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
-      return INITIAL_VEHICLES;
+      return [];
     }
   },
 
@@ -449,6 +459,7 @@ export const mockDb = {
       list.unshift(vehicle);
     }
     this.saveVehicles(list);
+    this.checkTriggerCriticalBackup(`Nuevo soporte publicitario: ${vehicle.modelo || vehicle.marca}`);
     try {
       await api.createVehicle(vehicle);
     } catch (e) {
@@ -462,6 +473,7 @@ export const mockDb = {
     if (idx >= 0) {
       list[idx] = { ...list[idx], ...update, fecha_actualizacion: new Date().toISOString() };
       this.saveVehicles(list);
+      this.checkTriggerCriticalBackup(`Modificación de valla/soporte: ${list[idx].modelo || list[idx].marca}`);
       try {
         await api.updateVehicle(id, update);
       } catch (e) {
@@ -473,6 +485,7 @@ export const mockDb = {
   async deleteVehicle(id: string) {
     const list = this.getVehicles().filter(v => v.id !== id);
     this.saveVehicles(list);
+    this.checkTriggerCriticalBackup(`Eliminación de soporte publicitario ID ${id}`);
     try {
       await api.deleteVehicle(id);
     } catch (e) {
@@ -483,10 +496,12 @@ export const mockDb = {
   getQuotations(): Quotation[] {
     this.initialize();
     try {
-      const parsed = JSON.parse(localStorage.getItem(DB_KEYS.QUOTATIONS) || '[]');
-      return Array.isArray(parsed) ? parsed : INITIAL_QUOTATIONS;
+      const raw = localStorage.getItem(DB_KEYS.QUOTATIONS);
+      if (raw === null) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
-      return INITIAL_QUOTATIONS;
+      return [];
     }
   },
 
@@ -507,6 +522,7 @@ export const mockDb = {
       list.unshift(q);
     }
     this.saveQuotations(list);
+    this.checkTriggerCriticalBackup(`Nueva cotización emitida: ${q.numero}`);
     try {
       await api.createQuotation(q);
     } catch (e) {
@@ -514,9 +530,25 @@ export const mockDb = {
     }
   },
 
+  async updateQuotation(id: string, update: Partial<Quotation>) {
+    const list = this.getQuotations();
+    const idx = list.findIndex(x => x.id === id);
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...update };
+      this.saveQuotations(list);
+      this.checkTriggerCriticalBackup(`Modificación de cotización: ${list[idx].numero}`);
+      try {
+        await api.createQuotation(list[idx]);
+      } catch (e) {
+        console.warn('API updateQuotation error:', e);
+      }
+    }
+  },
+
   async deleteQuotation(id: string) {
     const list = this.getQuotations().filter(q => q.id !== id);
     this.saveQuotations(list);
+    this.checkTriggerCriticalBackup(`Eliminación de cotización ID ${id}`);
     try {
       await api.deleteQuotation(id);
     } catch (e) {
@@ -527,10 +559,12 @@ export const mockDb = {
   getContracts(): Contract[] {
     this.initialize();
     try {
-      const parsed = JSON.parse(localStorage.getItem(DB_KEYS.CONTRACTS) || '[]');
-      return Array.isArray(parsed) ? parsed : INITIAL_CONTRACTS;
+      const raw = localStorage.getItem(DB_KEYS.CONTRACTS);
+      if (raw === null) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
-      return INITIAL_CONTRACTS;
+      return [];
     }
   },
 
@@ -551,10 +585,26 @@ export const mockDb = {
       list.unshift(c);
     }
     this.saveContracts(list);
+    this.checkTriggerCriticalBackup(`Nuevo contrato generado: ${c.numero}`);
     try {
       await api.createContract(c);
     } catch (e) {
       console.warn('API addContract error:', e);
+    }
+  },
+
+  async updateContract(id: string, update: Partial<Contract>) {
+    const list = this.getContracts();
+    const idx = list.findIndex(x => x.id === id);
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...update };
+      this.saveContracts(list);
+      this.checkTriggerCriticalBackup(`Modificación de contrato: ${list[idx].numero}`);
+      try {
+        await api.createContract(list[idx]);
+      } catch (e) {
+        console.warn('API updateContract error:', e);
+      }
     }
   },
 
@@ -571,10 +621,12 @@ export const mockDb = {
   getFollowUps(): FollowUp[] {
     this.initialize();
     try {
-      const parsed = JSON.parse(localStorage.getItem(DB_KEYS.FOLLOW_UPS) || '[]');
-      return Array.isArray(parsed) ? parsed : INITIAL_FOLLOW_UPS;
+      const raw = localStorage.getItem(DB_KEYS.FOLLOW_UPS);
+      if (raw === null) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
-      return INITIAL_FOLLOW_UPS;
+      return [];
     }
   },
 
@@ -662,8 +714,10 @@ export const mockDb = {
   getUsers(): UserSession[] {
     this.initialize();
     try {
-      const parsed = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_USERS;
+      const raw = localStorage.getItem(DB_KEYS.USERS);
+      if (raw === null) return DEFAULT_USERS;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : DEFAULT_USERS;
     } catch {
       return DEFAULT_USERS;
     }
@@ -955,6 +1009,22 @@ export const mockDb = {
 
   setLastBackupTimestamp(ts: string) {
     localStorage.setItem(DB_KEYS.LAST_BACKUP_TIMESTAMP, ts);
+  },
+
+  checkTriggerCriticalBackup(reason: string) {
+    try {
+      const settings = this.getSettings();
+      if (settings.backup_on_critical_change ?? true) {
+        const lastIso = this.getLastBackupTimestamp();
+        const diffMs = Date.now() - new Date(lastIso).getTime();
+        // Prevent duplicate backups if another change occurred within the last 60 seconds
+        if (diffMs > 60 * 1000) {
+          this.createAutoBackup(`Respaldo automático por cambio crítico: ${reason}`);
+        }
+      }
+    } catch (e) {
+      console.warn('Critical backup trigger error:', e);
+    }
   },
 
   createAutoBackup(reason: string = 'Respaldo automático del sistema'): BackupRecord | null {

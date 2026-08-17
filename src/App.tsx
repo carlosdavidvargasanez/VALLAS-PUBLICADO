@@ -190,22 +190,22 @@ export default function App() {
     setTemplates(newTemplates);
   };
 
-  // CRM Client Mutations
-  const handleAddClient = (clientData: Omit<Client, 'id' | 'fecha_registro' | 'fecha_actualizacion'>): boolean => {
+  // Client Mutations
+  const handleAddClient = async (clientData: Omit<Client, 'id' | 'fecha_registro' | 'fecha_actualizacion'>): Promise<boolean> => {
     const list = mockDb.getClients();
     const phoneExists = list.some(c => c.celular === clientData.celular);
     if (phoneExists) return false;
 
     const newClient: Client = {
       ...clientData,
-      id: 'C' + String(list.length + 1).padStart(3, '0'),
+      id: 'C' + String(Date.now()).slice(-4),
       fecha_registro: new Date().toISOString(),
       fecha_actualizacion: new Date().toISOString()
     };
 
     const updated = [newClient, ...list];
-    mockDb.saveClients(updated);
     setClients(updated);
+    await mockDb.addClient(newClient);
 
     // Register Trace
     mockDb.addAuditLog(
@@ -217,11 +217,11 @@ export default function App() {
     return true;
   };
 
-  const handleUpdateClient = (updatedClient: Client) => {
+  const handleUpdateClient = async (updatedClient: Client) => {
     const list = mockDb.getClients();
     const updated = list.map(c => c.id === updatedClient.id ? updatedClient : c);
-    mockDb.saveClients(updated);
     setClients(updated);
+    await mockDb.updateClient(updatedClient.id, updatedClient);
 
     // Log update audit trace
     mockDb.addAuditLog(
@@ -237,14 +237,13 @@ export default function App() {
     }
   };
 
-  const handleDeleteClient = (id: string) => {
+  const handleDeleteClient = async (id: string) => {
     const list = mockDb.getClients();
     const client = list.find(c => c.id === id);
     if (client) {
-      // Logical deletion as specified (remove or toggle status to lost/inactive)
       const updated = list.filter(c => c.id !== id);
-      mockDb.saveClients(updated);
       setClients(updated);
+      await mockDb.deleteClient(id);
 
       mockDb.addAuditLog(
         currentUser.nombre,
@@ -260,18 +259,18 @@ export default function App() {
   };
 
   // Vehicles Mutations
-  const handleAddVehicle = (vehicleData: Omit<Vehicle, 'id' | 'fecha_registro' | 'fecha_actualizacion'>) => {
+  const handleAddVehicle = async (vehicleData: Omit<Vehicle, 'id' | 'fecha_registro' | 'fecha_actualizacion'>) => {
     const list = mockDb.getVehicles();
     const newVehicle: Vehicle = {
       ...vehicleData,
-      id: 'V' + String(list.length + 1).padStart(3, '0'),
+      id: 'V' + String(Date.now()).slice(-4),
       fecha_registro: new Date().toISOString(),
       fecha_actualizacion: new Date().toISOString()
     };
 
     const updated = [newVehicle, ...list];
-    mockDb.saveVehicles(updated);
     setVehicles(updated);
+    await mockDb.addVehicle(newVehicle);
 
     mockDb.addAuditLog(
       currentUser.nombre,
@@ -281,11 +280,11 @@ export default function App() {
     setAuditLogs(mockDb.getAuditLogs());
   };
 
-  const handleUpdateVehicle = (updatedVehicle: Vehicle) => {
+  const handleUpdateVehicle = async (updatedVehicle: Vehicle) => {
     const list = mockDb.getVehicles();
     const updated = list.map(v => v.id === updatedVehicle.id ? updatedVehicle : v);
-    mockDb.saveVehicles(updated);
     setVehicles(updated);
+    await mockDb.updateVehicle(updatedVehicle.id, updatedVehicle);
 
     mockDb.addAuditLog(
       currentUser.nombre,
@@ -299,13 +298,13 @@ export default function App() {
     }
   };
 
-  const handleDeleteVehicle = (id: string) => {
+  const handleDeleteVehicle = async (id: string) => {
     const list = mockDb.getVehicles();
     const vehicle = list.find(v => v.id === id);
     if (vehicle) {
       const updated = list.filter(v => v.id !== id);
-      mockDb.saveVehicles(updated);
       setVehicles(updated);
+      await mockDb.deleteVehicle(id);
 
       mockDb.addAuditLog(
         currentUser.nombre,
@@ -345,7 +344,7 @@ export default function App() {
   };
 
   // Quotation Mutations
-  const handleAddQuotation = (quoteData: Omit<Quotation, 'id' | 'numero' | 'fecha'>) => {
+  const handleAddQuotation = async (quoteData: Omit<Quotation, 'id' | 'numero' | 'fecha'>) => {
     const list = mockDb.getQuotations();
     
     // Auto-number format: PUBLIX-YYYYMMDD-00000X
@@ -358,14 +357,14 @@ export default function App() {
 
     const newQuote: Quotation = {
       ...quoteData,
-      id: 'Q' + String(list.length + 1).padStart(3, '0'),
+      id: 'Q' + String(Date.now()).slice(-6),
       numero: quoteNum,
       fecha: new Date().toISOString()
     };
 
     const updated = [newQuote, ...list];
-    mockDb.saveQuotations(updated);
     setQuotations(updated);
+    await mockDb.addQuotation(newQuote);
 
     // Auto-update Client state to "Cotizado"
     const clientList = mockDb.getClients();
@@ -386,14 +385,14 @@ export default function App() {
     setAuditLogs(mockDb.getAuditLogs());
   };
 
-  const handleUpdateQuotationStatus = (id: string, status: QuotationState) => {
+  const handleUpdateQuotationStatus = async (id: string, status: QuotationState) => {
     const list = mockDb.getQuotations();
     const quote = list.find(q => q.id === id);
     if (quote) {
       const updatedQuote = { ...quote, estado: status };
       const updated = list.map(q => q.id === id ? updatedQuote : q);
-      mockDb.saveQuotations(updated);
       setQuotations(updated);
+      await mockDb.updateQuotation(id, { estado: status });
 
       // Auto update client state to negotiation or sold if appropriate
       if (status === 'Aceptada') {
@@ -416,11 +415,11 @@ export default function App() {
     }
   };
 
-  const handleUpdateQuotation = (updatedQuote: Quotation) => {
+  const handleUpdateQuotation = async (updatedQuote: Quotation) => {
     const list = mockDb.getQuotations();
     const updated = list.map(q => q.id === updatedQuote.id ? updatedQuote : q);
-    mockDb.saveQuotations(updated);
     setQuotations(updated);
+    await mockDb.updateQuotation(updatedQuote.id, updatedQuote);
 
     mockDb.addAuditLog(
       currentUser.nombre,
@@ -430,13 +429,13 @@ export default function App() {
     setAuditLogs(mockDb.getAuditLogs());
   };
 
-  const handleDeleteQuotation = (id: string) => {
+  const handleDeleteQuotation = async (id: string) => {
     const list = mockDb.getQuotations();
     const quote = list.find(q => q.id === id);
     if (quote) {
       const updated = list.filter(q => q.id !== id);
-      mockDb.saveQuotations(updated);
       setQuotations(updated);
+      await mockDb.deleteQuotation(id);
 
       mockDb.addAuditLog(
         currentUser.nombre,
@@ -448,7 +447,7 @@ export default function App() {
   };
 
   // Contracts Mutations
-  const handleAddContract = (contract: Contract) => {
+  const handleAddContract = async (contract: Contract) => {
     const list = mockDb.getContracts();
     const existsIndex = list.findIndex(c => c.id === contract.id);
     let updated: Contract[];
@@ -458,8 +457,8 @@ export default function App() {
     } else {
       updated = [contract, ...list];
     }
-    mockDb.saveContracts(updated);
     setContracts(updated);
+    await mockDb.addContract(contract);
 
     // Auto-update Client state to "Vendido"
     const clientList = mockDb.getClients();
@@ -480,14 +479,14 @@ export default function App() {
     setAuditLogs(mockDb.getAuditLogs());
   };
 
-  const handleUpdateContractStatus = (id: string, status: ContractStatus) => {
+  const handleUpdateContractStatus = async (id: string, status: ContractStatus) => {
     const list = mockDb.getContracts();
     const contract = list.find(c => c.id === id);
     if (contract) {
       const updatedContract = { ...contract, estado: status };
       const updated = list.map(c => c.id === id ? updatedContract : c);
-      mockDb.saveContracts(updated);
       setContracts(updated);
+      await mockDb.updateContract(id, { estado: status });
 
       mockDb.addAuditLog(
         currentUser.nombre,
@@ -498,13 +497,13 @@ export default function App() {
     }
   };
 
-  const handleDeleteContract = (id: string) => {
+  const handleDeleteContract = async (id: string) => {
     const list = mockDb.getContracts();
     const contract = list.find(c => c.id === id);
     if (contract) {
       const updated = list.filter(c => c.id !== id);
-      mockDb.saveContracts(updated);
       setContracts(updated);
+      await mockDb.deleteContract(id);
 
       mockDb.addAuditLog(
         currentUser.nombre,
@@ -516,17 +515,17 @@ export default function App() {
   };
 
   // Follow-ups Mutations
-  const handleAddFollowUp = (followUpData: Omit<FollowUp, 'id' | 'fecha'>) => {
+  const handleAddFollowUp = async (followUpData: Omit<FollowUp, 'id' | 'fecha'>) => {
     const list = mockDb.getFollowUps();
     const newFollowUp: FollowUp = {
       ...followUpData,
-      id: 'F' + String(list.length + 1).padStart(3, '0'),
+      id: 'F' + String(Date.now()).slice(-6),
       fecha: new Date().toISOString()
     };
 
     const updated = [newFollowUp, ...list];
-    mockDb.saveFollowUps(updated);
     setFollowUps(updated);
+    await mockDb.addFollowUp(newFollowUp);
 
     const client = clients.find(c => c.id === followUpData.cliente_id);
 
@@ -538,14 +537,14 @@ export default function App() {
     setAuditLogs(mockDb.getAuditLogs());
   };
 
-  const handleUpdateFollowUpStatus = (id: string, status: FollowUpState) => {
+  const handleUpdateFollowUpStatus = async (id: string, status: FollowUpState) => {
     const list = mockDb.getFollowUps();
     const task = list.find(f => f.id === id);
     if (task) {
       const updatedTask = { ...task, estado: status };
       const updated = list.map(f => f.id === id ? updatedTask : f);
-      mockDb.saveFollowUps(updated);
       setFollowUps(updated);
+      await mockDb.updateFollowUp(id, { estado: status });
 
       const client = clients.find(c => c.id === task.cliente_id);
 
@@ -558,13 +557,13 @@ export default function App() {
     }
   };
 
-  const handleDeleteFollowUp = (id: string) => {
+  const handleDeleteFollowUp = async (id: string) => {
     const list = mockDb.getFollowUps();
     const task = list.find(f => f.id === id);
     if (task) {
       const updated = list.filter(f => f.id !== id);
-      mockDb.saveFollowUps(updated);
       setFollowUps(updated);
+      await mockDb.deleteFollowUp(id);
 
       mockDb.addAuditLog(
         currentUser.nombre,
@@ -646,16 +645,16 @@ export default function App() {
   };
 
   // Add new user in active session list
-  const handleAddUser = (newUserData: Omit<UserSession, 'id'>) => {
+  const handleAddUser = async (newUserData: Omit<UserSession, 'id'>) => {
     const list = mockDb.getUsers();
     const newUser: UserSession = {
       ...newUserData,
-      id: 'U' + String(list.length + 1).padStart(3, '0'),
+      id: 'U' + String(Date.now()).slice(-4),
       password: newUserData.password || (newUserData.celular ? newUserData.celular.replace(/\D/g, '') : '70000000')
     };
     const updated = [...list, newUser];
-    mockDb.saveUsers(updated);
     setUsers(updated);
+    await mockDb.addUser(newUser);
 
     mockDb.addAuditLog(
       currentUser.nombre,
@@ -685,13 +684,13 @@ export default function App() {
     return res;
   };
 
-  const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     const list = mockDb.getUsers();
     const userToDelete = list.find(u => u.id === userId);
     if (userToDelete && userToDelete.rol !== 'Dueño') {
       const updated = list.filter(u => u.id !== userId);
-      mockDb.saveUsers(updated);
       setUsers(updated);
+      await mockDb.deleteUser(userId);
       mockDb.addAuditLog(
         currentUser.nombre,
         'Eliminación de Usuario',

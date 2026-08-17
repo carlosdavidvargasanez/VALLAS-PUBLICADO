@@ -33,7 +33,7 @@ import { motion, AnimatePresence } from 'motion/react';
 interface PendingRequestsManagerProps {
   clients: Client[];
   currentUser: UserSession;
-  onAddClient: (clientData: Omit<Client, 'id' | 'fecha_registro' | 'fecha_actualizacion'>) => boolean;
+  onAddClient: (clientData: Omit<Client, 'id' | 'fecha_registro' | 'fecha_actualizacion'>) => boolean | Promise<boolean>;
   onSelectActiveClient?: (client: Client) => void;
   onRegisterLog: (action: string, detail: string) => void;
 }

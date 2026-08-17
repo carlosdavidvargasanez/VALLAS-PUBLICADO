@@ -36,7 +36,7 @@ import { motion, AnimatePresence } from 'motion/react';
 interface ClientsProps {
   clients: Client[];
   currentUser?: UserSession;
-  onAddClient: (client: Omit<Client, 'id' | 'fecha_registro' | 'fecha_actualizacion'>) => boolean;
+  onAddClient: (client: Omit<Client, 'id' | 'fecha_registro' | 'fecha_actualizacion'>) => boolean | Promise<boolean>;
   onUpdateClient: (client: Client) => void;
   onDeleteClient: (id: string) => void;
   onSelectClientForWhatsApp: (client: Client) => void;

@@ -314,6 +314,12 @@ async function runMigration() {
       backup_on_save BOOLEAN DEFAULT TRUE,
       backup_retention_count INTEGER DEFAULT 10
     );
+
+    CREATE TABLE IF NOT EXISTS system_meta (
+      key VARCHAR(100) PRIMARY KEY,
+      value VARCHAR(255),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
   `;
   await pool.query(sql);
   console.log('✅ PostgreSQL Schema tables verified and migrated successfully.');
@@ -321,9 +327,34 @@ async function runMigration() {
 
 async function seedInitialDataIfEmpty() {
   if (!pool) return;
-  const countRes = await pool.query('SELECT count(*) FROM users');
-  if (parseInt(countRes.rows[0].count, 10) === 0) {
-    console.log('Seeding initial PostgreSQL users and data...');
+  try {
+    // 1. Check if seed has already been marked completed in system_meta
+    const metaRes = await pool.query("SELECT value FROM system_meta WHERE key = 'initial_seed_completed'");
+    if (metaRes.rows.length > 0 && metaRes.rows[0].value === 'true') {
+      console.log('ℹ️ Initial PostgreSQL seed was already completed previously. Skipping data seeding to preserve user modifications and deletions.');
+      return;
+    }
+
+    // 2. Double check if any table already has data (in case database was migrated before system_meta existed)
+    const [usersCount, clientsCount, vehiclesCount] = await Promise.all([
+      pool.query('SELECT count(*) FROM users'),
+      pool.query('SELECT count(*) FROM clients'),
+      pool.query('SELECT count(*) FROM vehicles')
+    ]);
+
+    const hasUsers = parseInt(usersCount.rows[0].count, 10) > 0;
+    const hasClients = parseInt(clientsCount.rows[0].count, 10) > 0;
+    const hasVehicles = parseInt(vehiclesCount.rows[0].count, 10) > 0;
+
+    if (hasUsers || hasClients || hasVehicles) {
+      console.log('ℹ️ Database already contains records. Registering initial_seed_completed and skipping seed.');
+      await pool.query(
+        "INSERT INTO system_meta (key, value) VALUES ('initial_seed_completed', 'true') ON CONFLICT (key) DO NOTHING"
+      );
+      return;
+    }
+
+    console.log('🌱 Database is completely empty. Seeding initial starter data on first run only...');
     // Seed Users
     const users: UserSession[] = [
       {
@@ -623,11 +654,22 @@ async function seedInitialDataIfEmpty() {
       ['L001']
     );
 
-    console.log('✅ PostgreSQL initial data seeded.');
+    // Register initial seed completed permanently in PostgreSQL
+    await pool.query(
+      "INSERT INTO system_meta (key, value) VALUES ('initial_seed_completed', 'true') ON CONFLICT (key) DO UPDATE SET value = 'true'"
+    );
+
+    console.log('✅ PostgreSQL initial data seeded and locked.');
+  } catch (err) {
+    console.error('⚠️ Error during seedInitialDataIfEmpty:', err);
   }
 }
 
+let memoryStoreSeeded = false;
+
 function seedMemoryStore() {
+  if (memoryStoreSeeded) return;
+  memoryStoreSeeded = true;
   memoryStore.users = [
     {
       id: 'U001',
