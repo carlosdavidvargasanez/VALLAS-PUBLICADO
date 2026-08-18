@@ -1438,84 +1438,95 @@ export default function Vehicles({
                     </div>
 
                     {/* Action Toolbar */}
-                    <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-1.5" onClick={(e) => isMultiSelect && e.stopPropagation()}>
+                    <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between gap-2" onClick={(e) => isMultiSelect && e.stopPropagation()}>
                       
-                      {/* Specs Modal Trigger */}
-                      <button
-                        onClick={() => setSelectedSpecVehicle(valla)}
-                        className="flex-1 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 rounded-xl text-xs font-bold flex items-center justify-center space-x-1 transition cursor-pointer"
-                        title="Ver Detalle Completo"
-                      >
-                        <Info className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Detalle</span>
-                      </button>
-
-                      {/* Client Cart Add/Remove Button */}
-                      {isCliente && (
+                      {/* Left: Detalle button (Primary anchor action) */}
+                      <div className="flex items-center gap-1.5">
                         <button
-                          onClick={() => {
-                            if (!isMultiSelect) setIsMultiSelect(true);
-                            handleToggleSelectVehicle(valla.id);
-                          }}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1 cursor-pointer border ${
-                            isSelected
-                              ? 'bg-amber-600 border-amber-700 text-white'
-                              : 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-900'
-                          }`}
+                          onClick={() => setSelectedSpecVehicle(valla)}
+                          className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer shadow-2xs"
+                          title="Ver Detalle Completo"
                         >
-                          <Check className={`w-3.5 h-3.5 ${isSelected ? 'inline-block' : 'hidden'}`} />
-                          <span>{isSelected ? 'Agregado 🛒' : '+ Carrito'}</span>
+                          <Info className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Detalle</span>
                         </button>
-                      )}
 
-                      {/* Edit Button (Always Enabled for quick data editing) */}
-                      <button
-                        onClick={() => handleEditClick(valla)}
-                        className="p-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 rounded-xl transition cursor-pointer"
-                        title="Editar Datos de la Valla / Pantalla"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
+                        {/* Client Cart Add/Remove Button */}
+                        {isCliente && (
+                          <button
+                            onClick={() => {
+                              if (!isMultiSelect) setIsMultiSelect(true);
+                              handleToggleSelectVehicle(valla.id);
+                            }}
+                            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1 cursor-pointer border ${
+                              isSelected
+                                ? 'bg-amber-600 border-amber-700 text-white'
+                                : 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-900'
+                            }`}
+                          >
+                            <Check className={`w-3 h-3 ${isSelected ? 'inline-block' : 'hidden'}`} />
+                            <span>{isSelected ? 'Agregado 🛒' : '+ Carrito'}</span>
+                          </button>
+                        )}
+                      </div>
 
-                      {/* Delete Button (STRICTLY Dueño Only) */}
-                      {isDueno && (
-                        <button
-                          onClick={() => handleDeleteClick(valla)}
-                          className="p-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-100 text-rose-600 rounded-xl transition cursor-pointer"
-                          title="Eliminar Valla (Sólo Dueño)"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
+                      {/* Right: Compact Icon Group (gap 4-6px) + Separated Delete Button */}
+                      <div className="flex items-center gap-1.5">
+                        {/* Compact group of productivity icons */}
+                        <div className="flex items-center gap-1">
+                          {/* Edit Button */}
+                          <button
+                            onClick={() => handleEditClick(valla)}
+                            className="w-7 h-7 flex items-center justify-center bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 rounded-lg transition cursor-pointer"
+                            title="Editar Datos de la Valla / Pantalla"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
 
-                      {/* Direct WhatsApp Contact */}
-                      <button
-                        onClick={() => onSelectVehicleForWhatsApp(valla)}
-                        className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl transition cursor-pointer"
-                        title="Enviar por WhatsApp"
-                      >
-                        <MessageSquare className="w-4 h-4" />
-                      </button>
+                          {/* Direct WhatsApp Contact */}
+                          <button
+                            onClick={() => onSelectVehicleForWhatsApp(valla)}
+                            className="w-7 h-7 flex items-center justify-center bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg transition cursor-pointer"
+                            title="Enviar por WhatsApp"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          </button>
 
-                      {/* Direct Single PDF Ficha Técnica Download */}
-                      <button
-                        onClick={() => handleDownloadSinglePdf(valla)}
-                        className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl transition cursor-pointer"
-                        title="Descargar Ficha Técnica PDF"
-                      >
-                        <Download className="w-4 h-4" />
-                      </button>
+                          {/* Direct Single PDF Ficha Técnica Download */}
+                          <button
+                            onClick={() => handleDownloadSinglePdf(valla)}
+                            className="w-7 h-7 flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg transition cursor-pointer"
+                            title="Descargar Ficha Técnica PDF"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
 
-                      {/* Direct Quote Generator (Staff Only) */}
-                      {!isCliente && (
-                        <button
-                          onClick={() => onSelectVehicleForQuote(valla)}
-                          className="p-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl transition cursor-pointer"
-                          title="Generar Cotización Individual"
-                        >
-                          <FileText className="w-4 h-4" />
-                        </button>
-                      )}
+                          {/* Direct Quote Generator (Staff Only) */}
+                          {!isCliente && (
+                            <button
+                              onClick={() => onSelectVehicleForQuote(valla)}
+                              className="w-7 h-7 flex items-center justify-center bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg transition cursor-pointer"
+                              title="Generar Cotización Individual"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Destructive Action: Visually Separated Delete Button (Dueño only) */}
+                        {isDueno && (
+                          <>
+                            <div className="h-4 w-px bg-gray-200 mx-0.5" />
+                            <button
+                              onClick={() => handleDeleteClick(valla)}
+                              className="w-7 h-7 flex items-center justify-center bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 rounded-lg transition cursor-pointer"
+                              title="Eliminar Valla (Sólo Dueño)"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </motion.div>

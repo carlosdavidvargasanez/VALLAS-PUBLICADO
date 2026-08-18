@@ -332,6 +332,7 @@ export default function Contracts({
           initialStep={modalStep}
           clients={clients}
           vehicles={vehicles}
+          contracts={contracts}
           settings={settings}
           currentUserNombre={currentUserNombre}
           onSaveContract={(contract) => {

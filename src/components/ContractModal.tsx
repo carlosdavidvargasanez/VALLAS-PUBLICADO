@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Logo from './Logo';
 import { 
   Client, 
@@ -39,9 +39,53 @@ import {
   Layers,
   Palette,
   Eye,
-  Edit3
+  Edit3,
+  Search,
+  MapPin,
+  Filter,
+  CheckSquare,
+  Square,
+  SlidersHorizontal,
+  Maximize2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+
+// Format Drive URL to viewable image
+function formatDriveUrl(url?: string): string {
+  if (!url) return 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=600';
+  const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (match && match[1]) {
+    return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+  }
+  return url;
+}
+
+// Helper to parse dimension string (e.g. "12 x 4 m" or "12x4") into m2 area
+function parseDimensionsM2(medidasStr?: string): number {
+  if (!medidasStr) return 48;
+  const match = medidasStr.match(/(\d+(?:[.,]\d+)?)\s*(?:[xX*]|por|m\s*x)\s*(\d+(?:[.,]\d+)?)/);
+  if (match) {
+    const w = parseFloat(match[1].replace(',', '.'));
+    const h = parseFloat(match[2].replace(',', '.'));
+    if (!isNaN(w) && !isNaN(h) && w > 0 && h > 0) {
+      return Math.round(w * h * 10) / 10;
+    }
+  }
+  return 48;
+}
+
+// Calculate suggested lona cost in Bs from dimension and rate
+function calculateSuggestedLonaCostBs(medidasStr?: string, costoLonaM2Bs?: number): number {
+  const m2 = parseDimensionsM2(medidasStr);
+  const costPerM2 = costoLonaM2Bs && costoLonaM2Bs > 0 ? costoLonaM2Bs : 65;
+  return Math.round(m2 * costPerM2);
+}
+
+// Normalize dimension string for comparison (e.g. "12 x 4 m" vs "12x4")
+function normalizeDimension(str?: string): string {
+  if (!str) return '';
+  return str.toLowerCase().replace(/[\s\t\n]+/g, '').replace(/m(ts)?$/i, '').replace(/x/g, 'x').replace(/\.0/g, '');
+}
 
 interface ContractModalProps {
   quotation?: Quotation | null;
@@ -49,6 +93,7 @@ interface ContractModalProps {
   initialStep?: 1 | 2 | 3;
   clients: Client[];
   vehicles: Vehicle[];
+  contracts?: Contract[];
   settings: Settings;
   currentUserNombre: string;
   onSaveContract: (contract: Contract) => void;
@@ -61,6 +106,7 @@ export default function ContractModal({
   initialStep = 1,
   clients,
   vehicles,
+  contracts = [],
   settings,
   currentUserNombre,
   onSaveContract,
@@ -70,6 +116,13 @@ export default function ContractModal({
 
   // Template Design Selection
   const [disenoPlantilla, setDisenoPlantilla] = useState<ContractTemplateDesign>('OFICIAL_VALLAS');
+
+  // Billboard Selector Modal State
+  const [showVallaSelector, setShowVallaSelector] = useState<boolean>(false);
+  const [vallaSearch, setVallaSearch] = useState<string>('');
+  const [selectedCityFilter, setSelectedCityFilter] = useState<string>('TODAS');
+  const [onlyAvailableFilter, setOnlyAvailableFilter] = useState<boolean>(true);
+  const [addedNotice, setAddedNotice] = useState<string | null>(null);
 
   // Client / Destinatario State (Editable & Switchable)
   const [selectedClientId, setSelectedClientId] = useState<string>('');
@@ -101,6 +154,7 @@ export default function ContractModal({
       ciudad: 'Santa Cruz',
       formato: 'Valla Unipolar',
       direccion: '3er ANILLO INTERNO CANAL COTOCA',
+      medidas: '15 x 4 m',
       costo_mensual_bs: 13980,
       descuento_bs: 1000,
       costo_neto_bs: 12980
@@ -110,6 +164,7 @@ export default function ContractModal({
       ciudad: 'Santa Cruz',
       formato: 'Valla Unipolar',
       direccion: '3er ANILLO INTERNO ENTRE AV. BUSH Y AV. SAN MARTIN',
+      medidas: '10 x 4 m',
       costo_mensual_bs: 8800,
       descuento_bs: 880,
       costo_neto_bs: 7920
@@ -119,6 +174,7 @@ export default function ContractModal({
       ciudad: 'Santa Cruz',
       formato: 'Valla Unipolar',
       direccion: '2do ANILLO AV. PIRAI DIAGONAL HIPERMAXI',
+      medidas: '10 x 4 m',
       costo_mensual_bs: 9800,
       descuento_bs: 1100,
       costo_neto_bs: 8700
@@ -129,24 +185,27 @@ export default function ContractModal({
   const [lonasLista, setLonasLista] = useState<ContractLonaItem[]>([
     {
       id: 'LONA-1',
+      valla_medidas: '15 x 4 m',
       direccion: '3er ANILLO INTERNO CANAL COTOCA',
-      medidas: '15x4',
+      medidas: '15 x 4 m',
       costo_unitario_bs: 4380,
       descuento_lona_bs: 0,
       total_costo_bs: 4380
     },
     {
       id: 'LONA-2',
+      valla_medidas: '10 x 4 m',
       direccion: '3er ANILLO INTERNO ENTRE AV. BUSH Y AV. SAN MARTIN',
-      medidas: '10X4',
+      medidas: '10 x 4 m',
       costo_unitario_bs: 2920,
       descuento_lona_bs: 30,
       total_costo_bs: 2890
     },
     {
       id: 'LONA-3',
+      valla_medidas: '10 x 4 m',
       direccion: '2do ANILLO AV. PIRAI DIAGONAL HIPERMAXI',
-      medidas: '10X4',
+      medidas: '10 x 4 m',
       costo_unitario_bs: 2920,
       descuento_lona_bs: 30,
       total_costo_bs: 2890
@@ -278,20 +337,162 @@ export default function ContractModal({
     }
   }, [fechaInicio, periodoMeses]);
 
-  // Valla Item Handlers
-  const handleAddVallaRow = () => {
+  // Available unique cities from vehicles
+  const availableCities = useMemo(() => {
+    const set = new Set<string>();
+    vehicles.forEach(v => {
+      if (v.ciudad) set.add(v.ciudad);
+    });
+    return Array.from(set).sort();
+  }, [vehicles]);
+
+  // Check vehicle availability helper
+  const getVehicleAvailabilityStatus = (v: Vehicle) => {
+    const isAlreadyInContract = vallasLista.some(vl => vl.valla_id === v.id);
+    if (isAlreadyInContract) {
+      return { available: false, reason: 'Ya agregada al contrato', isCurrent: true };
+    }
+
+    if (v.estado && v.estado !== 'Disponible') {
+      return { available: false, reason: `Estado: ${v.estado}`, isCurrent: false };
+    }
+
+    if (fechaInicio && fechaFin && contracts && contracts.length > 0) {
+      const start = new Date(fechaInicio).getTime();
+      const end = new Date(fechaFin).getTime();
+
+      const collidingContract = contracts.find(c => {
+        if (c.id === initialContract?.id) return false;
+        if (c.estado !== 'Vigente' && c.estado !== 'Pendiente Firma') return false;
+
+        const hasVehicle = 
+          c.valla_id === v.id || 
+          c.vehiculo_id === v.id || 
+          (c.vallas_lista && c.vallas_lista.some(vl => vl.valla_id === v.id));
+
+        if (!hasVehicle) return false;
+
+        const cStart = new Date(c.fecha_inicio).getTime();
+        const cEnd = new Date(c.fecha_fin).getTime();
+
+        if (isNaN(cStart) || isNaN(cEnd)) return false;
+        return !(end < cStart || start > cEnd);
+      });
+
+      if (collidingContract) {
+        return { 
+          available: false, 
+          reason: `Alquilada (${collidingContract.numero || 'Contrato activo'})`, 
+          isCurrent: false 
+        };
+      }
+    }
+
+    return { available: true, reason: 'Disponible', isCurrent: false };
+  };
+
+  // Filtered vehicles for the Billboard Selector
+  const filteredVehiclesForSelector = useMemo(() => {
+    return vehicles.filter(v => {
+      const status = getVehicleAvailabilityStatus(v);
+      if (onlyAvailableFilter && !status.available && !status.isCurrent) {
+        return false;
+      }
+
+      if (selectedCityFilter !== 'TODAS' && v.ciudad?.toLowerCase() !== selectedCityFilter.toLowerCase()) {
+        return false;
+      }
+
+      if (vallaSearch.trim()) {
+        const query = vallaSearch.toLowerCase();
+        const matchCode = (v.codigo || v.id || '').toLowerCase().includes(query);
+        const matchName = (v.nombre || v.modelo || '').toLowerCase().includes(query);
+        const matchStreet = (v.avenida_calle || '').toLowerCase().includes(query);
+        const matchCity = (v.ciudad || '').toLowerCase().includes(query);
+        const matchZone = (v.zona || '').toLowerCase().includes(query);
+        const matchType = (v.tipo_valla || v.tipo || '').toLowerCase().includes(query);
+        const matchDim = (v.medidas || v.dimensiones || '').toLowerCase().includes(query);
+        if (!matchCode && !matchName && !matchStreet && !matchCity && !matchZone && !matchType && !matchDim) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [vehicles, onlyAvailableFilter, selectedCityFilter, vallaSearch, vallasLista, fechaInicio, fechaFin, contracts, initialContract]);
+
+  // Handler to select billboard from catalog and auto-populate measures & lonas
+  const handleSelectBillboardFromCatalog = (valla: Vehicle) => {
+    const newVallaId = 'VALLA-' + Date.now();
+    const newLonaId = 'LONA-' + (Date.now() + 1);
+    const dimensions = valla.medidas || valla.dimensiones || '12 x 4 m';
+    const rentCostBs = Math.round((valla.precio_usd || 1000) * tc);
+    const lonaCostBs = calculateSuggestedLonaCostBs(dimensions, valla.costo_lona_m2_bs);
+    const locationName = valla.avenida_calle 
+      ? `${valla.avenida_calle} (${valla.codigo || valla.modelo || valla.id})`
+      : (valla.nombre || valla.modelo || 'Ubicación Valla');
+
+    const newVallaRow: ContractVallaItem = {
+      id: newVallaId,
+      valla_id: valla.id,
+      ciudad: valla.ciudad || clienteCiudad || 'Santa Cruz',
+      formato: valla.tipo_valla || valla.tipo || 'Valla Unipolar',
+      direccion: locationName,
+      medidas: dimensions,
+      costo_mensual_bs: rentCostBs,
+      descuento_bs: 0,
+      costo_neto_bs: rentCostBs
+    };
+
+    const newLonaRow: ContractLonaItem = {
+      id: newLonaId,
+      valla_id: valla.id,
+      valla_medidas: dimensions,
+      direccion: locationName,
+      medidas: dimensions, // Autocomplete suggested lona size matching billboard size!
+      costo_unitario_bs: lonaCostBs,
+      descuento_lona_bs: 0,
+      total_costo_bs: lonaCostBs
+    };
+
+    setVallasLista(prev => [...prev, newVallaRow]);
+    setLonasLista(prev => [...prev, newLonaRow]);
+    setShowVallaSelector(false);
+    setAddedNotice(`✅ ${valla.codigo || valla.modelo || 'Valla'} agregada con medidas: ${dimensions}`);
+    setTimeout(() => setAddedNotice(null), 3500);
+  };
+
+  // Handler to add a blank/manual row
+  const handleAddManualVallaRow = () => {
+    const newVallaId = 'VALLA-' + Date.now();
+    const newLonaId = 'LONA-' + (Date.now() + 1);
+    const defaultMedida = '12 x 4 m';
     const newRow: ContractVallaItem = {
-      id: 'VALLA-' + Date.now(),
+      id: newVallaId,
       ciudad: clienteCiudad || 'Santa Cruz',
       formato: 'Valla Unipolar',
       direccion: 'Nueva Ubicación Avenida / Anillo',
+      medidas: defaultMedida,
       costo_mensual_bs: 8000,
       descuento_bs: 0,
       costo_neto_bs: 8000
     };
-    setVallasLista([...vallasLista, newRow]);
+    const newLonaRow: ContractLonaItem = {
+      id: newLonaId,
+      valla_id: newVallaId,
+      valla_medidas: defaultMedida,
+      direccion: 'Nueva Ubicación Avenida / Anillo',
+      medidas: defaultMedida,
+      costo_unitario_bs: 2920,
+      descuento_lona_bs: 0,
+      total_costo_bs: 2920
+    };
+    setVallasLista(prev => [...prev, newRow]);
+    setLonasLista(prev => [...prev, newLonaRow]);
+    setShowVallaSelector(false);
   };
 
+  // Valla Item Handlers
   const handleUpdateVallaRow = (id: string, field: keyof ContractVallaItem, value: any) => {
     setVallasLista(vallasLista.map((v) => {
       if (v.id === id) {
@@ -316,10 +517,11 @@ export default function ContractModal({
     const newRow: ContractLonaItem = {
       id: 'LONA-' + Date.now(),
       direccion: 'Ubicación de Impresión de Lona',
-      medidas: '10x4',
+      medidas: '12 x 4 m',
+      valla_medidas: '12 x 4 m',
       costo_unitario_bs: 2920,
-      descuento_lona_bs: 30,
-      total_costo_bs: 2890
+      descuento_lona_bs: 0,
+      total_costo_bs: 2920
     };
     setLonasLista([...lonasLista, newRow]);
   };
@@ -829,6 +1031,17 @@ export default function ContractModal({
           {step === 2 && (
             <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
               
+              {/* Notice Toast */}
+              {addedNotice && (
+                <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs font-bold text-emerald-800 flex items-center justify-between shadow-xs">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{addedNotice}</span>
+                  </div>
+                  <button onClick={() => setAddedNotice(null)} className="text-emerald-700 hover:text-emerald-950 text-xs">✕</button>
+                </div>
+              )}
+
               {/* TABLA 1: ESPACIOS PUBLICITARIOS (VALLAS) */}
               <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
@@ -838,17 +1051,26 @@ export default function ContractModal({
                       <span>Tabla 1: Espacios Publicitarios (Vallas)</span>
                     </h3>
                     <p className="text-[11px] text-slate-500">
-                      Costo mensual por cada valla contratada. Aplique descuentos individuales si aplica.
+                      Seleccione estructuras del catálogo para autocompletar medidas y cánones, o edite libremente.
                     </p>
                   </div>
 
-                  <button
-                    onClick={handleAddVallaRow}
-                    className="px-3 py-1.5 bg-amber-500 text-slate-950 font-bold text-xs rounded-xl hover:bg-amber-400 transition flex items-center space-x-1 cursor-pointer shadow-sm"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Agregar Espacio Valla</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowVallaSelector(true)}
+                      className="px-3.5 py-1.5 bg-amber-500 text-slate-950 font-extrabold text-xs rounded-xl hover:bg-amber-400 transition flex items-center space-x-1.5 cursor-pointer shadow-sm active:scale-98"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-slate-950" />
+                      <span>+ Seleccionar Valla del Catálogo</span>
+                    </button>
+                    <button
+                      onClick={handleAddManualVallaRow}
+                      className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition flex items-center space-x-1 cursor-pointer"
+                      title="Agregar una fila en blanco sin asociar al catálogo"
+                    >
+                      <span>+ Fila Manual</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -857,7 +1079,8 @@ export default function ContractModal({
                       <tr>
                         <th className="p-2.5">Ciudad</th>
                         <th className="p-2.5">Formato</th>
-                        <th className="p-2.5 min-w-[220px]">Dirección / Ubicación</th>
+                        <th className="p-2.5 min-w-[200px]">Dirección / Ubicación</th>
+                        <th className="p-2.5 min-w-[100px]">Medida Valla</th>
                         <th className="p-2.5 text-right">Precio Lista (Bs)</th>
                         <th className="p-2.5 text-right">Desc. (Bs)</th>
                         <th className="p-2.5 text-right">Costo Neto (Bs)</th>
@@ -891,6 +1114,15 @@ export default function ContractModal({
                               className="w-full px-2 py-1 rounded border border-slate-200 text-xs font-bold text-slate-900"
                             />
                           </td>
+                          <td className="p-2">
+                            <input
+                              type="text"
+                              value={v.medidas || ''}
+                              onChange={(e) => handleUpdateVallaRow(v.id, 'medidas', e.target.value)}
+                              placeholder="12 x 4 m"
+                              className="w-24 px-2 py-1 rounded border border-slate-200 text-xs font-mono font-bold text-slate-700 bg-slate-50 uppercase"
+                            />
+                          </td>
                           <td className="p-2 text-right">
                             <input
                               type="number"
@@ -915,6 +1147,7 @@ export default function ContractModal({
                               <button
                                 onClick={() => handleDeleteVallaRow(v.id)}
                                 className="p-1 rounded bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 transition cursor-pointer"
+                                title="Eliminar este espacio"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -925,7 +1158,7 @@ export default function ContractModal({
                     </tbody>
                     <tfoot className="bg-slate-100 font-extrabold text-slate-900 text-xs">
                       <tr>
-                        <td colSpan={5} className="p-3 uppercase">SUMA TOTAL MENSUAL CANON VALLAS:</td>
+                        <td colSpan={6} className="p-3 uppercase">SUMA TOTAL MENSUAL CANON VALLAS:</td>
                         <td className="p-3 text-right font-mono text-amber-700 text-sm">
                           Bs. {totalVallasBs.toLocaleString('es-BO')}
                         </td>
@@ -945,7 +1178,7 @@ export default function ContractModal({
                       <span>Tabla 2: Impresión e Instalación de Lonas</span>
                     </h3>
                     <p className="text-[11px] text-slate-500">
-                      Detalle de medidas e impresión full color 720 DPI para cada estructura.
+                      Comparativa visual entre medida de estructura vs medida de impresión requerida.
                     </p>
                   </div>
 
@@ -954,7 +1187,7 @@ export default function ContractModal({
                     className="px-3 py-1.5 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-500 transition flex items-center space-x-1 cursor-pointer shadow-sm"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Agregar Lona</span>
+                    <span>Agregar Lona Manual</span>
                   </button>
                 </div>
 
@@ -962,8 +1195,8 @@ export default function ContractModal({
                   <table className="w-full text-left text-xs border-collapse">
                     <thead className="bg-slate-900 text-white font-bold uppercase text-[10px] tracking-wider">
                       <tr>
-                        <th className="p-2.5 min-w-[220px]">Impresión de Lonas (Dirección)</th>
-                        <th className="p-2.5">Medidas</th>
+                        <th className="p-2.5 min-w-[180px]">Impresión de Lonas (Dirección)</th>
+                        <th className="p-2.5 min-w-[260px]">Medida Valla vs Medida Lona</th>
                         <th className="p-2.5 text-right">Costo Unit. (Bs)</th>
                         <th className="p-2.5 text-right">Desc. Lona (Bs)</th>
                         <th className="p-2.5 text-right">Total Costo Lona (Bs)</th>
@@ -971,55 +1204,110 @@ export default function ContractModal({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-semibold text-slate-800">
-                      {lonasLista.map((l) => (
-                        <tr key={l.id} className="hover:bg-slate-50">
-                          <td className="p-2">
-                            <input
-                              type="text"
-                              value={l.direccion}
-                              onChange={(e) => handleUpdateLonaRow(l.id, 'direccion', e.target.value)}
-                              className="w-full px-2 py-1 rounded border border-slate-200 text-xs font-bold text-slate-900"
-                            />
-                          </td>
-                          <td className="p-2">
-                            <input
-                              type="text"
-                              value={l.medidas}
-                              onChange={(e) => handleUpdateLonaRow(l.id, 'medidas', e.target.value)}
-                              className="w-24 px-2 py-1 rounded border border-slate-200 text-xs font-mono uppercase"
-                            />
-                          </td>
-                          <td className="p-2 text-right">
-                            <input
-                              type="number"
-                              value={l.costo_unitario_bs}
-                              onChange={(e) => handleUpdateLonaRow(l.id, 'costo_unitario_bs', parseFloat(e.target.value) || 0)}
-                              className="w-24 text-right px-2 py-1 rounded border border-slate-200 text-xs font-mono"
-                            />
-                          </td>
-                          <td className="p-2 text-right">
-                            <input
-                              type="number"
-                              value={l.descuento_lona_bs}
-                              onChange={(e) => handleUpdateLonaRow(l.id, 'descuento_lona_bs', parseFloat(e.target.value) || 0)}
-                              className="w-20 text-right px-2 py-1 rounded border border-slate-200 text-xs font-mono text-emerald-600"
-                            />
-                          </td>
-                          <td className="p-2 text-right font-mono font-bold text-slate-900">
-                            Bs. {l.total_costo_bs.toLocaleString('es-BO')}
-                          </td>
-                          <td className="p-2 text-center">
-                            {lonasLista.length > 1 && (
-                              <button
-                                onClick={() => handleDeleteLonaRow(l.id)}
-                                className="p-1 rounded bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 transition cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                      {lonasLista.map((l, idx) => {
+                        // Find matching billboard measure for comparison
+                        const vallaMedida = l.valla_medidas || 
+                          vallasLista.find(v => v.valla_id === l.valla_id)?.medidas || 
+                          vallasLista[idx]?.medidas || '';
+
+                        const isMatching = vallaMedida ? (normalizeDimension(l.medidas) === normalizeDimension(vallaMedida)) : true;
+
+                        return (
+                          <tr key={l.id} className="hover:bg-slate-50">
+                            <td className="p-2">
+                              <input
+                                type="text"
+                                value={l.direccion}
+                                onChange={(e) => handleUpdateLonaRow(l.id, 'direccion', e.target.value)}
+                                className="w-full px-2 py-1 rounded border border-slate-200 text-xs font-bold text-slate-900"
+                              />
+                            </td>
+                            
+                            {/* MEDIDA DE LA VALLA VS MEDIDA DE LA LONA */}
+                            <td className="p-2">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {vallaMedida && (
+                                  <div 
+                                    className="flex items-center gap-1 bg-slate-100 border border-slate-200 px-2 py-1 rounded text-slate-700 text-xs font-mono font-bold whitespace-nowrap"
+                                    title="Medida oficial de la estructura valla"
+                                  >
+                                    <span className="text-[10px] text-slate-400 font-sans uppercase font-bold">Valla:</span>
+                                    <span>{vallaMedida}</span>
+                                  </div>
+                                )}
+
+                                {vallaMedida && <span className="text-slate-300 font-bold hidden sm:inline">|</span>}
+
+                                <div className="flex items-center gap-1.5">
+                                  <div className="flex items-center gap-1 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                                    <span className="text-[10px] text-slate-400 font-sans uppercase font-bold">Lona:</span>
+                                    <input
+                                      type="text"
+                                      value={l.medidas}
+                                      onChange={(e) => handleUpdateLonaRow(l.id, 'medidas', e.target.value)}
+                                      placeholder="12 x 4 m"
+                                      className={`w-24 px-1.5 py-0.5 rounded text-xs font-mono uppercase font-bold focus:outline-none transition ${
+                                        isMatching 
+                                          ? 'border-transparent text-slate-900 focus:ring-1 focus:ring-amber-500' 
+                                          : 'border border-amber-400 bg-amber-50 text-amber-950 focus:ring-1 focus:ring-amber-500'
+                                      }`}
+                                    />
+                                  </div>
+
+                                  {vallaMedida && (
+                                    isMatching ? (
+                                      <span 
+                                        className="inline-flex items-center text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded text-[11px] font-bold whitespace-nowrap"
+                                        title="La medida de la lona coincide con la de la valla"
+                                      >
+                                        <Check className="w-3 h-3 text-emerald-600 mr-0.5" /> ✅
+                                      </span>
+                                    ) : (
+                                      <span 
+                                        className="inline-flex items-center text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded text-[11px] font-bold whitespace-nowrap shadow-2xs"
+                                        title="Advertencia: La medida de la lona no coincide exactamente con la medida de la estructura. Puede guardar normalmente."
+                                      >
+                                        <AlertCircle className="w-3 h-3 text-amber-600 mr-1 shrink-0" /> ⚠️ Medida distinta
+                                      </span>
+                                    )
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="p-2 text-right">
+                              <input
+                                type="number"
+                                value={l.costo_unitario_bs}
+                                onChange={(e) => handleUpdateLonaRow(l.id, 'costo_unitario_bs', parseFloat(e.target.value) || 0)}
+                                className="w-24 text-right px-2 py-1 rounded border border-slate-200 text-xs font-mono"
+                              />
+                            </td>
+                            <td className="p-2 text-right">
+                              <input
+                                type="number"
+                                value={l.descuento_lona_bs}
+                                onChange={(e) => handleUpdateLonaRow(l.id, 'descuento_lona_bs', parseFloat(e.target.value) || 0)}
+                                className="w-20 text-right px-2 py-1 rounded border border-slate-200 text-xs font-mono text-emerald-600"
+                              />
+                            </td>
+                            <td className="p-2 text-right font-mono font-bold text-slate-900">
+                              Bs. {l.total_costo_bs.toLocaleString('es-BO')}
+                            </td>
+                            <td className="p-2 text-center">
+                              {lonasLista.length > 1 && (
+                                <button
+                                  onClick={() => handleDeleteLonaRow(l.id)}
+                                  className="p-1 rounded bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 transition cursor-pointer"
+                                  title="Eliminar este ítem de lona"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                     <tfoot className="bg-slate-100 font-extrabold text-slate-900 text-xs">
                       <tr>
@@ -1528,6 +1816,266 @@ export default function ContractModal({
         </div>
 
       </div>
+
+      {/* BILLBOARD SELECTOR MODAL */}
+      {showVallaSelector && (
+        <div className="fixed inset-0 z-60 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            
+            {/* Header */}
+            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-amber-500 rounded-2xl text-slate-950">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black uppercase tracking-wider text-white">
+                    Catálogo de Vallas Publicitarias & Pantallas
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Seleccione una estructura disponible para transferir medidas y cánones al contrato
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowVallaSelector(false)}
+                className="p-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="p-4 bg-slate-50 border-b border-slate-200 space-y-3">
+              <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+                {/* Search */}
+                <div className="relative w-full sm:flex-1">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={vallaSearch}
+                    onChange={(e) => setVallaSearch(e.target.value)}
+                    placeholder="Buscar por código, avenida, zona, formato o medidas..."
+                    className="w-full pl-9 pr-8 py-2 bg-white rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                  {vallaSearch && (
+                    <button
+                      onClick={() => setVallaSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Only Available Toggle */}
+                <button
+                  onClick={() => setOnlyAvailableFilter(!onlyAvailableFilter)}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap cursor-pointer ${
+                    onlyAvailableFilter 
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs' 
+                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${onlyAvailableFilter ? 'bg-emerald-600' : 'bg-slate-400'}`}></span>
+                  <span>{onlyAvailableFilter ? 'Solo Disponibles' : 'Ver Todas'}</span>
+                </button>
+              </div>
+
+              {/* City Filter Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                <span className="text-[11px] font-bold text-slate-500 mr-1 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-slate-400" /> Ciudad:
+                </span>
+                <button
+                  onClick={() => setSelectedCityFilter('TODAS')}
+                  className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition whitespace-nowrap ${
+                    selectedCityFilter === 'TODAS'
+                      ? 'bg-slate-900 text-amber-400'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  Todas ({vehicles.length})
+                </button>
+                {availableCities.map(city => {
+                  const count = vehicles.filter(v => v.ciudad?.toLowerCase() === city.toLowerCase()).length;
+                  return (
+                    <button
+                      key={city}
+                      onClick={() => setSelectedCityFilter(city)}
+                      className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition whitespace-nowrap ${
+                        selectedCityFilter === city
+                          ? 'bg-slate-900 text-amber-400'
+                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {city} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Billboard Grid Content */}
+            <div className="p-4 sm:p-5 overflow-y-auto flex-1 max-h-[58vh]">
+              {filteredVehiclesForSelector.length === 0 ? (
+                <div className="p-12 text-center text-slate-500 space-y-3">
+                  <Layers className="w-10 h-10 text-slate-300 mx-auto" />
+                  <p className="font-bold text-sm text-slate-700">No se encontraron vallas con los filtros actuales</p>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                    Intente cambiar la búsqueda o desmarcar el filtro de "Solo Disponibles".
+                  </p>
+                  <button
+                    onClick={() => {
+                      setVallaSearch('');
+                      setSelectedCityFilter('TODAS');
+                      setOnlyAvailableFilter(false);
+                    }}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
+                  >
+                    Restablecer Filtros
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {filteredVehiclesForSelector.map(v => {
+                    const status = getVehicleAvailabilityStatus(v);
+                    const dimensions = v.medidas || v.dimensiones || '12 x 4 m';
+                    const rentBs = Math.round((v.precio_usd || 1000) * tc);
+                    const lonaBs = calculateSuggestedLonaCostBs(dimensions, v.costo_lona_m2_bs);
+                    const areaM2 = parseDimensionsM2(dimensions);
+
+                    return (
+                      <div
+                        key={v.id}
+                        className={`rounded-2xl border p-3 flex gap-3 transition shadow-xs hover:shadow-md ${
+                          status.isCurrent 
+                            ? 'bg-emerald-50/40 border-emerald-300'
+                            : !status.available
+                              ? 'bg-slate-50/80 border-slate-200 opacity-75'
+                              : 'bg-white border-slate-200 hover:border-amber-400'
+                        }`}
+                      >
+                        {/* Thumbnail */}
+                        <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200 relative">
+                          <img
+                            src={formatDriveUrl(v.imagen_url || v.foto_url || v.fotos?.[0])}
+                            alt={v.codigo || v.modelo}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                          <div className="absolute top-1 left-1 bg-slate-950/80 backdrop-blur-xs text-amber-400 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold">
+                            {v.codigo || v.id}
+                          </div>
+                        </div>
+
+                        {/* Details */}
+                        <div className="flex flex-col justify-between flex-1 min-w-0">
+                          <div>
+                            {/* Status badge */}
+                            <div className="flex items-center justify-between gap-1 mb-1">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase truncate">
+                                {v.tipo_valla || v.tipo || 'Valla'} • {v.ciudad || 'Bolivia'}
+                              </span>
+                              {status.isCurrent ? (
+                                <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-bold">
+                                  ✓ En este contrato
+                                </span>
+                              ) : status.available ? (
+                                <span className="px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 text-[9px] font-bold flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                  Disponible
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 rounded bg-rose-50 border border-rose-200 text-rose-700 text-[9px] font-bold" title={status.reason}>
+                                  🔴 {status.reason}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Location / Name */}
+                            <h4 className="font-extrabold text-xs text-slate-900 line-clamp-1">
+                              {v.avenida_calle || v.nombre || v.modelo}
+                            </h4>
+                            {v.zona && (
+                              <p className="text-[10px] text-slate-500 line-clamp-1 mb-1.5">
+                                Zona: {v.zona}
+                              </p>
+                            )}
+
+                            {/* Specs Pills */}
+                            <div className="grid grid-cols-2 gap-1.5 text-[11px] font-semibold my-1.5">
+                              <div className="bg-slate-100 px-2 py-1 rounded text-slate-700 font-mono">
+                                <span className="text-[9px] text-slate-400 block font-sans font-bold">MEDIDA</span>
+                                📏 {dimensions} ({areaM2} m²)
+                              </div>
+                              <div className="bg-amber-50 border border-amber-200 px-2 py-1 rounded text-amber-900 font-mono">
+                                <span className="text-[9px] text-amber-700 block font-sans font-bold">CANON MENSUAL</span>
+                                Bs. {rentBs.toLocaleString('es-BO')}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action Button */}
+                          <div className="mt-2 pt-1 border-t border-slate-100 flex items-center justify-between">
+                            <span className="text-[10px] text-slate-400 font-mono" title="Costo estimado de impresión de lona">
+                              Lona: ~Bs. {lonaBs.toLocaleString('es-BO')}
+                            </span>
+
+                            {status.isCurrent ? (
+                              <button
+                                disabled
+                                className="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-lg cursor-not-allowed"
+                              >
+                                Agregada ✅
+                              </button>
+                            ) : !status.available ? (
+                              <button
+                                disabled
+                                className="px-3 py-1 bg-slate-200 text-slate-400 text-xs font-bold rounded-lg cursor-not-allowed"
+                              >
+                                No disponible 🔒
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleSelectBillboardFromCatalog(v)}
+                                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs rounded-lg transition cursor-pointer shadow-xs active:scale-95 flex items-center space-x-1"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>+ Seleccionar</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+              <button
+                onClick={handleAddManualVallaRow}
+                className="text-xs font-bold text-slate-600 hover:text-slate-900 underline transition cursor-pointer"
+              >
+                + Crear estructura manual fuera de catálogo
+              </button>
+
+              <button
+                onClick={() => setShowVallaSelector(false)}
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition cursor-pointer shadow-xs"
+              >
+                Cerrar Selector
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }

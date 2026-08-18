@@ -72,6 +72,14 @@ export default function SettingsConfig({
 
   // Local states for inputs
   const [empresa, setEmpresa] = useState(settings.nombre_empresa);
+  const [nombreComercial, setNombreComercial] = useState(settings.nombre_comercial || 'Publi-X Cobertura Nacional Impacto Total');
+  const [nit, setNit] = useState(settings.nit || '4579387019');
+  const [domicilioLegal, setDomicilioLegal] = useState(settings.domicilio_legal || 'Calle Los Tajibos 2185, Barrio Petrolero Norte, UV 0016 MZA 14, entre 2do anillo y Av. Los Cusis, frente a importadora TOA, Santa Cruz');
+  const [representanteLegal, setRepresentanteLegal] = useState(settings.representante_legal || 'Carlos David Vargas Añez');
+  const [representanteCargo, setRepresentanteCargo] = useState(settings.representante_cargo || 'Gerente General');
+  const [representanteCi, setRepresentanteCi] = useState(settings.representante_ci || '4579387');
+  const [representanteCiEmision, setRepresentanteCiEmision] = useState(settings.representante_ci_emision || 'Santa Cruz');
+  const [notariaArbitraje, setNotariaArbitraje] = useState(settings.notaria_arbitraje || 'CAINCO Santa Cruz');
   const [direccion, setDireccion] = useState(settings.direccion);
   const [ciudad, setCiudad] = useState(settings.ciudad);
   const [departamento, setDepartamento] = useState(settings.departamento);
@@ -89,6 +97,14 @@ export default function SettingsConfig({
   // Keep local states in sync when global settings update
   React.useEffect(() => {
     setEmpresa(settings.nombre_empresa);
+    setNombreComercial(settings.nombre_comercial || 'Publi-X Cobertura Nacional Impacto Total');
+    setNit(settings.nit || '4579387019');
+    setDomicilioLegal(settings.domicilio_legal || 'Calle Los Tajibos 2185, Barrio Petrolero Norte, UV 0016 MZA 14, entre 2do anillo y Av. Los Cusis, frente a importadora TOA, Santa Cruz');
+    setRepresentanteLegal(settings.representante_legal || 'Carlos David Vargas Añez');
+    setRepresentanteCargo(settings.representante_cargo || 'Gerente General');
+    setRepresentanteCi(settings.representante_ci || '4579387');
+    setRepresentanteCiEmision(settings.representante_ci_emision || 'Santa Cruz');
+    setNotariaArbitraje(settings.notaria_arbitraje || 'CAINCO Santa Cruz');
     setDireccion(settings.direccion);
     setCiudad(settings.ciudad);
     setDepartamento(settings.departamento);
@@ -231,6 +247,14 @@ export default function SettingsConfig({
     onUpdateSettings({
       ...settings,
       nombre_empresa: isDueno ? empresa.trim() : settings.nombre_empresa,
+      nombre_comercial: isDueno ? nombreComercial.trim() : settings.nombre_comercial,
+      nit: isDueno ? nit.trim() : settings.nit,
+      domicilio_legal: isDueno ? domicilioLegal.trim() : settings.domicilio_legal,
+      representante_legal: isDueno ? representanteLegal.trim() : settings.representante_legal,
+      representante_cargo: isDueno ? representanteCargo.trim() : settings.representante_cargo,
+      representante_ci: isDueno ? representanteCi.trim() : settings.representante_ci,
+      representante_ci_emision: isDueno ? representanteCiEmision.trim() : settings.representante_ci_emision,
+      notaria_arbitraje: isDueno ? notariaArbitraje.trim() : settings.notaria_arbitraje,
       direccion: isDueno ? direccion.trim() : settings.direccion,
       ciudad: isDueno ? ciudad.trim() : settings.ciudad,
       departamento: isDueno ? departamento.trim() : settings.departamento,
@@ -685,6 +709,115 @@ export default function SettingsConfig({
                     className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 disabled:opacity-60 disabled:cursor-not-allowed"
                     disabled={!isDueno}
                   />
+                </div>
+              </div>
+
+              {/* Fixed Company Legal Information for Contracts and Invoices (Point 1) */}
+              <div className="p-5 bg-amber-50/50 border border-amber-200/80 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between border-b border-amber-200 pb-2">
+                  <div className="flex items-center space-x-2">
+                    <ShieldCheck className="w-4 h-4 text-amber-600" />
+                    <span className="text-xs font-black text-amber-950 uppercase tracking-wider">Datos Legales Fijos de PUBLI-X (Contratos y Facturación)</span>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-amber-700 bg-white px-2 py-0.5 rounded border border-amber-300">
+                    Cláusulas 1 a 11 & SIN
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">Razón Social / Nombre Comercial Legal</label>
+                    <input
+                      type="text"
+                      value={nombreComercial}
+                      onChange={(e) => setNombreComercial(e.target.value)}
+                      placeholder="Publi-X Cobertura Nacional Impacto Total"
+                      className="w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 disabled:opacity-60"
+                      disabled={!isDueno}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">N.I.T. de la Empresa</label>
+                    <input
+                      type="text"
+                      value={nit}
+                      onChange={(e) => setNit(e.target.value)}
+                      placeholder="4579387019"
+                      className="w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 font-mono disabled:opacity-60"
+                      disabled={!isDueno}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">Domicilio Legal Completo (Cláusula 1ª y 11ª)</label>
+                    <input
+                      type="text"
+                      value={domicilioLegal}
+                      onChange={(e) => setDomicilioLegal(e.target.value)}
+                      placeholder="Calle Los Tajibos 2185, Barrio Petrolero Norte, UV 0016 MZA 14..."
+                      className="w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 disabled:opacity-60"
+                      disabled={!isDueno}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">Representante Legal Oficial</label>
+                    <input
+                      type="text"
+                      value={representanteLegal}
+                      onChange={(e) => setRepresentanteLegal(e.target.value)}
+                      placeholder="Carlos David Vargas Añez"
+                      className="w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 disabled:opacity-60"
+                      disabled={!isDueno}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">Cargo del Representante</label>
+                    <input
+                      type="text"
+                      value={representanteCargo}
+                      onChange={(e) => setRepresentanteCargo(e.target.value)}
+                      placeholder="Gerente General"
+                      className="w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 disabled:opacity-60"
+                      disabled={!isDueno}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">C.I. Representante y Emisión</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={representanteCi}
+                        onChange={(e) => setRepresentanteCi(e.target.value)}
+                        placeholder="4579387"
+                        className="flex-1 px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 font-mono disabled:opacity-60"
+                        disabled={!isDueno}
+                      />
+                      <input
+                        type="text"
+                        value={representanteCiEmision}
+                        onChange={(e) => setRepresentanteCiEmision(e.target.value)}
+                        placeholder="Santa Cruz"
+                        className="w-28 px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 disabled:opacity-60"
+                        disabled={!isDueno}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">Centro de Arbitraje / Notaría de Jurisdicción</label>
+                    <input
+                      type="text"
+                      value={notariaArbitraje}
+                      onChange={(e) => setNotariaArbitraje(e.target.value)}
+                      placeholder="CAINCO Santa Cruz"
+                      className="w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 disabled:opacity-60"
+                      disabled={!isDueno}
+                    />
+                  </div>
                 </div>
               </div>
 

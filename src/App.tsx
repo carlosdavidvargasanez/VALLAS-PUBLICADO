@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { mockDb } from './data/mockDatabase';
-import { Client, Vehicle, Quotation, Contract, FollowUp, MessageTemplate, AuditLog, Settings, UserSession, QuotationState, ContractStatus, FollowUpState } from './types';
+import { Client, Vehicle, Quotation, Contract, Invoice, FollowUp, MessageTemplate, AuditLog, Settings, UserSession, QuotationState, ContractStatus, FollowUpState } from './types';
 import Dashboard from './components/Dashboard';
 import Clients from './components/Clients';
 import Vehicles from './components/Vehicles';
@@ -8,6 +8,7 @@ import Recommendation from './components/Recommendation';
 import WhatsAppSender from './components/WhatsAppSender';
 import Quotations from './components/Quotations';
 import Contracts from './components/Contracts';
+import Invoices from './components/Invoices';
 import DocumentManager from './components/DocumentManager';
 import Agenda from './components/Agenda';
 import ImportExport from './components/ImportExport';
@@ -23,6 +24,7 @@ import {
   Presentation, 
   FileText, 
   FileCheck,
+  Receipt,
   MessageSquare, 
   Calendar, 
   ShieldCheck, 
@@ -53,6 +55,7 @@ export default function App() {
   const [vehicles, setVehicles] = useState<Vehicle[]>(() => mockDb.getVehicles());
   const [quotations, setQuotations] = useState<Quotation[]>(() => mockDb.getQuotations());
   const [contracts, setContracts] = useState<Contract[]>(() => mockDb.getContracts());
+  const [invoices, setInvoices] = useState<Invoice[]>(() => mockDb.getInvoices());
   const [followUps, setFollowUps] = useState<FollowUp[]>(() => mockDb.getFollowUps());
   const [templates, setTemplates] = useState<MessageTemplate[]>(() => mockDb.getTemplates());
   const [settings, setSettings] = useState<Settings>(() => mockDb.getSettings());
@@ -117,6 +120,7 @@ export default function App() {
       setQuotations(mockDb.getQuotations());
       setClients(mockDb.getClients());
       setContracts(mockDb.getContracts());
+      setInvoices(mockDb.getInvoices());
       setVehicles(mockDb.getVehicles());
     };
 
@@ -157,6 +161,7 @@ export default function App() {
     setVehicles(mockDb.getVehicles());
     setQuotations(mockDb.getQuotations());
     setContracts(mockDb.getContracts());
+    setInvoices(mockDb.getInvoices());
     setFollowUps(mockDb.getFollowUps());
     setTemplates(mockDb.getTemplates());
     setSettings(mockDb.getSettings());
@@ -502,6 +507,55 @@ export default function App() {
         currentUser.nombre,
         'Eliminación de Contrato',
         `Se eliminó el Contrato N° ${contract.numero} de la base de datos.`
+      );
+      setAuditLogs(mockDb.getAuditLogs());
+    }
+  };
+
+  // Invoices Mutations (SIN Fiscal Invoices)
+  const handleAddInvoice = async (invoice: Invoice) => {
+    const list = mockDb.getInvoices();
+    const updated = [invoice, ...list];
+    setInvoices(updated);
+    await mockDb.addInvoice(invoice);
+
+    mockDb.addAuditLog(
+      currentUser.nombre,
+      'Emisión de Factura Fiscal',
+      `Se emitió la Factura Fiscal Oficial N° ${invoice.numero_factura} para ${invoice.cliente_razon_social || invoice.cliente_nombre} por un total de Bs. ${invoice.total_bs.toLocaleString('es-BO')}.`
+    );
+    setAuditLogs(mockDb.getAuditLogs());
+  };
+
+  const handleUpdateInvoice = async (id: string, update: Partial<Invoice>) => {
+    const list = mockDb.getInvoices();
+    const inv = list.find(x => x.id === id);
+    if (inv) {
+      const updated = list.map(x => x.id === id ? { ...x, ...update } : x);
+      setInvoices(updated);
+      await mockDb.updateInvoice(id, update);
+
+      mockDb.addAuditLog(
+        currentUser.nombre,
+        'Actualización de Factura Fiscal',
+        `Se modificó la Factura N° ${inv.numero_factura} (Estado: ${update.estado || inv.estado}).`
+      );
+      setAuditLogs(mockDb.getAuditLogs());
+    }
+  };
+
+  const handleDeleteInvoice = async (id: string) => {
+    const list = mockDb.getInvoices();
+    const inv = list.find(x => x.id === id);
+    if (inv) {
+      const updated = list.filter(x => x.id !== id);
+      setInvoices(updated);
+      await mockDb.deleteInvoice(id);
+
+      mockDb.addAuditLog(
+        currentUser.nombre,
+        'Eliminación de Factura',
+        `Se eliminó la Factura N° ${inv.numero_factura} de la base de datos.`
       );
       setAuditLogs(mockDb.getAuditLogs());
     }
@@ -1212,8 +1266,9 @@ export default function App() {
                   { id: 'recomendacion', label: 'RECOMENDADOR IA', icon: Sparkles, badge: null },
                   { id: 'whatsapp', label: 'WHATSAPP COMERCIAL', icon: MessageSquare, badge: null },
                   { id: 'cotizaciones', label: 'COTIZACIONES PDF', icon: FileText, badge: displayQuotations.length },
-                  { id: 'documentos', label: 'CENTRO DE DOCUMENTOS', icon: FolderSync, badge: 'PRO' },
                   { id: 'contratos', label: 'CONTRATOS CRM', icon: FileCheck, badge: displayContracts.length },
+                  { id: 'facturacion', label: 'FACTURACIÓN & SIN', icon: Receipt, badge: invoices.length },
+                  { id: 'documentos', label: 'CENTRO DE DOCUMENTOS', icon: FolderSync, badge: 'PRO' },
                   { id: 'agenda', label: 'SEGUIMIENTOS AGENDA', icon: Calendar, badge: followUps.filter(f => f.estado === 'Pendiente').length },
                   { id: 'importar', label: 'EXCEL IMPORT / EXPORT', icon: Database, badge: null },
                   { id: 'auditoria', label: 'BITÁCORA AUDITORÍA', icon: ShieldCheck, badge: null },
@@ -1287,6 +1342,7 @@ export default function App() {
                   clients={clients}
                   vehicles={vehicles}
                   quotations={quotations}
+                  contracts={contracts}
                   followUps={followUps}
                   auditLogs={auditLogs}
                   onTabChange={setActiveTab}
@@ -1409,6 +1465,20 @@ export default function App() {
                   onSaveContract={handleAddContract}
                   onUpdateContractStatus={handleUpdateContractStatus}
                   onDeleteContract={handleDeleteContract}
+                />
+              )}
+
+              {activeTab === 'facturacion' && (
+                <Invoices
+                  invoices={invoices}
+                  contracts={contracts}
+                  quotations={quotations}
+                  clients={clients}
+                  settings={settings}
+                  currentUser={currentUser}
+                  onAddInvoice={handleAddInvoice}
+                  onUpdateInvoice={handleUpdateInvoice}
+                  onDeleteInvoice={handleDeleteInvoice}
                 />
               )}
 

@@ -1001,6 +1001,389 @@ apiRouter.delete('/pending-requests', async (req: Request, res: Response) => {
 });
 
 // ----------------------------------------------------
+// 7. DEEPSEEK COMMERCIAL AI AGENT (Catálogo en tiempo real)
+// ----------------------------------------------------
+apiRouter.post(['/deepseek/chat', '/commercial-agent/chat'], async (req: Request, res: Response) => {
+  try {
+    const { message, history = [] } = req.body;
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: 'El mensaje del usuario es obligatorio.' });
+    }
+
+    // 1. Obtener catálogo REAL en tiempo real desde PostgreSQL o memoria
+    let vehiclesList: Vehicle[] = [];
+    let exchangeRate = 6.96;
+    let companyName = 'PUBLI-X BOLIVIA';
+    let companyPhone = '+591 70000000';
+
+    if (pool && isPostgresConnected) {
+      const vRes = await pool.query('SELECT * FROM vehicles ORDER BY precio_usd ASC');
+      vehiclesList = vRes.rows.map(mapVehicleFromDb);
+      const sRes = await pool.query('SELECT * FROM settings WHERE id = $1', ['current']);
+      if (sRes.rows[0]) {
+        exchangeRate = parseFloat(sRes.rows[0].tipo_cambio) || 6.96;
+        companyName = sRes.rows[0].nombre_empresa || companyName;
+        companyPhone = sRes.rows[0].whatsapp || sRes.rows[0].telefono || companyPhone;
+      }
+    } else {
+      vehiclesList = memoryStore.vehicles;
+      exchangeRate = memoryStore.settings.tipo_cambio || 6.96;
+      companyName = memoryStore.settings.nombre_empresa || companyName;
+      companyPhone = memoryStore.settings.whatsapp || memoryStore.settings.telefono || companyPhone;
+    }
+
+    // Catalog summary for AI Grounding (READ-ONLY)
+    const catalogSummary = vehiclesList.map(v => {
+      const bobPrice = Math.round(v.precio_usd * exchangeRate);
+      return `- [ID: ${v.id}] ${v.tipo_valla || v.tipo || 'Valla'} en ${v.ciudad} | Av: ${v.avenida_calle || v.modelo || 'Principal'} | Zona: ${v.zona || 'Centro'} | Cara: ${v.cara || 'Cara A'} | Medidas: ${v.medidas || '10x4 m'} | Alquiler: $${v.precio_usd} USD/mes (Bs. ${bobPrice.toLocaleString('es-BO')} BOB) | Estado: ${v.estado || 'Disponible'} ${v.alto_impacto ? '⭐ [ALTO IMPACTO / VISIBILIDAD MÁXIMA]' : ''}`;
+    }).join('\n');
+
+    const systemPrompt = `Eres el Asesor Comercial Virtual Inteligente de ${companyName}, la empresa líder en Publicidad Exterior (Vallas OOH, Unipolares, Pantallas LED y Pasarelas) en Bolivia.
+
+🎯 TU MISIÓN:
+- Atender a clientes y prospectos con un tono comercial impecable, amable, profesional, cercano y persuasivo.
+- Generar confianza, asesorar sobre el mejor punto publicitario según su objetivo (marca, ventas, eventos, etc.) y responder dudas sobre visibilidad, medidas, precios y lonas.
+- Recomendar vallas y pantallas LED disponibles según la ciudad (Santa Cruz, La Paz, Cochabamba, Tarija, etc.), zona o presupuesto del cliente.
+
+⚠️ REGLA DE ORO (ACCESO DE SOLO LECTURA AL CATÁLOGO):
+- Tienes acceso de SOLO LECTURA al siguiente catálogo REAL.
+- NUNCA inventes ubicaciones, medidas, disponibilidad ni precios que no existan en este catálogo.
+- Todos los precios en Bolivianos se calculan a Tipo de Cambio oficial: Bs. ${exchangeRate}.
+- Teléfono de contacto oficial comercial: ${companyPhone}.
+
+📋 CATÁLOGO REAL DE VALLAS Y PANTALLAS LED EN BOLIVIA:
+${catalogSummary}
+
+📝 CAPTURA DE DATOS Y CIERRE:
+- Cuando el cliente muestre interés en una o varias vallas, pídele amablemente su Nombre y Número de WhatsApp para que un ejecutivo le reserve el espacio y le envíe la Proforma Formal en PDF.
+- Si el cliente proporciona sus datos (ej. Nombre y Teléfono), indícale que su solicitud ha sido registrada y que nuestro equipo comercial le contactará en minutos.`;
+
+    // 2. Intentar llamada con DeepSeek API (modelo deepseek-chat)
+    const deepSeekKey = process.env.DEEPSEEK_API_KEY;
+    if (deepSeekKey) {
+      try {
+        const messagesPayload = [
+          { role: 'system', content: systemPrompt },
+          ...history.slice(-8).map((h: any) => ({
+            role: h.role === 'user' ? 'user' : 'assistant',
+            content: String(h.content || '')
+          })),
+          { role: 'user', content: message }
+        ];
+
+        const dsResponse = await fetch('https://api.deepseek.com/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${deepSeekKey}`
+          },
+          body: JSON.stringify({
+            model: 'deepseek-chat',
+            messages: messagesPayload,
+            temperature: 0.7,
+            max_tokens: 1000
+          })
+        });
+
+        if (dsResponse.ok) {
+          const dsData = await dsResponse.json();
+          const reply = dsData.choices?.[0]?.message?.content;
+          if (reply) {
+            // Find recommended vehicles mentions
+            const recommendedVehicles = vehiclesList.filter(v => 
+              reply.includes(v.id) || 
+              (v.avenida_calle && reply.toLowerCase().includes(v.avenida_calle.toLowerCase()))
+            ).slice(0, 3);
+
+            return res.json({
+              reply,
+              provider: 'deepseek-chat',
+              recommendedVehicles
+            });
+          }
+        } else {
+          const errText = await dsResponse.text();
+          console.warn('DeepSeek API responded with status:', dsResponse.status, errText);
+        }
+      } catch (dsErr) {
+        console.error('Error invoking DeepSeek API:', dsErr);
+      }
+    }
+
+    // 3. Fallback inteligente con Gemini API si no hay DeepSeek API Key configurada
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (geminiKey) {
+      try {
+        const { GoogleGenAI } = await import('@google/genai');
+        const ai = new GoogleGenAI({ apiKey: geminiKey });
+        
+        const promptWithContext = `${systemPrompt}\n\nHistorial previo:\n${history.map((h: any) => `${h.role === 'user' ? 'Cliente' : 'Asesor'}: ${h.content}`).join('\n')}\nCliente: ${message}\nAsesor Comercial:`;
+        
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: promptWithContext
+        });
+
+        const reply = response.text || '';
+        const recommendedVehicles = vehiclesList.filter(v => 
+          reply.includes(v.id) || 
+          (v.avenida_calle && reply.toLowerCase().includes(v.avenida_calle.toLowerCase()))
+        ).slice(0, 3);
+
+        return res.json({
+          reply,
+          provider: 'gemini-grounded-catalog',
+          recommendedVehicles
+        });
+      } catch (gemErr) {
+        console.error('Error with Gemini fallback:', gemErr);
+      }
+    }
+
+    // 4. Fallback determinista comercial si ninguna API key externa está configurada
+    const lower = message.toLowerCase();
+    const matchingVehicles = vehiclesList.filter(v => 
+      lower.includes(v.ciudad.toLowerCase()) || 
+      (v.tipo_valla && lower.includes(v.tipo_valla.toLowerCase())) ||
+      (v.avenida_calle && lower.includes(v.avenida_calle.toLowerCase()))
+    );
+
+    const selectedSample = matchingVehicles.length > 0 ? matchingVehicles.slice(0, 3) : vehiclesList.slice(0, 3);
+    const sampleText = selectedSample.map(v => 
+      `📍 *${v.tipo_valla || v.tipo} en ${v.ciudad}* (${v.avenida_calle || v.modelo})\n   • Medidas: ${v.medidas || '10x4 m'} - ${v.cara || 'Cara A'}\n   • Tarifa: $${v.precio_usd} USD/mes (Bs. ${(v.precio_usd * exchangeRate).toLocaleString('es-BO')})`
+    ).join('\n\n');
+
+    const defaultReply = `¡Hola! Con mucho gusto le asesoro en **${companyName}** 📢.\n\nContamos con espacios publicitarios estratégicos en todo el país con altísimo tráfico vehicular y peatonal. Aquí le comparto algunas de nuestras mejores opciones disponibles:\n\n${sampleText}\n\n¿Le gustaría que le reservemos alguna de estas ubicaciones o desea que busquemos una zona en particular? Déjeme su nombre y número de WhatsApp y le enviamos la cotización oficial en PDF de inmediato.`;
+
+    return res.json({
+      reply: defaultReply,
+      provider: 'catalog-knowledge-engine',
+      recommendedVehicles: selectedSample
+    });
+
+  } catch (err: any) {
+    console.error('Error in commercial agent chat endpoint:', err);
+    res.status(500).json({ error: err.message || 'Error al procesar la consulta con el agente comercial' });
+  }
+});
+
+// ----------------------------------------------------
+// 8. META LEAD ADS WEBHOOK (Facebook / Instagram)
+// ----------------------------------------------------
+apiRouter.get('/webhooks/meta-leads', (req: Request, res: Response) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  const expectedToken = process.env.META_WEBHOOK_VERIFY_TOKEN || 'publix_meta_token_2026';
+
+  if (mode === 'subscribe' && token === expectedToken) {
+    console.log('✅ Meta Webhook verified successfully!');
+    return res.status(200).send(challenge);
+  }
+  return res.status(403).send('Forbidden: Token mismatch');
+});
+
+apiRouter.post(['/webhooks/meta-leads', '/webhooks/meta-leads/test'], async (req: Request, res: Response) => {
+  try {
+    const payload = req.body;
+    console.log('📥 Incoming Meta Lead Webhook:', JSON.stringify(payload, null, 2));
+
+    let clientName = 'Prospecto Meta Lead';
+    let clientPhone = '+59170000000';
+    let clientEmail = '';
+    let clientCity = 'Santa Cruz';
+    let clientCompany = 'Particular / Empresa';
+    let campaignName = 'Campaña Meta Ads Bolivia';
+    let platform = 'Facebook / Instagram';
+    let notes = 'Lead capturado automáticamente desde Meta Lead Ads.';
+    let estimatedBudget = 1000;
+
+    // A) Flat Direct Format (e.g. from Zapier, Make, custom Webhook trigger)
+    if (payload.nombre || payload.name || payload.full_name || payload.celular || payload.phone) {
+      clientName = payload.nombre || payload.name || payload.full_name || clientName;
+      clientPhone = payload.celular || payload.phone || payload.phone_number || clientPhone;
+      clientEmail = payload.email || payload.correo || '';
+      clientCity = payload.ciudad || payload.city || payload.departamento || clientCity;
+      clientCompany = payload.empresa || payload.company || payload.company_name || clientCompany;
+      campaignName = payload.campania || payload.campaign || payload.campaign_name || campaignName;
+      platform = payload.plataforma || payload.platform || platform;
+      estimatedBudget = parseFloat(payload.presupuesto || payload.budget || '1000') || 1000;
+      notes = payload.observaciones || payload.notes || notes;
+    }
+    // B) Standard Meta Graph API / Webhook Payload Structure
+    else if (payload.entry && Array.isArray(payload.entry)) {
+      for (const entry of payload.entry) {
+        if (entry.changes && Array.isArray(entry.changes)) {
+          for (const change of entry.changes) {
+            const val = change.value || {};
+            if (val.leadgen_id) {
+              notes += ` [LeadGen ID: ${val.leadgen_id}]`;
+            }
+            if (val.adgroup_name || val.ad_name) {
+              campaignName = val.ad_name || val.adgroup_name || campaignName;
+            }
+            if (val.form_data || val.field_data) {
+              const fields = val.form_data || val.field_data;
+              if (Array.isArray(fields)) {
+                for (const field of fields) {
+                  const fname = (field.name || '').toLowerCase();
+                  const fval = Array.isArray(field.values) ? field.values[0] : field.value;
+                  if (!fval) continue;
+
+                  if (fname.includes('name') || fname.includes('nombre')) clientName = String(fval);
+                  else if (fname.includes('phone') || fname.includes('tel') || fname.includes('cel')) clientPhone = String(fval);
+                  else if (fname.includes('email') || fname.includes('correo')) clientEmail = String(fval);
+                  else if (fname.includes('city') || fname.includes('ciudad')) clientCity = String(fval);
+                  else if (fname.includes('company') || fname.includes('empresa')) clientCompany = String(fval);
+                  else if (fname.includes('budget') || fname.includes('presupuesto')) estimatedBudget = parseFloat(String(fval)) || 1000;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Sanitize phone number for Bolivia
+    let cleanPhone = clientPhone.trim().replace(/\s+/g, '');
+    if (!cleanPhone.startsWith('+591')) {
+      cleanPhone = cleanPhone.startsWith('591') ? '+' + cleanPhone : '+591' + cleanPhone.replace(/\D/g, '');
+    }
+
+    const clientId = 'C' + String(Date.now()).slice(-6);
+    const pendingReqId = 'REQ-' + String(Date.now()).slice(-6);
+    const nowIso = new Date().toISOString();
+
+    const newClient: Client = {
+      id: clientId,
+      nombre: clientName,
+      nombres: clientName.split(' ')[0] || clientName,
+      apellidos: clientName.split(' ').slice(1).join(' ') || '',
+      celular: cleanPhone,
+      correo: clientEmail,
+      ciudad: clientCity,
+      departamento: clientCity,
+      pais: 'Bolivia',
+      empresa: clientCompany,
+      razon_social: clientCompany,
+      nit_ci: '0',
+      presupuesto_usd: estimatedBudget,
+      campania: `Meta Lead Ads (${platform}) - ${campaignName}`,
+      observaciones: `${notes} [Capturado el ${new Date().toLocaleString('es-BO')}]`,
+      estado: 'Interesado',
+      usuario_acceso: clientName.toLowerCase().replace(/[^a-z0-9]/g, '.'),
+      password_acceso: cleanPhone.slice(-8),
+      usuario_habilitado: true,
+      acceso_bloqueado: false,
+      fecha_registro: nowIso,
+      fecha_actualizacion: nowIso
+    };
+
+    const newPendingReq: PendingQuotationRequest = {
+      id: pendingReqId,
+      codigo: 'META-' + Math.floor(1000 + Math.random() * 9000),
+      cliente_nombre: clientName,
+      cliente_celular: cleanPhone,
+      cliente_correo: clientEmail,
+      cliente_ciudad: clientCity,
+      cliente_empresa: clientCompany,
+      vallas_ids: [],
+      vallas_nombres: [`Campaña Meta Lead Ads: ${campaignName}`],
+      vallas_detalles: [],
+      fecha: nowIso,
+      estado: 'Pendiente',
+      observaciones: `Lead capturado automáticamente desde Meta Lead Ads (${platform}). Campaña: ${campaignName}`,
+      sugerencia_cotizacion: `Prospecto interesado desde redes sociales (${clientCity}). Contactar de inmediato por WhatsApp.`,
+      presupuesto_estimado_usd: estimatedBudget
+    };
+
+    if (pool && isPostgresConnected) {
+      // 1. Insert Client in PostgreSQL
+      await pool.query(
+        `INSERT INTO clients (id, nombre, nombres, apellidos, celular, ciudad, departamento, pais, presupuesto_usd, observaciones, estado, correo, campania, empresa, razon_social, nit_ci, usuario_acceso, password_acceso, usuario_habilitado, acceso_bloqueado, fecha_registro, fecha_actualizacion)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
+        [
+          newClient.id, newClient.nombre, newClient.nombres, newClient.apellidos, newClient.celular,
+          newClient.ciudad, newClient.departamento, newClient.pais, newClient.presupuesto_usd,
+          newClient.observaciones, newClient.estado, newClient.correo, newClient.campania,
+          newClient.empresa, newClient.razon_social, newClient.nit_ci, newClient.usuario_acceso,
+          newClient.password_acceso, newClient.usuario_habilitado, newClient.acceso_bloqueado,
+          newClient.fecha_registro, newClient.fecha_actualizacion
+        ]
+      );
+
+      // 2. Insert Pending Request in PostgreSQL
+      await pool.query(
+        `INSERT INTO pending_requests (id, codigo, cliente_nombre, cliente_celular, cliente_correo, cliente_ciudad, cliente_empresa, vallas_ids, vallas_nombres, vallas_detalles, imagenes_referencia, fecha, estado, observaciones, sugerencia_cotizacion, presupuesto_estimado_usd)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+        [
+          newPendingReq.id, newPendingReq.codigo, newPendingReq.cliente_nombre, newPendingReq.cliente_celular,
+          newPendingReq.cliente_correo, newPendingReq.cliente_ciudad, newPendingReq.cliente_empresa,
+          JSON.stringify(newPendingReq.vallas_ids), JSON.stringify(newPendingReq.vallas_nombres),
+          JSON.stringify(newPendingReq.vallas_detalles || []), JSON.stringify([]),
+          newPendingReq.fecha, newPendingReq.estado, newPendingReq.observaciones,
+          newPendingReq.sugerencia_cotizacion, newPendingReq.presupuesto_estimado_usd
+        ]
+      );
+
+      // 3. Insert Audit Log
+      await pool.query(
+        `INSERT INTO audit_logs (id, usuario, accion, modulo, detalles, fecha)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          'LOG-' + Date.now(),
+          'Sistema Webhook Meta',
+          'CREAR_LEAD_META_ADS',
+          'CRM Clientes',
+          `Lead ingresado automáticamente desde ${platform}: ${clientName} (${cleanPhone}) - ${campaignName}`,
+          nowIso
+        ]
+      );
+    } else {
+      memoryStore.clients.unshift(newClient);
+      memoryStore.pendingRequests.unshift(newPendingReq);
+      memoryStore.auditLogs.unshift({
+        id: 'LOG-' + Date.now(),
+        usuario: 'Sistema Webhook Meta',
+        accion: 'CREAR_LEAD_META_ADS',
+        modulo: 'CRM Clientes',
+        detalles: `Lead ingresado automáticamente desde ${platform}: ${clientName} (${cleanPhone}) - ${campaignName}`,
+        fecha: nowIso
+      });
+      saveStoreToDisk();
+    }
+
+    console.log(`✅ Meta Lead successfully created: ${clientName} (${cleanPhone}) -> Client ${clientId} / Request ${pendingReqId}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Lead de Meta recibido y registrado exitosamente en CRM y Buzón',
+      client: newClient,
+      pendingRequest: newPendingReq
+    });
+
+  } catch (err: any) {
+    console.error('⚠️ Error processing Meta Lead Webhook:', err);
+    res.status(500).json({ error: err.message || 'Error processing Meta lead webhook' });
+  }
+});
+
+// Webhook status & integration info
+apiRouter.get('/webhooks/meta-leads/info', (req: Request, res: Response) => {
+  const host = req.get('host');
+  const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+  const webhookUrl = `${protocol}://${host}/api/webhooks/meta-leads`;
+
+  res.json({
+    webhook_url: webhookUrl,
+    verify_token: process.env.META_WEBHOOK_VERIFY_TOKEN || 'publix_meta_token_2026',
+    supported_fields: ['full_name', 'phone_number', 'email', 'city', 'company_name', 'budget', 'campaign_name'],
+    status: 'Activo y Listo para recibir Leads de Facebook & Instagram'
+  });
+});
+
+// ----------------------------------------------------
 // BACKUP IMPORT & RESET ALL
 // ----------------------------------------------------
 apiRouter.post('/backup/import', async (req: Request, res: Response) => {

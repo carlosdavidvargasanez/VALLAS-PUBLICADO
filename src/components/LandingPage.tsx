@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import oohBannerImage from '../assets/images/publi_x_ooh_banner_1786328834763.jpg';
 import Logo from './Logo';
 import OOHInquiryModal from './OOHInquiryModal';
+import CommercialAiChatbot from './CommercialAiChatbot';
 
 import { Settings } from '../types';
 
@@ -398,6 +399,12 @@ export default function LandingPage({ onOpenLogin, onOpenLoginWithCategory, onEx
           </div>
         )}
       </AnimatePresence>
+
+      {/* Floating Commercial AI Agent (DeepSeek / Real Catalog Grounding) */}
+      <CommercialAiChatbot 
+        settings={settings}
+        onOpenInquiryModal={handleOpenInquiry}
+      />
 
     </div>
   );

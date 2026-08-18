@@ -47,7 +47,7 @@ export type ProductType =
   | 'Estructura Metálica'
   | 'Trabajo Especial';
 
-export type ProductState = 'Disponible' | 'Reservado' | 'En instalación' | 'Próximamente' | 'En producción' | 'En mantenimiento' | 'Ocupado / Alquilado' | 'En importación' | 'Vendido';
+export type ProductState = 'Disponible' | 'Reservado' | 'Reservada' | 'En instalación' | 'Próximamente' | 'En producción' | 'En mantenimiento' | 'Ocupado / Alquilado' | 'Ocupada' | 'En importación' | 'Vendido';
 
 export type VehicleState = ProductState;
 
@@ -136,31 +136,113 @@ export interface QuotationVallaItem {
   costo_lona_usd: number;
   area_m2: number;
   costo_lona_m2_bs?: number;
+  descuento_mensual_usd?: number;
+  valla_iluminacion?: string;
   imagen?: string;
 }
 
 export interface Quotation {
   id: string;
   numero: string; // format: PUB-YYYYMMDD-XXXXXX
+  tipo_cotizacion?: 'TIPO_A_VALLAS' | 'TIPO_B_TECNICA'; // Type A: OOH Billboards/Screens | Type B: Technical structure/sign construction
   cliente_id: string;
+  cliente_nombre?: string;
+  cliente_empresa?: string;
+  cliente_celular?: string;
+  cliente_correo?: string;
+  cliente_ciudad?: string;
+  cliente_direccion?: string;
+  cliente_nit_ci?: string;
+  cliente_nit?: string;
   vehiculo_id: string;
-  precio_vehiculo: number; // Precio Base (Alquiler / Fabricación)
-  gastos_importacion: number; // Costo Impresión (Lona / Vinilo)
-  gastos_aduana: number; // Costo Montaje & Estructura Metálica
-  gastos_logistica: number; // Costo Flete, Permisos & Grúa
-  gastos_seguro: number; // Mantenimiento & Energía Eléctrica
+  precio_vehiculo: number; // Base amount
+  gastos_importacion: number;
+  gastos_aduana: number;
+  gastos_logistica: number;
+  gastos_seguro: number;
   total: number;
   estado: QuotationState;
   observaciones: string;
   fecha: string;
   
-  // Enhanced Multi-Valla & Contract features
+  // Type A: Billboards & LED Screens (COTIZACION_VP_UPDS_JUNIO_2026 & VALLAS_DONDE_VALLAS_262_15297)
+  referencia?: string;
+  referencia_asunto?: string;
+  destinatario_senores?: string;
+  destinatario_atencion?: string;
+  destinatario_cargo?: string;
+  destinatario_cargo_dpto?: string;
+  tiempo_meses?: number;
+  tiempo_meses_texto?: string;
+  vigencia_dias?: number;
+  validez_oferta_dias?: number;
+  foto_referencia_url?: string;
+  foto_referencia_titulo?: string;
   vallas_seleccionadas?: QuotationVallaItem[];
+  vallas_items_detalle?: Array<{
+    valla_id?: string;
+    cliente: string;
+    depto: string;
+    ubicacion: string;
+    formato: string;
+    medidas: string;
+    precio_lista_bs: number;
+    precio_desc_mes1_bs?: number;
+    precio_desc_mes2_bs?: number;
+    total_bs: number;
+    imagen?: string;
+  }>;
+  lonas_items_detalle?: Array<{
+    descripcion: string;
+    medidas: string;
+    costo_unitario_bs: number;
+    cantidad: number;
+    total_bs: number;
+  }>;
+  lonas_items?: any[];
+  total_alquiler_usd?: number;
+  total_lonas_usd?: number;
+  total_general_usd?: number;
+
+  // Type B: Technical Construction / Signage (UNIPOLAR_PARA_PANTALLAS)
+  items_tecnicos?: Array<{
+    id: string;
+    titulo: string;
+    descripcion: string;
+    precio_unitario: number;
+    cantidad: number;
+    total: number;
+    foto_referencia?: string;
+    es_alternativa?: boolean;
+    alternativa_de_item_id?: string;
+    alternativa_label?: string;
+    seleccionado?: boolean;
+  }>;
+  tiempo_produccion_dias_habiles?: number;
+  etapas_pago_anticipo_pct?: number;
+  etapas_pago_saldo_pct?: number;
+  garantia_anos?: number;
+  terminos_condiciones_tecnicos?: {
+    validez_dias: number;
+    plazo_construccion_dias_habiles: number;
+    porcentaje_anticipo: number;
+    porcentaje_saldo: number;
+    texto_adicional?: string;
+  };
+  evidencia_aceptacion_url?: string; // Uploaded scan/photo of signed and sealed quotation
+  evidencia_fecha?: string;
+  evidencia_observaciones?: string;
+  correo_constancia_enviado?: boolean;
+
+  // Signer / Commercial Agent
   emisor_nombre?: string;
+  emisor_cargo?: string;
+  emisor_telefono?: string;
   emisor_rol?: string;
   incluye_contrato?: boolean;
   terminos_contrato?: string;
   descuento_usd?: number;
+  descuento_total_bs?: number;
 }
 
 export type ContractStatus = 'Borrador' | 'Pendiente Firma' | 'Vigente' | 'Finalizado' | 'Cancelado';
@@ -174,23 +256,28 @@ export interface ContractVallaItem {
   costo_mensual_bs: number;
   descuento_bs: number;
   costo_neto_bs: number;
+  medidas?: string;
+  valla_id?: string;
 }
 
 export interface ContractLonaItem {
   id: string;
+  valla_id?: string;
+  valla_medidas?: string;
   direccion: string;
   medidas: string;
   costo_unitario_bs: number;
   descuento_lona_bs: number;
   total_costo_bs: number;
+  cantidad?: number;
 }
 
 export interface ContractItem {
   id: string;
-  producto: string; // ej: "Valla Publicitaria Unipolar Banzer"
-  caracteristicas: string; // ej: "12x4m - Cara A - Iluminación LED Nocturna 12h"
+  producto: string;
+  caracteristicas: string;
   medidas?: string;
-  periodo: string; // ej: "6 Meses (01/09/2026 al 01/03/2027)"
+  periodo: string;
   precio_unitario: number;
   descuento_item: number;
   total_item: number;
@@ -208,34 +295,48 @@ export interface ContractLonaDetail {
 
 export interface Contract {
   id: string;
-  numero: string; // format: CON-YYYYMMDD-XXXXXX
+  numero: string; // format: CON-YYYYMMDD-XXXXXX or custom correlative
+  codigo_unico?: string;
   cotizacion_id?: string;
   
-  // Datos del Cliente / Titular (editables para el contrato)
+  // Datos del Cliente / Titular / Arrendatario
   cliente_id: string;
   cliente_nombre: string;
   cliente_empresa?: string;
+  cliente_razon_social?: string;
   cliente_nit_ci?: string;
   cliente_representante?: string;
+  cliente_representante_cargo?: string;
   cliente_representante_ci?: string;
-  cliente_escritura_poder?: string;
-  cliente_poder_fecha?: string;
-  cliente_notaria_numero?: string;
-  cliente_notario_nombre?: string;
+  cliente_representante_ci_emision?: string;
+  
+  // Cláusula Condicional del Apoderado (Poder Notarial)
+  firma_mediante_poder?: boolean;
+  cliente_escritura_poder?: string; // e.g. "506/2021"
+  cliente_poder_fecha?: string; // e.g. "05 de Mayo del 2021"
+  cliente_notaria_numero?: string; // e.g. "103"
+  cliente_poder_distrito_judicial?: string; // e.g. "Santa Cruz de La Sierra"
+  cliente_notario_nombre?: string; // e.g. "Dra. Marbel Silvana España Pedraza"
+  
   cliente_celular: string;
   cliente_correo?: string;
   cliente_direccion?: string;
   cliente_ciudad: string;
   
-  // Arrendador (Empresa)
+  // Arrendador (Empresa - Datos Fijos)
   arrendador_empresa?: string;
   arrendador_nit?: string;
   arrendador_direccion?: string;
   arrendador_representante?: string;
+  arrendador_representante_cargo?: string;
   arrendador_ci?: string;
+  arrendador_ci_emision?: string;
 
-  // Estructura Principal
+  // Estructura Principal & Compatibilidad
   valla_id?: string;
+  vallas_ids?: string[];
+  vehiculo_id?: string;
+  valla_ciudad?: string;
   valla_nombre: string;
   valla_medidas: string;
   valla_ubicacion: string;
@@ -246,13 +347,13 @@ export interface Contract {
   vallas_lista: ContractVallaItem[];
   lonas_lista: ContractLonaItem[];
 
-  // Ítems en Tabla genérica (Filas y Columnas)
+  // Ítems en Tabla genérica
   items: ContractItem[];
   
-  // Detalle de Lona e Instalación (Beneficios Extras)
+  // Detalle de Lona e Instalación
   lona_detail: ContractLonaDetail;
   
-  // Beneficios extras adicionados sin costo
+  // Beneficios extras
   beneficios_extras: string[];
   
   // Totales y Descuentos
@@ -261,12 +362,15 @@ export interface Contract {
   descuento_cliente_porcentaje: number;
   total_neto_usd: number;
   total_neto_bob: number;
+  total_lonas_bob?: number;
+  canon_mensual_bob?: number;
   tipo_cambio: number;
   
   // Fechas y Condiciones
   fecha_emision: string;
   fecha_inicio: string;
   fecha_fin: string;
+  fecha_firma?: string;
   periodo_meses: number;
   plazo_meses?: number;
   forma_pago: string;
@@ -279,6 +383,53 @@ export interface Contract {
   vendedor_celular?: string;
   vendedor_correo?: string;
   observaciones?: string;
+}
+
+export interface InvoiceItem {
+  id?: string;
+  descripcion: string;
+  medida_unidad?: string;
+  cantidad: number;
+  precio_unitario_bs: number;
+  descuento_bs: number;
+  subtotal_bs: number;
+}
+
+export interface Invoice {
+  id: string;
+  numero_factura: string; // Correlative or manual format
+  tipo_origen: 'CONTRATO_ARRENDAMIENTO' | 'COTIZACION_TECNICA' | 'VENTA_DIRECTA';
+  contrato_id?: string;
+  cotizacion_id?: string;
+  cliente_id: string;
+  cliente_nombre: string;
+  cliente_razon_social: string;
+  razon_social?: string;
+  cliente_nit_ci: string;
+  nit_ci?: string;
+  cliente_direccion?: string;
+  cliente_ciudad?: string;
+  cliente_celular?: string;
+  cliente_correo?: string;
+  fecha_emision: string;
+  fecha_vencimiento?: string;
+  periodo_facturado?: string;
+  concepto?: string;
+  items: InvoiceItem[];
+  subtotal_bs: number;
+  descuento_total_bs: number;
+  total_bs: number;
+  monto_total_bob?: number;
+  total_literal_bs: string;
+  monto_literal?: string;
+  total_usd?: number;
+  tipo_cambio: number;
+  observaciones?: string;
+  estado: 'Emitida' | 'Subida a SIN' | 'Anulada' | 'Pagada';
+  estado_sin?: string;
+  fecha_subida_sin?: string;
+  codigo_autorizacion_sin?: string;
+  codigo_autorizacion?: string;
 }
 
 export type FollowUpType = 'Llamada' | 'WhatsApp' | 'Correo' | 'Reunión' | 'Envío catálogo' | 'Envío cotización' | 'Nota interna';
@@ -309,7 +460,9 @@ export interface AuditLog {
   id: string;
   usuario: string;
   accion: string;
-  detalle: string;
+  modulo?: string;
+  detalle?: string;
+  detalles?: string;
   fecha: string;
 }
 
@@ -324,9 +477,19 @@ export interface Settings {
   correo: string;
   web: string;
   logo: string;
-  tipo_cambio: number; // e.g. 10.10
+  tipo_cambio: number; // e.g. 6.96 / 10.10
   terminos_cotizacion: string;
   custom_fields?: Record<string, string>;
+
+  // Fixed Legal Data for Contracts & Invoices (Point 1)
+  nombre_comercial?: string; // Publi-X Cobertura Nacional Impacto Total
+  nit?: string; // 4579387019
+  domicilio_legal?: string; // Calle Los Tajibos 2185, Barrio Petrolero Norte, UV 0016 MZA 14...
+  representante_legal?: string; // Carlos David Vargas Añez
+  representante_cargo?: string; // Gerente General
+  representante_ci?: string; // 4579387
+  representante_ci_emision?: string; // Santa Cruz
+  notaria_arbitraje?: string; // CAINCO Santa Cruz
 
   // Auto Backup Configuration
   backup_auto_enabled?: boolean;

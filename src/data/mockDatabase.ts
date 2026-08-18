@@ -1,4 +1,4 @@
-import { Client, Vehicle, Quotation, Contract, FollowUp, MessageTemplate, AuditLog, Settings, UserSession, PendingQuotationRequest, BackupRecord } from '../types';
+import { Client, Vehicle, Quotation, Contract, Invoice, FollowUp, MessageTemplate, AuditLog, Settings, UserSession, PendingQuotationRequest, BackupRecord } from '../types';
 import { INITIAL_VEHICLES } from './initialVehicles';
 import { generateClientCredentials } from '../utils/credentials';
 import { api } from '../services/api';
@@ -8,6 +8,7 @@ const DB_KEYS = {
   VEHICLES: 'mla_autosender_vehicles',
   QUOTATIONS: 'mla_autosender_quotations',
   CONTRACTS: 'mla_autosender_contracts',
+  INVOICES: 'mla_autosender_invoices',
   FOLLOW_UPS: 'mla_autosender_follow_ups',
   TEMPLATES: 'mla_autosender_templates',
   AUDIT_LOGS: 'mla_autosender_audit_logs',
@@ -82,7 +83,15 @@ const DEFAULT_TEMPLATES: MessageTemplate[] = [
 
 const DEFAULT_SETTINGS: Settings = {
   nombre_empresa: 'PUBLI-X BOLIVIA',
-  direccion: 'Av. Banzer y 4to Anillo, Torre Empresarial, Piso 6',
+  nombre_comercial: 'Publi-X Cobertura Nacional Impacto Total',
+  nit: '4579387019',
+  domicilio_legal: 'Calle Los Tajibos 2185, Barrio Petrolero Norte, UV 0016 MZA 14, entre 2do anillo y Av. Los Cusis, frente a importadora TOA, Santa Cruz',
+  representante_legal: 'Carlos David Vargas Añez',
+  representante_cargo: 'Gerente General',
+  representante_ci: '4579387',
+  representante_ci_emision: 'Santa Cruz',
+  notaria_arbitraje: 'CAINCO Santa Cruz',
+  direccion: 'Calle Los Tajibos 2185, Barrio Petrolero Norte, UV 0016 MZA 14, entre 2do anillo y Av. Los Cusis',
   ciudad: 'Santa Cruz de la Sierra',
   departamento: 'Santa Cruz',
   pais: 'Bolivia',
@@ -262,6 +271,41 @@ const INITIAL_CONTRACTS: Contract[] = [
     estado: 'Vigente',
     vendedor_nombre: 'Carlos David Vargas',
     observaciones: '[REGISTRO DE EJEMPLO / PRUEBA]'
+  }
+];
+
+const INITIAL_INVOICES: Invoice[] = [
+  {
+    id: 'INV-001',
+    numero_factura: 'FAC-2026-0001',
+    tipo_origen: 'CONTRATO_ARRENDAMIENTO',
+    contrato_id: 'CON-001',
+    cliente_id: 'C001',
+    cliente_nombre: 'Juan Pérez Demo',
+    cliente_razon_social: '[EJEMPLO] Empresa Demo S.R.L. (PRUEBA)',
+    cliente_nit_ci: '1029384756',
+    cliente_ciudad: 'Santa Cruz',
+    fecha_emision: '2026-07-03',
+    periodo_facturado: 'Mes de Julio 2026',
+    items: [
+      {
+        id: '1',
+        descripcion: 'Alquiler de Espacio Publicitario OOH - Valla Monumental Av. Banzer 4to Anillo',
+        medida_unidad: 'MES',
+        cantidad: 1,
+        precio_unitario_bs: 8352,
+        descuento_bs: 0,
+        subtotal_bs: 8352
+      }
+    ],
+    subtotal_bs: 8352,
+    descuento_total_bs: 0,
+    total_bs: 8352,
+    total_literal_bs: 'OCHO MIL TRESCIENTOS CINCUENTA Y DOS 00/100 BOLIVIANOS',
+    total_usd: 1200,
+    tipo_cambio: 6.96,
+    estado: 'Emitida',
+    codigo_autorizacion_sin: '4A8F93B27C10E'
   }
 ];
 
@@ -616,6 +660,53 @@ export const mockDb = {
     } catch (e) {
       console.warn('API deleteContract error:', e);
     }
+  },
+
+  getInvoices(): Invoice[] {
+    this.initialize();
+    try {
+      const raw = localStorage.getItem(DB_KEYS.INVOICES);
+      if (raw === null) return INITIAL_INVOICES;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : INITIAL_INVOICES;
+    } catch {
+      return INITIAL_INVOICES;
+    }
+  },
+
+  saveInvoices(invoices: Invoice[]) {
+    try {
+      localStorage.setItem(DB_KEYS.INVOICES, JSON.stringify(invoices));
+    } catch (e) {
+      console.error(e);
+    }
+  },
+
+  async addInvoice(inv: Invoice) {
+    const list = this.getInvoices();
+    const idx = list.findIndex(x => x.id === inv.id);
+    if (idx >= 0) {
+      list[idx] = inv;
+    } else {
+      list.unshift(inv);
+    }
+    this.saveInvoices(list);
+    this.checkTriggerCriticalBackup(`Nueva factura emitida: ${inv.numero_factura}`);
+  },
+
+  async updateInvoice(id: string, update: Partial<Invoice>) {
+    const list = this.getInvoices();
+    const idx = list.findIndex(x => x.id === id);
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...update };
+      this.saveInvoices(list);
+      this.checkTriggerCriticalBackup(`Modificación de factura: ${list[idx].numero_factura}`);
+    }
+  },
+
+  async deleteInvoice(id: string) {
+    const list = this.getInvoices().filter(inv => inv.id !== id);
+    this.saveInvoices(list);
   },
 
   getFollowUps(): FollowUp[] {

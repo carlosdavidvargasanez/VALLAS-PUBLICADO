@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Client, ClientState, UserSession, PendingQuotationRequest } from '../types';
+import { jsPDF } from 'jspdf';
+import { Client, ClientState, UserSession, PendingQuotationRequest, Vehicle } from '../types';
 import { mockDb } from '../data/mockDatabase';
 import { generateClientCredentials, generateClientWelcomeMessage } from '../utils/credentials';
 import { 
@@ -117,6 +118,175 @@ export default function Clients({
 
   // Welcome WhatsApp Modal state
   const [welcomeClientData, setWelcomeClientData] = useState<{ client: Client; welcomeInfo: ReturnType<typeof generateClientWelcomeMessage> } | null>(null);
+
+  // Email Direct Modal state
+  const [emailModalClient, setEmailModalClient] = useState<Client | null>(null);
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+
+  // WhatsApp Message Generator + PDF Attachment Modal state
+  const [whatsappPdfModalClient, setWhatsappPdfModalClient] = useState<Client | null>(null);
+  const [selectedVallasForPdf, setSelectedVallasForPdf] = useState<string[]>([]);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [pdfGeneratedSuccess, setPdfGeneratedSuccess] = useState(false);
+
+  // Enter key focus navigation (moves focus to the next field instead of submitting prematurely)
+  const handleFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      const form = e.currentTarget;
+      const elements = Array.from(
+        form.querySelectorAll<HTMLElement>(
+          'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button[type="submit"]'
+        )
+      ) as HTMLElement[];
+      const index = elements.indexOf(e.target as HTMLElement);
+      if (index > -1 && index + 1 < elements.length) {
+        elements[index + 1]?.focus();
+      }
+    }
+  };
+
+  const handleOpenEmailModal = (client: Client) => {
+    setEmailModalClient(client);
+    setEmailSubject(`Propuesta Comercial de Publicidad Exterior OOH - PUBLI-X BOLIVIA`);
+    setEmailBody(`Estimado/a ${client.nombre},\n\nLe saludamos cordialmente del equipo comercial de PUBLI-X BOLIVIA.\n\nEn atención a su requerimiento comercial para ${client.empresa || 'su prestigiosa empresa'}, le hacemos llegar nuestras opciones disponibles en ${client.departamento || client.ciudad || 'Bolivia'} con altísima visibilidad e impacto de marca.\n\nContamos con un presupuesto de referencia de $${client.presupuesto_usd.toLocaleString()} USD (Bs. ${(client.presupuesto_usd * exchangeRate).toLocaleString('es-BO')}).\n\nQuedamos a su entera disposición para coordinar los detalles de su campaña.\n\nAtentamente,\nGerencia Comercial PUBLI-X BOLIVIA\nTel/WhatsApp: +591 70000000\nWeb: www.publix.bo`);
+  };
+
+  const handleOpenWhatsAppPdfModal = (client: Client) => {
+    setWhatsappPdfModalClient(client);
+    const allV = mockDb.getVehicles();
+    const topMatches = allV.filter(v => v.ciudad === client.departamento || v.ciudad === client.ciudad).slice(0, 3).map(v => v.id);
+    setSelectedVallasForPdf(topMatches.length > 0 ? topMatches : allV.slice(0, 3).map(v => v.id));
+    setPdfGeneratedSuccess(false);
+  };
+
+  const handleGenerateAndDownloadPdf = (client: Client, selectedIds: string[]) => {
+    setPdfGenerating(true);
+    try {
+      const doc = new jsPDF();
+      const allVehicles = mockDb.getVehicles();
+      const selectedVehicles = allVehicles.filter(v => selectedIds.includes(v.id));
+      const today = new Date().toLocaleDateString('es-BO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      // Header Banner (Slate 950 / Amber Accent)
+      doc.setFillColor(10, 17, 30);
+      doc.rect(0, 0, 210, 36, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('PUBLI-X BOLIVIA', 14, 16);
+      
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(254, 215, 170); // amber-200
+      doc.text('PROPUESTA COMERCIAL DE PUBLICIDAD EXTERIOR (OOH & LED)', 14, 23);
+      doc.setTextColor(203, 213, 225);
+      doc.text(`Fecha de Emisión: ${today} | Validez: 15 días`, 14, 30);
+
+      // Client Information Block
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(14, 42, 182, 34, 3, 3, 'FD');
+
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(10.5);
+      doc.setFont('helvetica', 'bold');
+      doc.text('INFORMACIÓN DEL CLIENTE Y CONTACTO', 20, 50);
+
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Cliente: ${client.nombre}`, 20, 57);
+      doc.text(`Empresa / Razón Social: ${client.empresa || client.razon_social || 'Particular'}`, 20, 63);
+      doc.text(`Teléfono / WhatsApp: ${client.celular}`, 20, 69);
+
+      doc.text(`Departamento / Ciudad: ${client.departamento || client.ciudad || 'Bolivia'}`, 110, 57);
+      doc.text(`Presupuesto Estimado: $${client.presupuesto_usd.toLocaleString()} USD`, 110, 63);
+      doc.text(`Estado: ${client.estado}`, 110, 69);
+
+      // Billboards Header
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text('DETALLE DE ESPACIOS PUBLICITARIOS SELECCIONADOS', 14, 84);
+
+      let y = 90;
+      if (selectedVehicles.length === 0) {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(100, 116, 139);
+        doc.text('No se han seleccionado vallas específicas para esta propuesta.', 14, y);
+        y += 15;
+      } else {
+        selectedVehicles.forEach((v, index) => {
+          if (y > 245) {
+            doc.addPage();
+            y = 20;
+          }
+          doc.setFillColor(255, 251, 235); // amber-50
+          doc.setDrawColor(251, 191, 36); // amber-400
+          doc.roundedRect(14, y, 182, 26, 2, 2, 'FD');
+
+          doc.setTextColor(180, 83, 9);
+          doc.setFontSize(9.5);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`${index + 1}. [${v.codigo || v.id}] ${v.tipo_valla || v.tipo || 'Valla'} - ${v.ciudad}`, 18, y + 6.5);
+
+          doc.setTextColor(51, 65, 85);
+          doc.setFontSize(8.5);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`Ubicación: ${v.avenida_calle || v.modelo || 'Principal'} | Zona: ${v.zona || 'Centro'} | Cara: ${v.cara || 'Cara A'}`, 18, y + 13);
+          doc.text(`Medidas: ${v.medidas || '10x4 m'} | Iluminación: ${v.iluminacion || 'Frontlight LED'}`, 18, y + 19);
+
+          const bobPrice = Math.round(v.precio_usd * exchangeRate);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(15, 23, 42);
+          doc.text(`Tarifa: $${v.precio_usd.toLocaleString()} USD/mes (Bs. ${bobPrice.toLocaleString('es-BO')} BOB)`, 120, y + 6.5);
+
+          y += 30;
+        });
+      }
+
+      // Terms & Conditions Footer
+      if (y > 240) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.setDrawColor(226, 232, 240);
+      doc.line(14, y + 5, 196, y + 5);
+
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Nota: Disponibilidad sujeta a reserva formal. Incluye estructura, iluminación nocturna e informe fotográfico.', 14, y + 11);
+      doc.text('Contacto: PUBLI-X BOLIVIA • WhatsApp: +591 70000000 • Email: contacto@publix.bo • Web: www.publix.bo', 14, y + 16);
+
+      const filename = `Propuesta_PUBLIX_${client.nombre.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(filename);
+      setPdfGeneratedSuccess(true);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+    } finally {
+      setPdfGenerating(false);
+    }
+  };
+
+  const handleLaunchWhatsAppWithPdfInfo = (client: Client, selectedIds: string[]) => {
+    handleGenerateAndDownloadPdf(client, selectedIds);
+    const allVehicles = mockDb.getVehicles();
+    const selectedVehicles = allVehicles.filter(v => selectedIds.includes(v.id));
+    const cleanPhone = client.celular.replace(/\D/g, '');
+
+    const vallasSummary = selectedVehicles.map(v => 
+      `• *${v.tipo_valla || v.tipo} en ${v.ciudad}* (${v.avenida_calle || v.modelo}) - Medidas: ${v.medidas || '10x4 m'} - $${v.precio_usd} USD`
+    ).join('\n');
+
+    const message = `Hola *${client.nombre}*, le saluda PUBLI-X BOLIVIA 📢.\n\nLe enviamos adjunta la *Propuesta Comercial en PDF* preparada especialmente para su empresa (*${client.empresa || client.nombre}*) con número registrado *${client.celular}*.\n\n📍 *Espacios Seleccionados:*\n${vallasSummary || '• Espacios estratégicos de alta visibilidad'}\n\n¿Desea que reservemos estas ubicaciones para su campaña?`;
+    
+    const url = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
 
   const handleAcceptAndSendWelcome = (client: Client) => {
     let u = client.usuario_acceso;
@@ -572,62 +742,62 @@ export default function Clients({
             </h3>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="space-y-3">
             
             {/* Form feedback */}
             {formError && (
-              <div className="p-3 bg-rose-50 border border-rose-100 text-rose-700 text-xs rounded-lg flex items-center space-x-2">
+              <div className="p-2.5 bg-rose-50 border border-rose-100 text-rose-700 text-xs rounded-lg flex items-center space-x-2">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <span>{formError}</span>
               </div>
             )}
             {formSuccess && (
-              <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-800 text-xs rounded-lg flex items-center space-x-2 animate-fade-in">
+              <div className="p-2.5 bg-emerald-50 border border-emerald-100 text-emerald-800 text-xs rounded-lg flex items-center space-x-2 animate-fade-in">
                 <Check className="w-4 h-4 flex-shrink-0" />
                 <span>{formSuccess}</span>
               </div>
             )}
 
-            {/* EMPRESA Y RAZON SOCIAL */}
+            {/* EMPRESA */}
             <div>
-              <label className="block text-xs font-bold text-amber-800 mb-1">Empresa / Nombre Comercial</label>
+              <label className="block text-[11px] font-bold text-amber-800 mb-0.5">Empresa / Nombre Comercial</label>
               <input
                 type="text"
                 value={empresa}
                 onChange={(e) => setEmpresa(e.target.value)}
-                placeholder="Ej. CBN, Entel, Banco Bisa, Cervecería..."
-                className="w-full px-3 py-2 text-sm bg-amber-50/50 border border-amber-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
+                placeholder="Ej. CBN, Entel, Banco Bisa..."
+                className="w-full px-2.5 py-1.5 text-xs bg-amber-50/40 border border-amber-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
               />
             </div>
 
             {/* RAZON SOCIAL Y NIT / CI */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Razón Social (Facturación)</label>
+                <label className="block text-[11px] font-bold text-gray-700 mb-0.5">Razón Social</label>
                 <input
                   type="text"
                   value={razonSocial}
                   onChange={(e) => setRazonSocial(e.target.value)}
                   placeholder="Ej. Cervecería Boliviana Nacional S.A."
-                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
+                  className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">NIT / CI</label>
+                <label className="block text-[11px] font-bold text-gray-700 mb-0.5">NIT / CI</label>
                 <input
                   type="text"
                   value={nitCi}
                   onChange={(e) => setNitCi(e.target.value)}
                   placeholder="Ej. 1028374029"
-                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition font-mono"
+                  className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition font-mono"
                 />
               </div>
             </div>
 
             {/* NOMBRES Y APELLIDOS SEPARADOS Y OBLIGATORIOS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
+                <label className="block text-[11px] font-bold text-gray-700 mb-0.5">
                   Nombre(s) *
                 </label>
                 <input
@@ -635,12 +805,12 @@ export default function Clients({
                   value={nombres}
                   onChange={(e) => setNombres(e.target.value)}
                   placeholder="Ej. Juan Carlos"
-                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition font-medium"
+                  className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition font-medium"
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
+                <label className="block text-[11px] font-bold text-gray-700 mb-0.5">
                   Apellido(s) *
                 </label>
                 <input
@@ -648,7 +818,7 @@ export default function Clients({
                   value={apellidos}
                   onChange={(e) => setApellidos(e.target.value)}
                   placeholder="Ej. Pérez Rodríguez"
-                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition font-medium"
+                  className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition font-medium"
                   required
                 />
               </div>
@@ -656,30 +826,30 @@ export default function Clients({
 
             {/* PREVISUALIZACION AUTOMATICA DE CREDENCIALES */}
             {(nombres.trim() || apellidos.trim()) && (
-              <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl text-xs space-y-1">
+              <div className="p-2 bg-amber-50/80 border border-amber-200 rounded-lg text-xs space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-amber-900 text-[11px] flex items-center space-x-1">
-                    <Key className="w-3 h-3 text-amber-600 inline mr-1" />
+                  <span className="font-extrabold text-amber-900 text-[10px] flex items-center space-x-1">
+                    <Key className="w-3 h-3 text-amber-600 inline mr-0.5" />
                     Credenciales generadas:
                   </span>
-                  <span className="text-[10px] text-amber-700 font-medium">Auto: primer nombre . primer apellido</span>
+                  <span className="text-[9px] text-amber-700 font-medium">Auto-generadas</span>
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5 font-mono text-[11px]">
-                  <span className="bg-white px-2 py-0.5 rounded border border-amber-200 text-gray-800">
-                    Usuario: <strong>@{generateClientCredentials(nombres, apellidos, celular).usuario_acceso}</strong>
+                <div className="flex flex-wrap items-center justify-between gap-1.5 pt-0.5 font-mono text-[10px]">
+                  <span className="bg-white px-1.5 py-0.5 rounded border border-amber-200 text-gray-800">
+                    U: <strong>@{generateClientCredentials(nombres, apellidos, celular).usuario_acceso}</strong>
                   </span>
-                  <span className="bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-emerald-800">
-                    Contraseña: <strong>{generateClientCredentials(nombres, apellidos, celular).password_acceso}</strong>
+                  <span className="bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-emerald-800">
+                    P: <strong>{generateClientCredentials(nombres, apellidos, celular).password_acceso}</strong>
                   </span>
                 </div>
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Celular (Bolivia) *</label>
+                <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Celular (Bolivia) *</label>
                 <div className="relative">
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xs bg-gray-200 px-1.5 py-0.5 rounded-md">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-[10px] bg-gray-200 px-1 py-0.5 rounded">
                     +591
                   </span>
                   <input
@@ -687,40 +857,34 @@ export default function Clients({
                     value={celular}
                     onChange={(e) => setCelular(e.target.value)}
                     placeholder="70000000"
-                    className="w-full pl-16 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition font-mono font-bold"
+                    className="w-full pl-13 pr-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition font-mono font-bold"
                     required
                   />
                 </div>
-                <span className="text-[10px] text-gray-400 mt-0.5 block">Solo ingrese los 8 dígitos</span>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Presupuesto USD (Opcional)</label>
+                <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Presupuesto USD</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">$</span>
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">$</span>
                   <input
                     type="number"
                     value={presupuestoUsd}
                     onChange={(e) => setPresupuestoUsd(e.target.value)}
                     placeholder="Opcional"
-                    className="w-full pl-7 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
+                    className="w-full pl-5 pr-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
                   />
                 </div>
-                {presupuestoUsd && !isNaN(Number(presupuestoUsd)) && Number(presupuestoUsd) > 0 && (
-                  <span className="block mt-1 text-[10px] text-gray-400 font-medium">
-                    Eqv: Bs. {getBobEquivalent(Number(presupuestoUsd))} (T/C {exchangeRate})
-                  </span>
-                )}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Departamento *</label>
+                <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Departamento *</label>
                 <select
                   value={departamento}
                   onChange={(e) => setDepartamento(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition font-medium"
+                  className="w-full px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition font-medium"
                 >
                   {BOLIVIAN_DEPARTMENTS.map((dep, i) => (
                     <option key={i} value={dep}>{dep}</option>
@@ -729,11 +893,11 @@ export default function Clients({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Estado Comercial *</label>
+                <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Estado Comercial *</label>
                 <select
                   value={estado}
                   onChange={(e) => setEstado(e.target.value as ClientState)}
-                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
+                  className="w-full px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
                 >
                   <option value="Nuevo">Nuevo</option>
                   <option value="Contactado">Contactado</option>
@@ -747,26 +911,26 @@ export default function Clients({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Correo Electrónico</label>
+                <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Correo Electrónico</label>
                 <input
                   type="email"
                   value={correo}
                   onChange={(e) => setCorreo(e.target.value)}
                   placeholder="ejemplo@correo.com"
-                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
+                  className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Campaña / Origen</label>
+                <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Campaña / Origen</label>
                 <input
                   type="text"
                   value={campania}
                   onChange={(e) => setCampania(e.target.value)}
                   placeholder="Ej. Facebook Ads, Feria"
-                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
+                  className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
                   list="campaign-suggestions"
                 />
                 <datalist id="campaign-suggestions">
@@ -782,20 +946,20 @@ export default function Clients({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Observaciones / Requerimientos</label>
+              <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Observaciones / Requerimientos</label>
               <textarea
                 value={observaciones}
                 onChange={(e) => setObservaciones(e.target.value)}
-                placeholder="Ej. Interesado en una pickup para trabajo, doble cabina..."
-                rows={3}
-                className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition resize-none"
+                placeholder="Detalle o requerimiento del cliente..."
+                rows={2}
+                className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition resize-none"
               />
             </div>
 
-            <div className="flex space-x-3 pt-2">
+            <div className="flex space-x-2 pt-1">
               <button
                 type="submit"
-                className="flex-1 bg-amber-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-amber-600 active:bg-amber-700 transition text-sm shadow-xs flex items-center justify-center space-x-1.5"
+                className="flex-1 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold py-2 px-3 rounded-lg transition text-xs shadow-xs flex items-center justify-center space-x-1 cursor-pointer"
               >
                 <span>{isEditing ? 'Guardar Cambios' : 'Registrar Cliente'}</span>
               </button>
@@ -803,7 +967,7 @@ export default function Clients({
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="px-3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold rounded-lg transition text-sm"
+                  className="px-3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold rounded-lg transition text-xs cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -941,11 +1105,11 @@ export default function Clients({
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
 
-                          {/* WhatsApp AutoGenerator */}
+                          {/* WhatsApp AutoGenerator + PDF Proposal */}
                           <button
-                            onClick={() => onSelectClientForWhatsApp(client)}
-                            className="p-1 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition"
-                            title="Generar Mensaje WhatsApp"
+                            onClick={() => handleOpenWhatsAppPdfModal(client)}
+                            className="p-1 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition cursor-pointer"
+                            title="Generar Mensaje WhatsApp + PDF Adjunto"
                           >
                             <MessageSquare className="w-3.5 h-3.5" />
                           </button>
@@ -953,7 +1117,7 @@ export default function Clients({
                           {/* Direct WhatsApp Envío Automático */}
                           <button
                             onClick={() => handleDirectWhatsAppSend(client)}
-                            className="p-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 rounded transition"
+                            className="p-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 rounded transition cursor-pointer"
                             title="Envío Automático WhatsApp Directo"
                           >
                             <Send className="w-3.5 h-3.5" />
@@ -961,14 +1125,14 @@ export default function Clients({
 
                           {/* Direct Email Envío Automático */}
                           <button
-                            onClick={() => handleDirectEmailSend(client)}
-                            className={`p-1 rounded transition ${
+                            onClick={() => handleOpenEmailModal(client)}
+                            className={`p-1 rounded transition cursor-pointer ${
                               client.correo 
                                 ? 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200' 
                                 : 'bg-gray-50 text-gray-300 border border-gray-100 cursor-not-allowed'
                             }`}
                             disabled={!client.correo}
-                            title={client.correo ? "Envío Automático Correo Directo" : "Sin correo registrado"}
+                            title={client.correo ? "Envío de Correo Electrónico" : "Sin correo registrado"}
                           >
                             <Mail className="w-3.5 h-3.5" />
                           </button>
@@ -1662,6 +1826,214 @@ export default function Clients({
               </div>
               <div className="p-4 flex-1 flex items-center justify-center bg-black overflow-auto">
                 <img src={previewPhotoUrl} alt="Foto Referencial" className="max-h-[70vh] w-auto object-contain rounded-xl" />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* WHATSAPP + PDF PROPOSAL MODAL */}
+      <AnimatePresence>
+        {whatsappPdfModalClient && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Header */}
+              <div className="p-4 bg-slate-950 text-white flex justify-between items-center border-b border-slate-800">
+                <div className="flex items-center space-x-2">
+                  <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm">Generador de Mensaje WhatsApp con PDF Adjunto</h3>
+                    <p className="text-xs text-gray-400">Arme la propuesta con vallas seleccionadas y descargue el PDF comercial</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setWhatsappPdfModalClient(null)}
+                  className="p-1 text-gray-400 hover:text-white rounded-lg transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Client summary badge */}
+              <div className="p-4 bg-emerald-50/60 border-b border-emerald-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div>
+                  <span className="font-bold text-emerald-950 block text-sm">{whatsappPdfModalClient.nombre}</span>
+                  <span className="text-gray-600 font-medium">
+                    🏢 {whatsappPdfModalClient.empresa || 'Particular'} • 📱 {whatsappPdfModalClient.celular} • 📍 {whatsappPdfModalClient.departamento || whatsappPdfModalClient.ciudad || 'Bolivia'}
+                  </span>
+                </div>
+                <span className="px-2.5 py-1 bg-white border border-emerald-200 text-emerald-800 rounded-full font-bold">
+                  Presupuesto: ${whatsappPdfModalClient.presupuesto_usd.toLocaleString()} USD
+                </span>
+              </div>
+
+              {/* Billboard selection */}
+              <div className="p-4 flex-1 overflow-y-auto space-y-3">
+                <label className="block text-xs font-bold text-gray-700">
+                  Seleccione los espacios publicitarios a incluir en el PDF comercial:
+                </label>
+                <div className="space-y-2">
+                  {mockDb.getVehicles().map((v) => {
+                    const isChecked = selectedVallasForPdf.includes(v.id);
+                    return (
+                      <div
+                        key={v.id}
+                        onClick={() => {
+                          if (isChecked) {
+                            setSelectedVallasForPdf(selectedVallasForPdf.filter(id => id !== v.id));
+                          } else {
+                            setSelectedVallasForPdf([...selectedVallasForPdf, v.id]);
+                          }
+                        }}
+                        className={`p-3 rounded-xl border transition cursor-pointer flex items-center justify-between ${
+                          isChecked 
+                            ? 'bg-amber-50/70 border-amber-300 shadow-2xs' 
+                            : 'bg-white border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}}
+                            className="rounded text-amber-600 focus:ring-amber-500"
+                          />
+                          <div>
+                            <span className="font-bold text-xs text-gray-900 block">
+                              [{v.codigo || v.id}] {v.tipo_valla || v.tipo} - {v.ciudad}
+                            </span>
+                            <span className="text-[11px] text-gray-500">
+                              {v.avenida_calle || v.modelo} • {v.medidas || '10x4 m'} • {v.iluminacion || 'Frontlight'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-bold text-xs text-slate-900 block">${v.precio_usd.toLocaleString()} USD</span>
+                          <span className="text-[10px] text-gray-400">Bs. {Math.round(v.precio_usd * exchangeRate).toLocaleString('es-BO')}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="p-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
+                <button
+                  onClick={() => handleGenerateAndDownloadPdf(whatsappPdfModalClient, selectedVallasForPdf)}
+                  disabled={pdfGenerating}
+                  className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-bold text-xs rounded-xl transition flex items-center space-x-1.5 cursor-pointer shadow-2xs"
+                >
+                  <Download className="w-4 h-4 text-gray-600" />
+                  <span>{pdfGenerating ? 'Generando...' : 'Descargar Solo PDF'}</span>
+                </button>
+
+                <button
+                  onClick={() => handleLaunchWhatsAppWithPdfInfo(whatsappPdfModalClient, selectedVallasForPdf)}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition shadow-md shadow-emerald-600/20 flex items-center space-x-2 cursor-pointer"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Descargar PDF y Abrir WhatsApp</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* EMAIL DIRECT SENDER MODAL */}
+      <AnimatePresence>
+        {emailModalClient && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-xl w-full overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Header */}
+              <div className="p-4 bg-slate-950 text-white flex justify-between items-center border-b border-slate-800">
+                <div className="flex items-center space-x-2">
+                  <div className="p-2 bg-blue-500/20 text-blue-400 rounded-xl">
+                    <Mail className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm">Envío Directo de Correo Electrónico</h3>
+                    <p className="text-xs text-gray-400">Propuesta comercial redactada para {emailModalClient.nombre}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setEmailModalClient(null)}
+                  className="p-1 text-gray-400 hover:text-white rounded-lg transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Body form */}
+              <div className="p-5 flex-1 overflow-y-auto space-y-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Destinatario</label>
+                  <input
+                    type="text"
+                    value={`${emailModalClient.nombre} <${emailModalClient.correo || 'sin-correo@registrado.com'}>`}
+                    disabled
+                    className="w-full px-3 py-2 text-xs bg-gray-100 border border-gray-200 rounded-lg text-gray-600 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Asunto</label>
+                  <input
+                    type="text"
+                    value={emailSubject}
+                    onChange={(e) => setEmailSubject(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 text-gray-800 font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Mensaje Comercial</label>
+                  <textarea
+                    value={emailBody}
+                    onChange={(e) => setEmailBody(e.target.value)}
+                    rows={8}
+                    className="w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 text-gray-700 font-normal leading-relaxed resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="p-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(emailBody);
+                    alert('Mensaje copiado al portapapeles');
+                  }}
+                  className="px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-bold text-xs rounded-xl transition flex items-center space-x-1.5 cursor-pointer"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copiar Mensaje</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    const mailtoUrl = `mailto:${emailModalClient.correo || ''}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+                    window.open(mailtoUrl, '_blank');
+                    setEmailModalClient(null);
+                  }}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition shadow-md shadow-blue-600/20 flex items-center space-x-2 cursor-pointer"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Abrir en Cliente de Correo</span>
+                </button>
               </div>
             </motion.div>
           </div>
