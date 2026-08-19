@@ -178,6 +178,7 @@ export interface Quotation {
   validez_oferta_dias?: number;
   foto_referencia_url?: string;
   foto_referencia_titulo?: string;
+  items_desglose?: Array<{ id: string; name: string; val: number }>;
   vallas_seleccionadas?: QuotationVallaItem[];
   vallas_items_detalle?: Array<{
     valla_id?: string;

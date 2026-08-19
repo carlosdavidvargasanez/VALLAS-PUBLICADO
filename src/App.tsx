@@ -998,28 +998,18 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans select-none antialiased text-gray-800">
       
       {/* Top Banner Header (Corporate Branding) */}
-      <header className="bg-gray-950 text-white border-b border-gray-900 px-6 py-4 flex justify-between items-center shadow-md z-40 no-print">
-        <div className="flex items-center space-x-3">
+      <header className="bg-gray-950 text-white border-b border-gray-900 px-4 sm:px-6 py-2.5 sm:py-3.5 flex justify-between items-center shadow-md z-40 no-print min-h-[5.5rem] sm:min-h-[6.5rem]">
+        <div className="flex items-center space-x-3 sm:space-x-4">
           <button 
             onClick={() => setSidebarOpen(prev => !prev)}
-            className="p-1.5 rounded-lg hover:bg-white/10 lg:hidden transition"
+            className="p-2 rounded-lg hover:bg-white/10 lg:hidden transition"
           >
-            <Menu className="w-5 h-5 text-gray-300" />
+            <Menu className="w-6 h-6 text-gray-300" />
           </button>
           
-          <div className="flex items-center space-x-2.5">
-            <Logo size="md" logoUrl={settings.logo} />
+          <div className="flex items-center">
+            <Logo size="header" logoUrl={settings.logo} />
           </div>
-
-          {/* Direct Return to Home / Landing Button in Header */}
-          <button
-            onClick={handleLogout}
-            className="flex items-center space-x-1.5 px-3 py-1.5 bg-[#ff8c00]/15 hover:bg-[#ff8c00]/30 border border-[#ff8c00]/40 text-[#ff8c00] rounded-xl text-xs font-bold transition cursor-pointer"
-            title="Ir a la pantalla principal de inicio"
-          >
-            <Home className="w-3.5 h-3.5 text-[#ff8c00]" />
-            <span className="hidden sm:inline font-black uppercase text-[11px] tracking-wider">Inicio</span>
-          </button>
         </div>
 
         {/* Top Active User Dropdown Panel */}

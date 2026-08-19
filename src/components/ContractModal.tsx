@@ -186,7 +186,7 @@ export default function ContractModal({
     {
       id: 'LONA-1',
       valla_medidas: '15 x 4 m',
-      direccion: '3er ANILLO INTERNO CANAL COTOCA',
+      direccion: 'Impresion de lona Vinilica 13 Oz.con Filtro Uv.e Instalacion - 3er ANILLO INTERNO CANAL COTOCA',
       medidas: '15 x 4 m',
       costo_unitario_bs: 4380,
       descuento_lona_bs: 0,
@@ -195,7 +195,7 @@ export default function ContractModal({
     {
       id: 'LONA-2',
       valla_medidas: '10 x 4 m',
-      direccion: '3er ANILLO INTERNO ENTRE AV. BUSH Y AV. SAN MARTIN',
+      direccion: 'Impresion de lona Vinilica 13 Oz.con Filtro Uv.e Instalacion - 3er ANILLO INTERNO ENTRE AV. BUSH Y AV. SAN MARTIN',
       medidas: '10 x 4 m',
       costo_unitario_bs: 2920,
       descuento_lona_bs: 30,
@@ -204,7 +204,7 @@ export default function ContractModal({
     {
       id: 'LONA-3',
       valla_medidas: '10 x 4 m',
-      direccion: '2do ANILLO AV. PIRAI DIAGONAL HIPERMAXI',
+      direccion: 'Impresion de lona Vinilica 13 Oz.con Filtro Uv.e Instalacion - 2do ANILLO AV. PIRAI DIAGONAL HIPERMAXI',
       medidas: '10 x 4 m',
       costo_unitario_bs: 2920,
       descuento_lona_bs: 30,
@@ -275,43 +275,95 @@ export default function ContractModal({
       }
     } else if (quotation) {
       const client = clients.find(c => c.id === quotation.cliente_id);
-      const vehicle = vehicles.find(v => v.id === quotation.vehiculo_id);
 
       if (client) {
         setSelectedClientId(client.id);
-        setClienteNombre(client.nombre);
+        setClienteNombre(client.empresa ? `${client.nombre} – ${client.empresa}` : client.nombre);
         setClienteEmpresa(client.empresa || '');
         setClienteCelular(client.celular);
         setClienteCorreo(client.correo || '');
         setClienteCiudad(client.ciudad || 'Santa Cruz');
-        setClienteDireccion('Av. Principal, Edificio Corporativo');
-        setClienteNitCi('1020304050');
+        setClienteDireccion(client.direccion || 'Av. Principal, Edificio Corporativo');
+        setClienteNitCi(client.nit_ci || '1020304050');
       }
 
-      if (vehicle) {
-        const costoBs = Math.round((quotation.precio_vehiculo || vehicle.precio_usd || 1500) * tc);
-        setVallasLista([
-          {
-            id: 'VALLA-1',
-            ciudad: vehicle.ciudad || 'Santa Cruz',
-            formato: vehicle.tipo_valla || 'Valla Unipolar',
-            direccion: `${vehicle.marca} - ${vehicle.modelo} (${vehicle.avenida_calle || 'Av. Principal'})`,
-            costo_mensual_bs: costoBs,
+      if (quotation.vallas_seleccionadas && quotation.vallas_seleccionadas.length > 0) {
+        const vallas: ContractVallaItem[] = quotation.vallas_seleccionadas.map((v, idx) => {
+          const rentBs = Math.round((v.precio_alquiler_usd || 1000) * tc);
+          const location = v.valla_avenida || v.valla_nombre || `Valla ${idx + 1}`;
+          return {
+            id: `VALLA-${idx + 1}-${Date.now()}`,
+            valla_id: v.vehiculo_id,
+            ciudad: v.valla_ciudad || 'Santa Cruz',
+            formato: v.valla_tipo || 'Valla Unipolar',
+            direccion: location,
+            medidas: v.valla_medidas || '12 x 4 m',
+            costo_mensual_bs: rentBs,
             descuento_bs: 0,
-            costo_neto_bs: costoBs
-          }
-        ]);
+            costo_neto_bs: rentBs
+          };
+        });
 
-        setLonasLista([
-          {
-            id: 'LONA-1',
-            direccion: `${vehicle.marca} - ${vehicle.modelo}`,
-            medidas: vehicle.medidas || '12x4',
-            costo_unitario_bs: 2890,
+        const lonas: ContractLonaItem[] = quotation.vallas_seleccionadas.map((v, idx) => {
+          const lonaCostBs = v.costo_lona_usd 
+            ? Math.round(v.costo_lona_usd * tc)
+            : calculateSuggestedLonaCostBs(v.valla_medidas || '12 x 4 m', v.costo_lona_m2_bs);
+
+          const location = v.valla_avenida || v.valla_nombre || `Valla ${idx + 1}`;
+
+          return {
+            id: `LONA-${idx + 1}-${Date.now()}`,
+            valla_id: v.vehiculo_id,
+            valla_medidas: v.valla_medidas || '12 x 4 m',
+            direccion: `Impresion de lona Vinilica 13 Oz.con Filtro Uv.e Instalacion - ${location}`,
+            medidas: v.valla_medidas || '12 x 4 m',
+            costo_unitario_bs: lonaCostBs,
             descuento_lona_bs: 0,
-            total_costo_bs: 2890
-          }
-        ]);
+            total_costo_bs: lonaCostBs
+          };
+        });
+
+        setVallasLista(vallas);
+        setLonasLista(lonas);
+      } else {
+        const vehicle = vehicles.find(v => v.id === quotation.vehiculo_id);
+        if (vehicle) {
+          const rentBs = Math.round((quotation.precio_vehiculo || vehicle.precio_usd || 1200) * tc);
+          const lonaCostBs = quotation.gastos_importacion
+            ? Math.round(quotation.gastos_importacion * tc)
+            : calculateSuggestedLonaCostBs(vehicle.medidas, vehicle.costo_lona_m2_bs);
+
+          const locationName = vehicle.avenida_calle 
+            ? `${vehicle.tipo_valla || vehicle.tipo || 'Valla'} - ${vehicle.avenida_calle} (${vehicle.codigo || vehicle.modelo || vehicle.id})`
+            : `${vehicle.marca} - ${vehicle.modelo}`;
+
+          setVallasLista([
+            {
+              id: 'VALLA-1',
+              valla_id: vehicle.id,
+              ciudad: vehicle.ciudad || 'Santa Cruz',
+              formato: vehicle.tipo_valla || vehicle.tipo || 'Valla Unipolar',
+              direccion: locationName,
+              medidas: vehicle.medidas || '12 x 4 m',
+              costo_mensual_bs: rentBs,
+              descuento_bs: 0,
+              costo_neto_bs: rentBs
+            }
+          ]);
+
+          setLonasLista([
+            {
+              id: 'LONA-1',
+              valla_id: vehicle.id,
+              valla_medidas: vehicle.medidas || '12 x 4 m',
+              direccion: `Impresion de lona Vinilica 13 Oz.con Filtro Uv.e Instalacion - ${locationName}`,
+              medidas: vehicle.medidas || '12 x 4 m',
+              costo_unitario_bs: lonaCostBs,
+              descuento_lona_bs: 0,
+              total_costo_bs: lonaCostBs
+            }
+          ]);
+        }
       }
     }
   }, [quotation, initialContract, clients, vehicles, tc]);
@@ -448,7 +500,7 @@ export default function ContractModal({
       id: newLonaId,
       valla_id: valla.id,
       valla_medidas: dimensions,
-      direccion: locationName,
+      direccion: `Impresion de lona Vinilica 13 Oz.con Filtro Uv.e Instalacion - ${locationName}`,
       medidas: dimensions, // Autocomplete suggested lona size matching billboard size!
       costo_unitario_bs: lonaCostBs,
       descuento_lona_bs: 0,
@@ -481,7 +533,7 @@ export default function ContractModal({
       id: newLonaId,
       valla_id: newVallaId,
       valla_medidas: defaultMedida,
-      direccion: 'Nueva Ubicación Avenida / Anillo',
+      direccion: 'Impresion de lona Vinilica 13 Oz.con Filtro Uv.e Instalacion - Nueva Ubicación Avenida / Anillo',
       medidas: defaultMedida,
       costo_unitario_bs: 2920,
       descuento_lona_bs: 0,
@@ -514,14 +566,20 @@ export default function ContractModal({
 
   // Lona Item Handlers
   const handleAddLonaRow = () => {
+    const correspondingValla = vallasLista[lonasLista.length] || vallasLista[vallasLista.length - 1];
+    const dimensions = correspondingValla?.medidas || '12 x 4 m';
+    const location = correspondingValla?.direccion || 'Ubicación Valla';
+    const suggestedCost = calculateSuggestedLonaCostBs(dimensions);
+
     const newRow: ContractLonaItem = {
       id: 'LONA-' + Date.now(),
-      direccion: 'Ubicación de Impresión de Lona',
-      medidas: '12 x 4 m',
-      valla_medidas: '12 x 4 m',
-      costo_unitario_bs: 2920,
+      valla_id: correspondingValla?.valla_id || correspondingValla?.id,
+      valla_medidas: dimensions,
+      direccion: `Impresion de lona Vinilica 13 Oz.con Filtro Uv.e Instalacion - ${location}`,
+      medidas: dimensions,
+      costo_unitario_bs: suggestedCost,
       descuento_lona_bs: 0,
-      total_costo_bs: 2920
+      total_costo_bs: suggestedCost
     };
     setLonasLista([...lonasLista, newRow]);
   };
@@ -1144,15 +1202,13 @@ export default function ContractModal({
                             Bs. {v.costo_neto_bs.toLocaleString('es-BO')}
                           </td>
                           <td className="p-2 text-center">
-                            {vallasLista.length > 1 && (
-                              <button
-                                onClick={() => handleDeleteVallaRow(v.id)}
-                                className="p-1 rounded bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 transition cursor-pointer"
-                                title="Eliminar este espacio"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
+                            <button
+                              onClick={() => handleDeleteVallaRow(v.id)}
+                              className="p-1 rounded bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 transition cursor-pointer"
+                              title="Eliminar este espacio"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -1296,15 +1352,13 @@ export default function ContractModal({
                               Bs. {l.total_costo_bs.toLocaleString('es-BO')}
                             </td>
                             <td className="p-2 text-center">
-                              {lonasLista.length > 1 && (
-                                <button
-                                  onClick={() => handleDeleteLonaRow(l.id)}
-                                  className="p-1 rounded bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 transition cursor-pointer"
-                                  title="Eliminar este ítem de lona"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
+                              <button
+                                onClick={() => handleDeleteLonaRow(l.id)}
+                                className="p-1 rounded bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 transition cursor-pointer"
+                                title="Eliminar este ítem de lona"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </td>
                           </tr>
                         );

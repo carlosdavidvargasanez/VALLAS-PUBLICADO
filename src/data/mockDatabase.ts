@@ -182,10 +182,14 @@ const INITIAL_QUOTATIONS: Quotation[] = [
     vehiculo_id: 'V001',
     precio_vehiculo: 1200,
     gastos_importacion: 300,
-    gastos_aduana: 150,
-    gastos_logistica: 100,
-    gastos_seguro: 50,
-    total: 1800,
+    gastos_aduana: 0,
+    gastos_logistica: 0,
+    gastos_seguro: 0,
+    total: 1500,
+    items_desglose: [
+      { id: 'item-1', name: 'Alquiler Base Mensual de Valla Publicitaria / Pantalla', val: 1200 },
+      { id: 'item-2', name: 'Impresion de lona Vinilica 13 Oz.con Filtro Uv.e Instalacion', val: 300 }
+    ],
     estado: 'Enviada',
     observaciones: '[REGISTRO DE EJEMPLO / PRUEBA] Cotización de prueba para Valla Banzer 4to Anillo.',
     fecha: '2026-07-01T11:00:00Z',

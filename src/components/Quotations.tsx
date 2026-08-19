@@ -74,6 +74,7 @@ export default function Quotations({
   // Proforma Preview & Edit State
   const [isEditingPreview, setIsEditingPreview] = useState<boolean>(false);
   const [editingQuote, setEditingQuote] = useState<Quotation | null>(null);
+  const [previewBreakdownItems, setPreviewBreakdownItems] = useState<Array<{ id: string; name: string; val: number }>>([]);
   const [previewSuccessMsg, setPreviewSuccessMsg] = useState<string>('');
 
   // Contract Generation Modal State
@@ -85,13 +86,98 @@ export default function Quotations({
 
   // Form states (Fees breakdown)
   const [precioVehiculo, setPrecioVehiculo] = useState('');
-  const [gastosImportacion, setGastosImportacion] = useState('1800'); // defaults
-  const [gastosAduana, setGastosAduana] = useState('6500');
-  const [gastosLogistica, setGastosLogistica] = useState('2000');
-  const [gastosSeguro, setGastosSeguro] = useState('450');
+  const [gastosImportacion, setGastosImportacion] = useState('300'); // defaults
+  const [gastosAduana, setGastosAduana] = useState('0');
+  const [gastosLogistica, setGastosLogistica] = useState('0');
+  const [gastosSeguro, setGastosSeguro] = useState('0');
   const [observaciones, setObservaciones] = useState('');
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
+
+  // Helper to build the breakdown rows: Alquiler for each valla and its corresponding Lona
+  const buildQuoteBreakdown = (quote: Quotation): Array<{ id: string; name: string; val: number }> => {
+    if (quote.items_desglose && quote.items_desglose.length > 0) {
+      return quote.items_desglose.map(it => ({ ...it }));
+    }
+
+    const items: Array<{ id: string; name: string; val: number }> = [];
+
+    if (quote.vallas_seleccionadas && quote.vallas_seleccionadas.length > 0) {
+      quote.vallas_seleccionadas.forEach((v, idx) => {
+        const vallaLabel = v.valla_nombre || v.valla_avenida || `Valla ${idx + 1}`;
+        const measures = v.valla_medidas ? ` (${v.valla_medidas})` : '';
+
+        // 1. Alquiler de la valla
+        items.push({
+          id: `alq-${v.vehiculo_id || idx}-${Date.now() + idx}`,
+          name: `Alquiler de Espacio: ${vallaLabel}${measures}`,
+          val: v.precio_alquiler_usd || 0
+        });
+
+        // 2. Impresión de lona correspondiente a esa valla
+        items.push({
+          id: `lona-${v.vehiculo_id || idx}-${Date.now() + idx + 100}`,
+          name: 'Impresion de lona Vinilica 13 Oz.con Filtro Uv.e Instalacion',
+          val: v.costo_lona_usd || (v.area_m2 ? Math.round((v.area_m2 * (v.costo_lona_m2_bs || 65)) / (settings.tipo_cambio || 6.96)) : 300)
+        });
+      });
+    } else {
+      const v = vehicles.find(x => x.id === quote.vehiculo_id);
+      const vallaTitle = v 
+        ? `${v.tipo_valla || v.tipo} - ${v.avenida_calle || v.modelo} (${v.medidas || '12.00 x 4.00 m'})`
+        : 'Valla Publicitaria';
+
+      // 1. Alquiler de la valla
+      items.push({
+        id: 'alq-main',
+        name: `Alquiler Base Mensual de Valla Publicitaria / Pantalla (${vallaTitle})`,
+        val: quote.precio_vehiculo || 1200
+      });
+
+      // 2. Impresión de lona correspondiente
+      const lonaPrice = (quote.gastos_importacion !== undefined && quote.gastos_importacion !== null && quote.gastos_importacion > 0)
+        ? quote.gastos_importacion
+        : 300;
+
+      items.push({
+        id: 'lona-main',
+        name: 'Impresion de lona Vinilica 13 Oz.con Filtro Uv.e Instalacion',
+        val: lonaPrice
+      });
+    }
+
+    return items;
+  };
+
+  const handleDeleteBreakdownItem = (itemId: string) => {
+    setPreviewBreakdownItems(prev => prev.filter(it => it.id !== itemId));
+  };
+
+  const handleUpdateBreakdownItem = (itemId: string, field: 'name' | 'val', value: any) => {
+    setPreviewBreakdownItems(prev => prev.map(it => {
+      if (it.id === itemId) {
+        return {
+          ...it,
+          [field]: field === 'val' ? (parseFloat(value) || 0) : value
+        };
+      }
+      return it;
+    }));
+  };
+
+  const handleAddBreakdownItem = () => {
+    setPreviewBreakdownItems(prev => [
+      ...prev,
+      {
+        id: 'item-' + Date.now(),
+        name: 'Nuevo Concepto Publicitario',
+        val: 0
+      }
+    ]);
+  };
+
+  const previewTotalUsd = previewBreakdownItems.reduce((acc, item) => acc + (Number(item.val) || 0), 0);
+  const previewTotalBob = Math.round(previewTotalUsd * settings.tipo_cambio);
 
   // Generate and download full PDF for any quotation
   const handleDownloadQuotePdf = async (quote: Quotation) => {
@@ -140,8 +226,8 @@ export default function Quotations({
         ciudad: vehicle?.ciudad || 'Santa Cruz',
         avenida: vehicle?.avenida_calle || vehicle?.modelo || 'Ubicación Estratégica',
         cara: vehicle?.cara || 'Cara A',
-        alquilerMensualUsd: quote.precio_vehiculo || 1500,
-        alquilerMensualBob: Math.round((quote.precio_vehiculo || 1500) * settings.tipo_cambio),
+        alquilerMensualUsd: quote.precio_vehiculo || 1200,
+        alquilerMensualBob: Math.round((quote.precio_vehiculo || 1200) * settings.tipo_cambio),
         areaM2: area,
         costoLonaM2Bs: lonaUnitBs,
         costoLonaTotalBs: lonaTotalBs,
@@ -200,24 +286,10 @@ export default function Quotations({
   React.useEffect(() => {
     if (activeVehicle) {
       setPrecioVehiculo(String(activeVehicle.precio_usd));
-      // Auto adjust aduana/logistics based on vehicle value as a premium helper
-      const base = activeVehicle.precio_usd;
-      if (base > 80000) {
-        setGastosImportacion('2500');
-        setGastosAduana('14000');
-        setGastosLogistica('3000');
-        setGastosSeguro('950');
-      } else if (base > 50000) {
-        setGastosImportacion('2000');
-        setGastosAduana('8500');
-        setGastosLogistica('2200');
-        setGastosSeguro('600');
-      } else {
-        setGastosImportacion('1500');
-        setGastosAduana('5200');
-        setGastosLogistica('1800');
-        setGastosSeguro('350');
-      }
+      setGastosImportacion('300');
+      setGastosAduana('0');
+      setGastosLogistica('0');
+      setGastosSeguro('0');
     }
   }, [activeVehicle]);
 
@@ -233,6 +305,8 @@ export default function Quotations({
   const handleOpenPreview = (quote: Quotation, editMode: boolean = false) => {
     setSelectedPrintQuote(quote);
     setEditingQuote({ ...quote });
+    const items = buildQuoteBreakdown(quote);
+    setPreviewBreakdownItems(items);
     setIsEditingPreview(editMode);
     setPreviewSuccessMsg('');
   };
@@ -243,6 +317,12 @@ export default function Quotations({
     if (!activeClient) return setFormError('Debe seleccionar un cliente destinatario.');
     if (!activeVehicle) return setFormError('Debe seleccionar una valla o pantalla publicitaria a cotizar.');
     if (!precioVehiculo || isNaN(Number(precioVehiculo))) return setFormError('Proporcione un precio base válido.');
+
+    const vallaTitle = `${activeVehicle.tipo_valla || activeVehicle.tipo} - ${activeVehicle.avenida_calle || activeVehicle.modelo} (${activeVehicle.medidas || '12.00 x 4.00 m'})`;
+    const draftItems = [
+      { id: 'alq-main', name: `Alquiler Base Mensual de Valla Publicitaria / Pantalla (${vallaTitle})`, val: basePriceNum },
+      { id: 'lona-main', name: 'Impresion de lona Vinilica 13 Oz.con Filtro Uv.e Instalacion', val: importNum }
+    ];
 
     const draftQuote: Quotation = {
       id: 'DRAFT-' + Date.now(),
@@ -255,6 +335,7 @@ export default function Quotations({
       gastos_logistica: logisticaNum,
       gastos_seguro: seguroNum,
       total: totalQuotePrice,
+      items_desglose: draftItems,
       fecha: new Date().toISOString(),
       estado: 'Borrador',
       observaciones: observaciones.trim()
@@ -267,31 +348,22 @@ export default function Quotations({
   const handleSaveEditedQuote = () => {
     if (!editingQuote) return;
     
-    // Recalculate total sum
-    const newTotal = (editingQuote.precio_vehiculo || 0) +
-      (editingQuote.gastos_importacion || 0) +
-      (editingQuote.gastos_aduana || 0) +
-      (editingQuote.gastos_logistica || 0) +
-      (editingQuote.gastos_seguro || 0);
+    const alqItem = previewBreakdownItems.find(i => i.name.toLowerCase().includes('alquiler'));
+    const lonaItem = previewBreakdownItems.find(i => i.name.toLowerCase().includes('lona'));
 
-    const updated = {
+    const updated: Quotation = {
       ...editingQuote,
-      total: newTotal
+      total: previewTotalUsd,
+      items_desglose: previewBreakdownItems,
+      precio_vehiculo: alqItem ? alqItem.val : (previewBreakdownItems[0]?.val || 0),
+      gastos_importacion: lonaItem ? lonaItem.val : 0,
+      gastos_aduana: 0,
+      gastos_logistica: 0,
+      gastos_seguro: 0
     };
 
     if (updated.id.startsWith('DRAFT-')) {
-      onAddQuotation({
-        cliente_id: updated.cliente_id,
-        vehiculo_id: updated.vehiculo_id,
-        precio_vehiculo: updated.precio_vehiculo,
-        gastos_importacion: updated.gastos_importacion,
-        gastos_aduana: updated.gastos_aduana,
-        gastos_logistica: updated.gastos_logistica,
-        gastos_seguro: updated.gastos_seguro,
-        total: updated.total,
-        estado: updated.estado,
-        observaciones: updated.observaciones
-      });
+      onAddQuotation(updated);
       setPreviewSuccessMsg('¡Proforma creada y guardada con éxito en el sistema!');
     } else {
       if (onUpdateQuotation) {
@@ -316,6 +388,12 @@ export default function Quotations({
     if (!activeVehicle) return setFormError('Debe seleccionar un vehículo a cotizar.');
     if (!precioVehiculo || isNaN(Number(precioVehiculo))) return setFormError('Proporcione un precio base válido.');
 
+    const vallaTitle = `${activeVehicle.tipo_valla || activeVehicle.tipo} - ${activeVehicle.avenida_calle || activeVehicle.modelo} (${activeVehicle.medidas || '12.00 x 4.00 m'})`;
+    const defaultItems = [
+      { id: 'alq-1', name: `Alquiler Base Mensual de Valla Publicitaria / Pantalla (${vallaTitle})`, val: basePriceNum },
+      { id: 'lona-1', name: 'Impresion de lona Vinilica 13 Oz.con Filtro Uv.e Instalacion', val: importNum }
+    ];
+
     onAddQuotation({
       cliente_id: activeClient.id,
       vehiculo_id: activeVehicle.id,
@@ -325,6 +403,7 @@ export default function Quotations({
       gastos_logistica: logisticaNum,
       gastos_seguro: seguroNum,
       total: totalQuotePrice,
+      items_desglose: defaultItems,
       estado: 'Borrador',
       observaciones: observaciones.trim()
     });
@@ -338,10 +417,10 @@ export default function Quotations({
 
   const resetForm = () => {
     setPrecioVehiculo('');
-    setGastosImportacion('1500');
-    setGastosAduana('5200');
-    setGastosLogistica('1800');
-    setGastosSeguro('350');
+    setGastosImportacion('300');
+    setGastosAduana('0');
+    setGastosLogistica('0');
+    setGastosSeguro('0');
     setObservaciones('');
     onSelectActiveVehicle(null);
   };
@@ -724,16 +803,6 @@ export default function Quotations({
                       <td className="py-3.5 px-4">
                         <div className="flex items-center justify-center space-x-1">
                           
-                          {/* Descargar PDF con Lonas y Contrato */}
-                          <button
-                            onClick={() => handleDownloadQuotePdf(quote)}
-                            className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-[10px] rounded-md transition flex items-center space-x-1 shadow-2xs cursor-pointer"
-                            title="Descargar PDF Corporativo Oficial con desglose de lonas y contrato legal"
-                          >
-                            <Download className="w-3.5 h-3.5 text-slate-950" />
-                            <span>PDF Lonas</span>
-                          </button>
-
                           {/* Previsualizar y Editar Proforma */}
                           <button
                             onClick={() => handleOpenPreview(quote, false)}
@@ -971,68 +1040,79 @@ export default function Quotations({
                       </div>
                     </div>
 
+                    {/* Interactive breakdown rows editor */}
                     <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 border-b pb-2">
-                        Desglose de Montos y Servicios (USD)
-                      </h4>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      <div className="flex items-center justify-between border-b pb-2">
                         <div>
-                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Alquiler Base Mensual ($)</label>
-                          <input
-                            type="number"
-                            value={displayQuote.precio_vehiculo}
-                            onChange={(e) => setEditingQuote(prev => prev ? { ...prev, precio_vehiculo: parseFloat(e.target.value) || 0 } : prev)}
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold"
-                          />
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                            Desglose de Montos y Servicios (USD)
+                          </h4>
+                          <p className="text-[10px] text-slate-500">
+                            Alquiler de vallas e impresión de lonas. Puede editar montos, agregar o eliminar filas.
+                          </p>
                         </div>
+                        <button
+                          type="button"
+                          onClick={handleAddBreakdownItem}
+                          className="text-xs text-amber-700 hover:text-amber-800 font-extrabold flex items-center space-x-1 cursor-pointer bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg border border-amber-300 transition"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>+ Agregar Fila</span>
+                        </button>
+                      </div>
 
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Impresión Lona ($)</label>
-                          <input
-                            type="number"
-                            value={displayQuote.gastos_importacion}
-                            onChange={(e) => setEditingQuote(prev => prev ? { ...prev, gastos_importacion: parseFloat(e.target.value) || 0 } : prev)}
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold"
-                          />
-                        </div>
+                      <div className="space-y-2">
+                        {previewBreakdownItems.map((item) => (
+                          <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                            <div className="flex-1 w-full">
+                              <input
+                                type="text"
+                                value={item.name}
+                                onChange={(e) => handleUpdateBreakdownItem(item.id, 'name', e.target.value)}
+                                placeholder="Concepto (ej. Impresion de lona Vinilica 13 Oz.con Filtro Uv.e Instalacion)"
+                                className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold bg-white focus:ring-1 focus:ring-amber-500"
+                              />
+                            </div>
+                            <div className="flex items-center space-x-2 w-full sm:w-auto">
+                              <div className="relative flex-1 sm:w-36">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">$</span>
+                                <input
+                                  type="number"
+                                  value={item.val}
+                                  onChange={(e) => handleUpdateBreakdownItem(item.id, 'val', e.target.value)}
+                                  placeholder="0"
+                                  className="w-full pl-6 pr-2 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold bg-white text-right focus:ring-1 focus:ring-amber-500"
+                                />
+                              </div>
+                              <span className="text-[11px] text-slate-500 font-mono hidden sm:inline whitespace-nowrap min-w-24 text-right">
+                                Bs. {Math.round((Number(item.val) || 0) * settings.tipo_cambio).toLocaleString('es-BO')}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteBreakdownItem(item.id)}
+                                className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-100 rounded-lg transition cursor-pointer"
+                                title="Eliminar fila"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
 
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Montaje / Estructura ($)</label>
-                          <input
-                            type="number"
-                            value={displayQuote.gastos_aduana}
-                            onChange={(e) => setEditingQuote(prev => prev ? { ...prev, gastos_aduana: parseFloat(e.target.value) || 0 } : prev)}
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold"
-                          />
-                        </div>
+                        {previewBreakdownItems.length === 0 && (
+                          <div className="p-4 text-center text-slate-400 text-xs italic bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                            No hay conceptos en el desglose. Haga clic en "+ Agregar Fila" para crear un ítem.
+                          </div>
+                        )}
+                      </div>
 
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Mantenimiento / Luz ($)</label>
-                          <input
-                            type="number"
-                            value={displayQuote.gastos_logistica}
-                            onChange={(e) => setEditingQuote(prev => prev ? { ...prev, gastos_logistica: parseFloat(e.target.value) || 0 } : prev)}
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Seguro / Garantía ($)</label>
-                          <input
-                            type="number"
-                            value={displayQuote.gastos_seguro}
-                            onChange={(e) => setEditingQuote(prev => prev ? { ...prev, gastos_seguro: parseFloat(e.target.value) || 0 } : prev)}
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold"
-                          />
-                        </div>
-
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                         <div>
                           <label className="block text-[11px] font-bold text-slate-600 mb-1">Estado Proforma</label>
                           <select
                             value={displayQuote.estado}
                             onChange={(e) => setEditingQuote(prev => prev ? { ...prev, estado: e.target.value as QuotationState } : prev)}
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-bold"
+                            className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-bold bg-white"
                           >
                             <option value="Borrador">Borrador</option>
                             <option value="Enviada">Enviada</option>
@@ -1043,10 +1123,15 @@ export default function Quotations({
                       </div>
 
                       <div className="bg-slate-900 text-white p-3 rounded-xl flex justify-between items-center font-mono text-xs mt-2">
-                        <span>TOTAL RECALCULADO:</span>
-                        <span className="text-amber-400 font-bold text-sm">
-                          ${((displayQuote.precio_vehiculo||0)+(displayQuote.gastos_importacion||0)+(displayQuote.gastos_aduana||0)+(displayQuote.gastos_logistica||0)+(displayQuote.gastos_seguro||0)).toLocaleString()} USD
-                        </span>
+                        <span className="font-bold text-amber-400 uppercase tracking-wider">TOTAL RECALCULADO:</span>
+                        <div className="text-right">
+                          <span className="text-amber-400 font-black text-sm block">
+                            ${previewTotalUsd.toLocaleString()} USD
+                          </span>
+                          <span className="text-slate-300 text-[10px] block">
+                            Bs. {previewTotalBob.toLocaleString('es-BO')} BOB (T/C {settings.tipo_cambio})
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -1210,39 +1295,82 @@ export default function Quotations({
 
                     {/* Cost breakdown table */}
                     <div className="space-y-2">
-                      <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider pb-1 border-b border-slate-200">
-                        Desglose Económico y Servicios Incluidos
-                      </h4>
+                      <div className="flex items-center justify-between pb-1 border-b border-slate-200">
+                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                          Desglose Económico y Servicios Incluidos
+                        </h4>
+                        <div className="flex items-center space-x-2 print:hidden no-print">
+                          <button
+                            type="button"
+                            onClick={handleAddBreakdownItem}
+                            className="text-[10px] text-amber-700 hover:text-amber-900 font-extrabold flex items-center space-x-1 cursor-pointer bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded border border-amber-300 transition"
+                            title="Agregar un concepto adicional al desglose"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>+ Agregar Ítem</span>
+                          </button>
+                        </div>
+                      </div>
                       
                       <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-                        <div className="grid grid-cols-3 bg-slate-900 text-white p-2.5 font-bold uppercase text-[10px] tracking-wider">
-                          <span>Concepto / Servicio Publicitario</span>
-                          <span className="text-right">Monto (USD)</span>
-                          <span className="text-right">Equivalente (Bs)</span>
-                        </div>
-                        
-                        <div className="divide-y divide-slate-100">
-                          {[
-                            { name: 'Alquiler Base Mensual de Valla Publicitaria / Pantalla', val: displayQuote.precio_vehiculo },
-                            { name: 'Impresión de Lona Vinílica Frontlight 13oz con Filtro UV', val: displayQuote.gastos_importacion },
-                            { name: 'Montaje, Colocado e Instalación con Cuadrilla Especializada', val: displayQuote.gastos_aduana },
-                            { name: 'Mantenimiento, Iluminación LED Nocturna (18:30 - 24:00) y Limpieza', val: displayQuote.gastos_logistica },
-                            { name: 'Seguro de Estructura y Garantía de Espacio Exclusivo', val: displayQuote.gastos_seguro },
-                          ].filter(r => (r.val || 0) > 0 || r.name.includes('Alquiler')).map((row, i) => (
-                            <div key={i} className="grid grid-cols-3 p-2.5 text-slate-700">
-                              <span className="font-semibold">{row.name}</span>
-                              <span className="text-right font-mono font-bold">${(row.val || 0).toLocaleString()}</span>
-                              <span className="text-right font-mono text-slate-500">Bs. {((row.val || 0) * settings.tipo_cambio).toLocaleString('es-BO', {maximumFractionDigits:0})}</span>
-                            </div>
-                          ))}
-                        </div>
+                        <table className="w-full text-left border-collapse">
+                          <thead className="bg-slate-900 text-white font-bold uppercase text-[10px] tracking-wider">
+                            <tr>
+                              <th className="p-2.5">Concepto / Servicio Publicitario</th>
+                              <th className="p-2.5 text-right w-28">Monto (USD)</th>
+                              <th className="p-2.5 text-right w-32">Equivalente (Bs)</th>
+                              <th className="p-2.5 text-center w-10 print:hidden no-print"></th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {previewBreakdownItems.map((row) => (
+                              <tr key={row.id} className="hover:bg-slate-50 text-slate-700 group transition">
+                                <td className="p-2.5 font-semibold text-slate-900">
+                                  {row.name}
+                                </td>
+                                <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                                  ${(Number(row.val) || 0).toLocaleString()}
+                                </td>
+                                <td className="p-2.5 text-right font-mono text-slate-500 whitespace-nowrap">
+                                  Bs. {Math.round((Number(row.val) || 0) * settings.tipo_cambio).toLocaleString('es-BO')}
+                                </td>
+                                <td className="p-2.5 text-center print:hidden no-print">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteBreakdownItem(row.id)}
+                                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition cursor-pointer"
+                                    title="Eliminar este ítem del desglose"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
 
-                        {/* Total row */}
-                        <div className="grid grid-cols-3 bg-slate-950 text-white p-3 font-bold border-t border-slate-200 items-center">
-                          <span className="text-xs font-extrabold uppercase tracking-wider text-amber-400">VALOR TOTAL COTIZADO:</span>
-                          <span className="text-right font-mono text-sm text-amber-400 font-bold">${displayQuote.total.toLocaleString()} USD</span>
-                          <span className="text-right font-mono text-xs text-slate-200">Bs. {(displayQuote.total * settings.tipo_cambio).toLocaleString('es-BO', {maximumFractionDigits:0})} BOB</span>
-                        </div>
+                            {previewBreakdownItems.length === 0 && (
+                              <tr>
+                                <td colSpan={4} className="p-4 text-center text-slate-400 italic">
+                                  No hay ítems en el desglose. Puede presionar "+ Agregar Ítem" o volver a abrir la proforma.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                          <tfoot>
+                            {/* Total row with live auto-sum */}
+                            <tr className="bg-slate-950 text-white font-bold border-t border-slate-200">
+                              <td className="p-3 text-xs font-extrabold uppercase tracking-wider text-amber-400">
+                                VALOR TOTAL COTIZADO:
+                              </td>
+                              <td className="p-3 text-right font-mono text-sm text-amber-400 font-bold whitespace-nowrap">
+                                ${previewTotalUsd.toLocaleString()} USD
+                              </td>
+                              <td className="p-3 text-right font-mono text-xs text-slate-200 whitespace-nowrap">
+                                Bs. {previewTotalBob.toLocaleString('es-BO')} BOB
+                              </td>
+                              <td className="p-3 print:hidden no-print"></td>
+                            </tr>
+                          </tfoot>
+                        </table>
                       </div>
                     </div>
 
