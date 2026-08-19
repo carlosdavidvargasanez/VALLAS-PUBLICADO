@@ -1059,9 +1059,10 @@ export default function ContractModal({
                     <button
                       onClick={() => setShowVallaSelector(true)}
                       className="px-3.5 py-1.5 bg-amber-500 text-slate-950 font-extrabold text-xs rounded-xl hover:bg-amber-400 transition flex items-center space-x-1.5 cursor-pointer shadow-sm active:scale-98"
+                      title="Seleccionar valla o espacio del catálogo"
                     >
                       <Plus className="w-3.5 h-3.5 text-slate-950" />
-                      <span>+ Seleccionar Valla del Catálogo</span>
+                      <span>+ Agregar</span>
                     </button>
                     <button
                       onClick={handleAddManualVallaRow}

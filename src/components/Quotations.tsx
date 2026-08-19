@@ -850,13 +850,13 @@ export default function Quotations({
                   handleClosePreview();
                 }
               }}
-              className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto no-print"
+              className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex justify-center items-start p-2 sm:p-4 md:p-6 overflow-y-auto no-print"
             >
               <motion.div
-                initial={{ scale: 0.95, y: 15 }}
+                initial={{ scale: 0.96, y: 10 }}
                 animate={{ scale: 1, y: 0 }}
-                exit={{ scale: 0.95, y: 15 }}
-                className="bg-white rounded-2xl border border-gray-200 shadow-2xl max-w-3xl w-full overflow-hidden flex flex-col my-8 relative"
+                exit={{ scale: 0.96, y: 10 }}
+                className="bg-white rounded-2xl border border-gray-200 shadow-2xl max-w-4xl w-full my-3 sm:my-6 overflow-hidden flex flex-col relative"
               >
                 {/* Controls toolbar */}
                 <div className="bg-gray-950 text-white p-4 flex flex-wrap gap-2 justify-between items-center no-print border-b border-gray-800 sticky top-0 z-20">
@@ -1081,117 +1081,167 @@ export default function Quotations({
                     </div>
                   </div>
                 ) : (
-                  /* Printable sheet area */
-                  <div className="p-8 bg-white text-gray-800 space-y-6 overflow-y-auto" id="printable-area">
+                  /* Printable sheet area (US Letter format ready) */
+                  <div className="p-6 sm:p-8 bg-white text-slate-900 space-y-5 overflow-y-auto" id="printable-area">
                     
-                    {/* Letterhead */}
-                    <div className="flex flex-col sm:flex-row justify-between items-start pb-5 border-b-2 border-slate-900 gap-4">
-                      <div className="space-y-1 max-w-md">
-                        <Logo size="md" logoUrl={settings.logo} />
-                        <p className="text-[11px] text-amber-600 font-extrabold tracking-wider uppercase pt-1">
-                          Publicidad Exterior • Vallas Gigantes & Pantallas LED en Bolivia
+                    {/* Institutional Letterhead Header - EXACT REQUISITOS (Appears ONLY ONCE) */}
+                    <div className="border-b-2 border-slate-900 pb-4">
+                      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                        {/* Logo & Corporate Taglines */}
+                        <div className="space-y-1.5 max-w-lg">
+                          <Logo size="md" logoUrl={settings.logo} />
+                          <div className="pt-1">
+                            <h2 className="text-xs font-black text-amber-600 uppercase tracking-wide">
+                              COBERTURA NACIONAL | IMPACTO TOTAL
+                            </h2>
+                            <p className="text-[11px] font-bold text-slate-900 uppercase tracking-tight">
+                              LA RED DE PANTALLAS Y VALLAS MÁS GRANDE DE BOLIVIA
+                            </p>
+                            <p className="text-[11px] font-black text-amber-500 tracking-wide">
+                              ¡TU MARCA, SIEMPRE VISTA!
+                            </p>
+                          </div>
+                          <div className="text-[10px] text-slate-500 leading-tight pt-1">
+                            <p><strong>Empresa:</strong> {settings.nombre_empresa || 'PUBLI-X BOLIVIA'}</p>
+                            <p><strong>NIT:</strong> {settings.nit || '318749024'}</p>
+                            <p><strong>Dirección:</strong> {settings.direccion || 'Av. San Martín, Edificio Tacuaral Piso 4 Of. 402, Equipetrol'}</p>
+                            <p><strong>Contacto:</strong> Tel: {settings.telefono || '+591 78000000'} • WhatsApp: {settings.whatsapp || '+591 70000000'}</p>
+                          </div>
+                        </div>
+
+                        {/* Document Number & Validity Box */}
+                        <div className="text-left sm:text-right space-y-1.5 w-full sm:w-auto shrink-0">
+                          <div className="inline-block px-3.5 py-1.5 bg-amber-500 text-slate-950 rounded-lg text-xs font-black uppercase tracking-wider shadow-xs">
+                            COTIZACIÓN / PROFORMA
+                          </div>
+                          <div className="font-mono text-xs">
+                            <p className="text-slate-400 text-[10px]">Nº de Control:</p>
+                            <p className="font-black text-slate-900 text-sm">{displayQuote.numero}</p>
+                          </div>
+                          <div className="font-mono text-[10px] text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                            <p><strong>Fecha Emisión:</strong> {new Date(displayQuote.fecha).toLocaleDateString('es-ES')}</p>
+                            <p className="text-amber-700 font-bold"><strong>Validez:</strong> 5 días calendario</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Client and Destination details */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs">
+                      <div className="space-y-1">
+                        <p className="font-bold uppercase tracking-wider text-slate-400 text-[9px]">Cliente Destinatario:</p>
+                        <p className="font-extrabold text-slate-900 text-sm">
+                          {client ? (client.empresa ? `${client.nombre} (${client.empresa})` : client.nombre) : 'Cliente Registrado'}
                         </p>
-                        <div className="text-[10px] text-gray-500 leading-normal pt-1">
-                          <p><strong>Empresa:</strong> {settings.nombre_empresa || 'PUBLI-X BOLIVIA'}</p>
-                          <p><strong>Dirección:</strong> {settings.direccion}</p>
-                          <p><strong>Ubicación:</strong> {settings.ciudad}, {settings.departamento}, {settings.pais}</p>
-                          <p><strong>Contacto:</strong> Tel: {settings.telefono} • WhatsApp: {settings.whatsapp}</p>
-                          <p><strong>Digital:</strong> {settings.correo} • {settings.web}</p>
-                        </div>
-                      </div>
-
-                      <div className="text-left sm:text-right space-y-2 w-full sm:w-auto">
-                        <div className="inline-block px-3.5 py-1 bg-amber-500 text-slate-950 rounded-lg text-xs font-black uppercase tracking-wider shadow-xs">
-                          COTIZACIÓN FORMAL / PROFORMA
-                        </div>
-                        <div className="font-mono text-xs">
-                          <p className="text-gray-400">Nº de Control:</p>
-                          <p className="font-black text-gray-900 text-sm">{displayQuote.numero}</p>
-                        </div>
-                        <div className="font-mono text-[10px] text-gray-500">
-                          <p>Fecha Emisión: {new Date(displayQuote.fecha).toLocaleDateString()}</p>
-                          <p>Validez: 15 días calendario</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Client and destination details */}
-                    <div className="grid grid-cols-2 gap-6 bg-gray-50 p-4 rounded-xl border border-gray-100 text-xs">
-                      <div className="space-y-1">
-                        <p className="font-bold uppercase tracking-wider text-gray-400 text-[9px]">Cliente Destinatario:</p>
-                        <p className="font-extrabold text-gray-800 text-sm">{client ? client.nombre : 'Cliente Desconocido'}</p>
-                        <p className="text-gray-500">Ubicación: {client ? `${client.ciudad}, ${client.departamento}` : 'Bolivia'}</p>
-                        <p className="text-gray-500">Teléfono: {client ? client.celular : 'N/A'}</p>
+                        {client?.nit_ci && <p className="text-slate-600"><strong>NIT/CI:</strong> {client.nit_ci}</p>}
+                        <p className="text-slate-600"><strong>Ubicación:</strong> {client ? `${client.ciudad}, ${client.departamento}` : 'Bolivia'}</p>
+                        <p className="text-slate-600"><strong>Celular:</strong> {client?.celular || 'N/A'}</p>
                       </div>
 
                       <div className="space-y-1">
-                        <p className="font-bold uppercase tracking-wider text-gray-400 text-[9px]">Ubicación y Cobertura Comercial:</p>
-                        <p className="font-bold text-gray-800">Bolivia (Ejes Urbanos Principales)</p>
-                        <p className="text-gray-500">Puntos de Alto Flujo Vehicular y Peatonal</p>
-                        <p className="text-gray-500">Garantía de Iluminación y Mantenimiento Incluido</p>
+                        <p className="font-bold uppercase tracking-wider text-slate-400 text-[9px]">Emisor Responsable / Asesor:</p>
+                        <p className="font-extrabold text-slate-900 text-sm">
+                          {displayQuote.emisor_nombre || currentUserNombre || 'Lic. Carlos David Vargas Añez'}
+                        </p>
+                        <p className="text-amber-700 font-bold text-[11px]">{displayQuote.emisor_rol || 'Gerente General / Comercial'}</p>
+                        <p className="text-slate-600"><strong>Empresa:</strong> {settings.nombre_empresa || 'PUBLI-X BOLIVIA'}</p>
+                        <p className="text-slate-600"><strong>Email:</strong> {settings.correo || 'ventas@publix.bo'}</p>
                       </div>
                     </div>
 
-                    {/* Vehicle / Valla details */}
-                    {vehicle && (
-                      <div className="space-y-3">
-                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest pb-1 border-b border-gray-50">
-                          Especificaciones de la Valla / Estructura Cotizada
+                    {/* Multi-Vallas or Single Valla Display */}
+                    {displayQuote.vallas_seleccionadas && displayQuote.vallas_seleccionadas.length > 0 ? (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider pb-1 border-b border-slate-200 flex items-center justify-between">
+                          <span>Espacios Publicitarios Cotizados ({displayQuote.vallas_seleccionadas.length})</span>
+                          <span className="text-[10px] text-slate-500 font-normal">Dimensiones e Inversión Mensual</span>
                         </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                          <div className="space-y-1.5 text-xs">
-                            <p className="text-sm font-extrabold text-gray-800">{vehicle.tipo_valla || vehicle.tipo} - {vehicle.avenida_calle || vehicle.modelo}</p>
-                            <p className="text-gray-500"><b className="font-medium text-gray-700">Medidas:</b> {vehicle.medidas || '10 x 4 m'}</p>
-                            <p className="text-gray-500"><b className="font-medium text-gray-700">Ubicación:</b> {vehicle.ciudad} - {vehicle.zona || 'Centro'}</p>
-                            <p className="text-gray-500"><b className="font-medium text-gray-700">Orientación / Cara:</b> {vehicle.cara || 'Cara A'} • <b className="font-medium text-gray-700">Iluminación:</b> {vehicle.iluminacion || 'LED Nocturna'}</p>
-                            <p className="text-gray-500"><b className="font-medium text-gray-700">Estado:</b> {vehicle.estado}</p>
-                          </div>
-                          <div className="h-32 rounded-lg bg-gray-50 border border-gray-100 overflow-hidden shadow-2xs">
-                            <img
-                              src={vehicle.imagen_principal}
-                              alt={vehicle.modelo}
-                              referrerPolicy="no-referrer"
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs border-collapse border border-slate-200">
+                            <thead className="bg-slate-900 text-white font-bold uppercase text-[10px]">
+                              <tr>
+                                <th className="p-2">Ubicación / Avenida</th>
+                                <th className="p-2">Ciudad</th>
+                                <th className="p-2">Formato / Medidas</th>
+                                <th className="p-2 text-right">Alquiler ($us)</th>
+                                <th className="p-2 text-right">Alquiler (Bs)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 font-semibold">
+                              {displayQuote.vallas_seleccionadas.map((v, i) => (
+                                <tr key={i} className="hover:bg-slate-50">
+                                  <td className="p-2 font-bold text-slate-900">{v.valla_avenida || v.valla_nombre}</td>
+                                  <td className="p-2 text-slate-600">{v.valla_ciudad}</td>
+                                  <td className="p-2 text-slate-600">{v.valla_tipo} - {v.valla_medidas}</td>
+                                  <td className="p-2 text-right font-mono font-bold">${v.precio_alquiler_usd.toLocaleString()}</td>
+                                  <td className="p-2 text-right font-mono text-slate-700">Bs. {Math.round(v.precio_alquiler_usd * settings.tipo_cambio).toLocaleString('es-BO')}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
-                    )}
+                    ) : vehicle ? (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider pb-1 border-b border-slate-200">
+                          Especificaciones del Soporte Publicitario Cotizado
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
+                          <div className="space-y-1 text-xs">
+                            <p className="text-sm font-extrabold text-slate-900">{vehicle.tipo_valla || vehicle.tipo} - {vehicle.avenida_calle || vehicle.modelo}</p>
+                            <p className="text-slate-600"><strong>Medidas:</strong> {vehicle.medidas || '12.00 x 4.00 m'}</p>
+                            <p className="text-slate-600"><strong>Ubicación:</strong> {vehicle.ciudad} - {vehicle.zona || 'Centro'}</p>
+                            <p className="text-slate-600"><strong>Cara / Orientación:</strong> {vehicle.cara || 'Cara A'} • <strong>Iluminación:</strong> {vehicle.iluminacion || 'Focos LED Nocturnos'}</p>
+                            <p className="text-slate-600"><strong>Estado:</strong> <span className="font-bold text-emerald-700">{vehicle.estado}</span></p>
+                          </div>
+                          {vehicle.imagen_principal && (
+                            <div className="h-28 rounded-lg bg-white border border-slate-200 overflow-hidden shadow-2xs">
+                              <img
+                                src={vehicle.imagen_principal}
+                                alt={vehicle.modelo}
+                                referrerPolicy="no-referrer"
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
 
-                    {/* Cost breakdown */}
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest pb-1 border-b border-gray-50">
-                        Desglose de Alquiler y Servicios Publicitarios
+                    {/* Cost breakdown table */}
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider pb-1 border-b border-slate-200">
+                        Desglose Económico y Servicios Incluidos
                       </h4>
                       
-                      <div className="border border-gray-100 rounded-xl overflow-hidden text-xs">
-                        <div className="grid grid-cols-3 bg-gray-50 p-2.5 font-bold border-b border-gray-100 text-gray-600">
+                      <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
+                        <div className="grid grid-cols-3 bg-slate-900 text-white p-2.5 font-bold uppercase text-[10px] tracking-wider">
                           <span>Concepto / Servicio Publicitario</span>
                           <span className="text-right">Monto (USD)</span>
                           <span className="text-right">Equivalente (Bs)</span>
                         </div>
                         
-                        <div className="divide-y divide-gray-50">
+                        <div className="divide-y divide-slate-100">
                           {[
                             { name: 'Alquiler Base Mensual de Valla Publicitaria / Pantalla', val: displayQuote.precio_vehiculo },
-                            { name: 'Impresión de Lona Vinílica de Alta Durabilidad', val: displayQuote.gastos_importacion },
-                            { name: 'Montaje, Colocado e Instalación de Estructura', val: displayQuote.gastos_aduana },
-                            { name: 'Mantenimiento, Iluminación LED Nocturna y Limpieza', val: displayQuote.gastos_logistica },
+                            { name: 'Impresión de Lona Vinílica Frontlight 13oz con Filtro UV', val: displayQuote.gastos_importacion },
+                            { name: 'Montaje, Colocado e Instalación con Cuadrilla Especializada', val: displayQuote.gastos_aduana },
+                            { name: 'Mantenimiento, Iluminación LED Nocturna (18:30 - 24:00) y Limpieza', val: displayQuote.gastos_logistica },
                             { name: 'Seguro de Estructura y Garantía de Espacio Exclusivo', val: displayQuote.gastos_seguro },
-                          ].map((row, i) => (
-                            <div key={i} className="grid grid-cols-3 p-2.5 text-gray-600">
-                              <span>{row.name}</span>
-                              <span className="text-right font-mono font-medium">${row.val.toLocaleString()}</span>
-                              <span className="text-right font-mono text-gray-400">Bs. {(row.val * settings.tipo_cambio).toLocaleString('es-BO', {maximumFractionDigits:0})}</span>
+                          ].filter(r => (r.val || 0) > 0 || r.name.includes('Alquiler')).map((row, i) => (
+                            <div key={i} className="grid grid-cols-3 p-2.5 text-slate-700">
+                              <span className="font-semibold">{row.name}</span>
+                              <span className="text-right font-mono font-bold">${(row.val || 0).toLocaleString()}</span>
+                              <span className="text-right font-mono text-slate-500">Bs. {((row.val || 0) * settings.tipo_cambio).toLocaleString('es-BO', {maximumFractionDigits:0})}</span>
                             </div>
                           ))}
                         </div>
 
                         {/* Total row */}
-                        <div className="grid grid-cols-3 bg-gray-950 text-white p-3 font-bold border-t border-gray-100 items-center">
-                          <span className="text-sm font-extrabold uppercase tracking-wider text-amber-400 font-display">VALOR TOTAL COTIZADO:</span>
-                          <span className="text-right font-mono text-base">${displayQuote.total.toLocaleString()} USD</span>
-                          <span className="text-right font-mono text-sm text-gray-300">Bs. {(displayQuote.total * settings.tipo_cambio).toLocaleString('es-BO', {maximumFractionDigits:0})} BOB</span>
+                        <div className="grid grid-cols-3 bg-slate-950 text-white p-3 font-bold border-t border-slate-200 items-center">
+                          <span className="text-xs font-extrabold uppercase tracking-wider text-amber-400">VALOR TOTAL COTIZADO:</span>
+                          <span className="text-right font-mono text-sm text-amber-400 font-bold">${displayQuote.total.toLocaleString()} USD</span>
+                          <span className="text-right font-mono text-xs text-slate-200">Bs. {(displayQuote.total * settings.tipo_cambio).toLocaleString('es-BO', {maximumFractionDigits:0})} BOB</span>
                         </div>
                       </div>
                     </div>
@@ -1199,36 +1249,60 @@ export default function Quotations({
                     {/* Observations */}
                     {displayQuote.observaciones && (
                       <div className="space-y-1">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Notas Particulares de la Oferta:</p>
-                        <p className="text-xs text-gray-600 leading-normal italic bg-gray-50 p-3 rounded-lg border border-gray-100">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Notas Particulares de la Oferta:</p>
+                        <p className="text-xs text-slate-700 leading-normal italic bg-amber-50/50 p-2.5 rounded-lg border border-amber-200">
                           "{displayQuote.observaciones}"
                         </p>
                       </div>
                     )}
 
-                    {/* Conditions & Signatures */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-5 border-t border-gray-100 text-[10px]">
-                      <div className="space-y-1 text-gray-400">
-                        <p className="font-bold text-gray-600 uppercase tracking-wider text-[9px]">Términos y Cláusulas del Servicio:</p>
-                        <div className="whitespace-pre-line leading-relaxed italic">
-                          {settings.terminos_cotizacion}
-                        </div>
+                    {/* Conditions with EXACT REQUIRED TEXT */}
+                    <div className="space-y-2 pt-2 border-t border-slate-200">
+                      <p className="font-bold text-slate-900 uppercase tracking-wider text-[10px]">
+                        Términos de Aprobación y Vigencia de la Oferta:
+                      </p>
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-[11px] text-slate-700 leading-relaxed space-y-2">
+                        <p className="font-semibold text-slate-900">
+                          Esta cotización tiene una vigencia de 5 días. Al aprobarla, se generará el contrato con estos detalles. Por favor enviar esta cotización aprobada, firmada y con sello, escaneada o con fotografía, al correo de contacto de la empresa o mediante el portal de PUBLI-X.
+                        </p>
+                        <p className="text-[10px] text-slate-500 italic">
+                          {settings.terminos_cotizacion || '• Precios incluyen factura fiscal oficial de ley. • Reserva sujeta a disponibilidad y anticipo acordado. • Iluminación LED garantizada.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Fixed Corporate Emitter & Signatures at Bottom */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-slate-200 text-xs">
+                      {/* Publisher Corporate Details */}
+                      <div className="space-y-1 text-slate-600 text-[10px]">
+                        <p className="font-bold uppercase tracking-wider text-slate-900 text-[10px]">Datos de la Empresa Arrendadora:</p>
+                        <p><strong>Razón Social:</strong> {settings.nombre_empresa || 'PUBLI-X (Carlos David Vargas Añez)'}</p>
+                        <p><strong>NIT:</strong> {settings.nit || '318749024'}</p>
+                        <p><strong>Dirección:</strong> {settings.direccion || 'Av. San Martín, Edificio Tacuaral Piso 4 Of. 402, Equipetrol'}</p>
+                        <p><strong>Representante Legal:</strong> {settings.representante_legal || 'Carlos David Vargas Añez'}</p>
+                        <p><strong>Digital:</strong> {settings.correo || 'ventas@publix.bo'} • {settings.web || 'www.publix.bo'}</p>
                       </div>
 
-                      <div className="flex flex-col justify-end items-center text-center space-y-3 pt-8">
-                        <div className="w-40 border-b border-gray-300 pb-1" />
+                      {/* Signature Box */}
+                      <div className="flex flex-col justify-end items-center text-center space-y-2 pt-4 sm:pt-0">
+                        <div className="w-48 border-b-2 border-slate-900 pb-1" />
                         <div>
-                          <p className="font-bold text-gray-700 text-[10px]">{settings.nombre_empresa || 'PUBLI-X BOLIVIA'}</p>
-                          <p className="text-gray-400">Firma Autorizada • Departamento Comercial</p>
+                          <p className="font-extrabold text-slate-900 text-xs">
+                            {displayQuote.emisor_nombre || currentUserNombre || 'Lic. Carlos David Vargas Añez'}
+                          </p>
+                          <p className="text-amber-700 font-bold text-[10px]">
+                            {displayQuote.emisor_rol || 'Gerente General / Comercial'}
+                          </p>
+                          <p className="text-[10px] text-slate-400">PUBLI-X BOLIVIA • Firma Autorizada</p>
                         </div>
                       </div>
                     </div>
 
                     {/* Bottom Exit Bar */}
-                    <div className="pt-6 border-t border-gray-100 flex items-center justify-between no-print">
+                    <div className="pt-4 border-t border-slate-200 flex items-center justify-between no-print">
                       <button
                         onClick={handleClosePreview}
-                        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl transition flex items-center space-x-1.5 cursor-pointer"
+                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center space-x-1.5 cursor-pointer"
                       >
                         <X className="w-4 h-4" />
                         <span>Cerrar Vista Previa</span>
@@ -1237,10 +1311,10 @@ export default function Quotations({
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => window.print()}
-                          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl transition flex items-center space-x-1.5 shadow-xs cursor-pointer"
+                          className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl transition flex items-center space-x-2 shadow-md cursor-pointer uppercase tracking-wider active:scale-98"
                         >
                           <Printer className="w-4 h-4" />
-                          <span>Imprimir / Guardar PDF</span>
+                          <span>Imprimir / Guardar PDF (Carta)</span>
                         </button>
                       </div>
                     </div>

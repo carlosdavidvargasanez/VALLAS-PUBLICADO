@@ -793,15 +793,12 @@ export const generateAutoQuotationWithContractPdf = async (
   try {
     const logoBase64 = await getBase64ImageFromUrl(settings?.logo || logoImg);
     if (logoBase64) {
-      doc.addImage(logoBase64, 'JPEG', marginX, 4, 46, 20);
+      doc.addImage(logoBase64, 'JPEG', marginX, 3.5, 42, 21);
     } else {
       doc.setFont('Helvetica', 'bold');
       doc.setFontSize(16);
       doc.setTextColor(cAmber[0], cAmber[1], cAmber[2]);
       doc.text('PUBLI-X', marginX, 15);
-      doc.setFontSize(8);
-      doc.setTextColor(255, 255, 255);
-      doc.text('COBERTURA NACIONAL | IMPACTO TOTAL', marginX, 21);
     }
   } catch {
     doc.setFont('Helvetica', 'bold');
@@ -810,20 +807,36 @@ export const generateAutoQuotationWithContractPdf = async (
     doc.text('PUBLI-X', marginX, 15);
   }
 
-  // Header Right: Title and Doc Number
+  // Header Center Slogans (Exact Requirements)
   doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(255, 255, 255);
-  doc.text('COTIZACIÓN FORMAL DE PUBLICIDAD EXTERIOR', pageWidth - marginX, 10, { align: 'right' });
-
-  doc.setFont('Helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(cAmber[0], cAmber[1], cAmber[2]);
-  doc.text(`N° ${quoteNumber}`, pageWidth - marginX, 16, { align: 'right' });
+  doc.text('COBERTURA NACIONAL | IMPACTO TOTAL', marginX + 46, 9);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(255, 255, 255);
+  doc.text('LA RED DE PANTALLAS Y VALLAS MÁS GRANDE DE BOLIVIA', marginX + 46, 15);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(cAmber[0], cAmber[1], cAmber[2]);
+  doc.text('¡TU MARCA, SIEMPRE VISTA!', marginX + 46, 21);
+
+  // Header Right: Title and Doc Number
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text('COTIZACIÓN / PROFORMA', pageWidth - marginX, 9, { align: 'right' });
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(cAmber[0], cAmber[1], cAmber[2]);
+  doc.text(`N° ${quoteNumber}`, pageWidth - marginX, 15, { align: 'right' });
 
   doc.setTextColor(200, 200, 200);
-  doc.setFontSize(7.5);
-  doc.text(`Fecha de Emisión: ${fechaEmision} • Validez: ${validezDias} días`, pageWidth - marginX, 22, { align: 'right' });
+  doc.setFontSize(7);
+  doc.text(`Emisión: ${fechaEmision} • Validez: 5 días`, pageWidth - marginX, 21, { align: 'right' });
 
   let currentY = 36;
 

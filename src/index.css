@@ -28,6 +28,14 @@
 
 /* Custom printing styles for Cotizaciones */
 @media print {
+  @page {
+    size: letter portrait;
+    margin: 8mm 10mm;
+  }
+  body {
+    background: white !important;
+    color: black !important;
+  }
   body * {
     visibility: hidden;
   }
@@ -38,9 +46,12 @@
     position: absolute;
     left: 0;
     top: 0;
-    width: 100%;
+    width: 100% !important;
+    max-width: 100% !important;
     background: white !important;
     color: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
   .no-print {
     display: none !important;
