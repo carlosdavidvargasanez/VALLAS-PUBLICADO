@@ -2,7 +2,7 @@
  * Helper to generate client credentials automatically from client name, separate first name & surname, or phone.
  * Rule: 
  * Username (usuario_acceso): first name + '.' + first surname in lowercase (e.g. "juan.perez")
- * Password (password_acceso): first name + '.' + first surname in lowercase (e.g. "juan.perez")
+ * Password (password_acceso): client's phone number (celular e.g. "70012345")
  */
 export function generateClientCredentials(
   nombresOrFullName: string,
@@ -10,11 +10,12 @@ export function generateClientCredentials(
   maybePhone?: string
 ): { usuario_acceso: string; password_acceso: string } {
   if (!nombresOrFullName && !apellidosOrPhone) {
-    return { usuario_acceso: 'cliente.nuevo', password_acceso: 'cliente.nuevo' };
+    return { usuario_acceso: 'cliente.nuevo', password_acceso: '70000000' };
   }
 
   let first = 'cliente';
   let last = 'usuario';
+  let phoneStr = '';
 
   if (maybePhone !== undefined) {
     // 3 parameters: (nombres, apellidos, phone)
@@ -26,6 +27,7 @@ export function generateClientCredentials(
 
     first = nParts[0] || 'cliente';
     last = aParts[0] || 'usuario';
+    phoneStr = maybePhone || '';
   } else {
     // 2 parameters: (fullName, phone) or (nombres, apellidos)
     const cleanFirst = (nombresOrFullName || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -35,6 +37,7 @@ export function generateClientCredentials(
 
     if (isSecondPhone) {
       // (fullName, phone)
+      phoneStr = cleanSecond;
       const parts = cleanFirst.split(/\s+/).filter(Boolean);
       first = parts[0] || 'cliente';
       if (parts.length >= 3) {
@@ -59,7 +62,20 @@ export function generateClientCredentials(
   last = last.replace(/[^a-z0-9]/g, '') || 'usuario';
 
   const usuario_acceso = `${first}.${last}`;
-  const password_acceso = `${first}.${last}`;
+
+  // Extract phone digits for password: if 8 digits (e.g. 70012345), or +59170012345 -> 70012345
+  const rawDigits = phoneStr.replace(/\D/g, '');
+  let password_acceso = usuario_acceso;
+  if (rawDigits.length >= 8) {
+    // If it starts with 591 and has 11 digits, extract the 8 digits of the cell phone
+    if (rawDigits.startsWith('591') && rawDigits.length === 11) {
+      password_acceso = rawDigits.slice(3);
+    } else if (rawDigits.length === 8) {
+      password_acceso = rawDigits;
+    } else {
+      password_acceso = rawDigits;
+    }
+  }
 
   return { usuario_acceso, password_acceso };
 }
@@ -83,15 +99,14 @@ export function generateClientWelcomeMessage(
     digits = '591' + digits;
   }
 
-  const message = `*¡Bienvenido a PUBLI-X BOLIVIA!* 📢\n\n` +
+  const message = `*¡Bienvenido/a a PUBLI-X BOLIVIA!* 📢\n\n` +
     `Estimado/a *${nombre || 'Cliente'}*,\n` +
-    `¡Muchas gracias por elegirnos! Elegir *PUBLI-X* es sin duda la mejor opción para potenciar la presencia, el impacto y la visibilidad de su marca.\n\n` +
-    `A continuación le facilitamos sus credenciales de acceso a nuestro *Portal Exclusivo de Vallas Publicitarias y Pantallas LED*:\n\n` +
-    `👤 *Usuario de Acceso:* ${u}\n` +
-    `🔑 *Contraseña:* ${p}\n\n` +
-    `🌐 *Portal Web:* https://publi-x.bo\n\n` +
-    `Desde nuestro portal podrá explorar el catálogo en tiempo real, revisar ubicaciones estratégicas, descargar cotizaciones en PDF y dar seguimiento a sus campañas.\n\n` +
-    `Estamos a su entera disposición para cualquier consulta. ¡Éxito total en sus campañas!`;
+    `¡Muchas gracias por confiar en nosotros! En *PUBLI-X* impulsamos el posicionamiento y la visibilidad de su marca con la red líder de Vallas Publicitarias y Pantallas LED a nivel nacional.\n\n` +
+    `Su cuenta ha sido creada exitosamente. Ya puede ingresar a nuestra plataforma exclusiva para explorar el catálogo en tiempo real, cotizar ubicaciones y dar seguimiento a sus campañas publicitarias:\n\n` +
+    `👤 *Usuario:* ${u}\n` +
+    `🔑 *Contraseña:* ${p} _(su número de teléfono)_\n\n` +
+    `🌐 *Acceso a la plataforma:* https://publi-x.bo\n\n` +
+    `Si requiere asistencia o desea coordinar una propuesta personalizada, estamos siempre a su disposición. ¡Mucho éxito en sus proyectos!`;
 
   const waUrl = `https://api.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(message)}`;
 

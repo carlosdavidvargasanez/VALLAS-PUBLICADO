@@ -291,7 +291,7 @@ _Generado automáticamente por el Sistema Comercial PUBLI-X Bolivia._`;
   const handleSendWeeklyReportWhatsApp = () => {
     const text = encodeURIComponent(weeklyReportText);
     const gerenciaPhone = (settings.whatsapp || settings.telefono || '+59170000000').replace(/[^\d]/g, '');
-    window.open(`https://api.whatsapp.com/send?phone=${gerenciaPhone}&text=${text}`, '_blank');
+    window.open(`https://api.whatsapp.com/send?phone=${gerenciaPhone}&text=${text}`, 'publix_whatsapp_tab');
   };
 
   const handleSendWeeklyReportEmail = () => {

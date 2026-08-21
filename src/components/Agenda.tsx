@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Client, FollowUp, FollowUpType, FollowUpState, FollowUpPriority } from '../types';
+import { Client, FollowUp, FollowUpType, FollowUpState, FollowUpPriority, Contract, Vehicle } from '../types';
 import { 
   Calendar as CalendarIcon, 
   Plus, 
@@ -16,13 +16,20 @@ import {
   Check,
   Flag,
   Trash2,
-  X
+  X,
+  Send,
+  Wrench,
+  Camera,
+  Layers,
+  PhoneCall
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface AgendaProps {
   followUps: FollowUp[];
   clients: Client[];
+  contracts?: Contract[];
+  vehicles?: Vehicle[];
   activeClient: Client | null;
   onSelectActiveClient: (client: Client | null) => void;
   onAddFollowUp: (followUp: Omit<FollowUp, 'id' | 'fecha'>) => void;
@@ -33,18 +40,19 @@ interface AgendaProps {
 export default function Agenda({
   followUps,
   clients,
+  contracts = [],
+  vehicles = [],
   activeClient,
   onSelectActiveClient,
   onAddFollowUp,
   onUpdateFollowUpStatus,
   onDeleteFollowUp
 }: AgendaProps) {
-  
-  // Tab control (List vs Calendar View)
-  const [viewMode, setViewViewMode] = useState<'list' | 'calendar'>('list');
   const [search, setSearch] = useState('');
   const [filterPriority, setFilterPriority] = useState<string>('Todos');
-  const [filterState, setFilterState] = useState<string>('Pendiente'); // default show pending
+  const [filterState, setFilterState] = useState<string>('Pendiente');
+  const [filterCategory, setFilterCategory] = useState<'TODOS' | 'REUNIONES' | 'INSTALACION' | 'COBRANZA'>('TODOS');
+  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
   // Form states
   const [showAddForm, setShowForm] = useState(false);
@@ -85,6 +93,32 @@ export default function Agenda({
     }, 1000);
   };
 
+  // Reusable WhatsApp Tab Handler for Agenda Appointment Reminder
+  const handleSendReminderWA = (task: FollowUp) => {
+    const client = clients.find(c => c.id === task.cliente_id);
+    const phone = (client?.celular || '').replace(/\D/g, '');
+    const targetPhone = phone.startsWith('591') ? phone : (phone ? `591${phone}` : '');
+    const clientName = client ? client.nombre : 'Estimado/a Cliente';
+    const dateFormatted = new Date(task.proximo_contacto).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+    const text = 
+      `*RECORDATORIO DE ACTIVIDAD / REUNIÓN PUBLI-X* 📢\n\n` +
+      `Estimado/a *${clientName}*,\n\n` +
+      `Le recordamos cordialmente nuestra actividad programada para el *${dateFormatted}*:\n` +
+      `📌 *Tipo:* ${task.tipo}\n` +
+      `📝 *Detalle:* ${task.nota}\n\n` +
+      `Por favor, indíquenos si requiere algún ajuste de horario o información previa.\n\n` +
+      `_Atentamente: Equipo Comercial PUBLI-X OOH_`;
+
+    const waUrl = targetPhone 
+      ? `https://api.whatsapp.com/send?phone=${targetPhone}&text=${encodeURIComponent(text)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+      
+    window.open(waUrl, 'publix_whatsapp_tab');
+    setFeedbackMsg(`Abriendo recordatorio de agenda en WhatsApp Web (reutilizando pestaña)`);
+    setTimeout(() => setFeedbackMsg(null), 4000);
+  };
+
   // Filters logic
   const filteredFollowups = followUps.filter(f => {
     const client = clients.find(c => c.id === f.cliente_id);
@@ -96,12 +130,30 @@ export default function Agenda({
     const matchesPriority = filterPriority === 'Todos' || f.prioridad === filterPriority;
     const matchesState = filterState === 'Todos' || f.estado === filterState;
 
-    return matchesSearch && matchesPriority && matchesState;
+    let matchesCategory = true;
+    if (filterCategory === 'REUNIONES') {
+      matchesCategory = ['Reunión', 'Llamada', 'WhatsApp'].includes(f.tipo);
+    } else if (filterCategory === 'INSTALACION') {
+      matchesCategory = f.nota.toLowerCase().includes('instal') || f.nota.toLowerCase().includes('tensado') || f.nota.toLowerCase().includes('lona') || f.tipo === 'Nota interna';
+    } else if (filterCategory === 'COBRANZA') {
+      matchesCategory = f.nota.toLowerCase().includes('cobro') || f.nota.toLowerCase().includes('factur') || f.nota.toLowerCase().includes('pago');
+    }
+
+    return matchesSearch && matchesPriority && matchesState && matchesCategory;
   });
 
   // Sort: closest scheduled dates first
   const sortedFollowups = [...filteredFollowups].sort((a, b) => {
     return new Date(a.proximo_contacto).getTime() - new Date(b.proximo_contacto).getTime();
+  });
+
+  // Active contracts near expiration (next 30 days) to show as automatic OOH milestone alerts
+  const expiringContracts = contracts.filter(c => {
+    if (c.estado !== 'Vigente' || !c.fecha_fin) return false;
+    const end = new Date(c.fecha_fin).getTime();
+    const now = Date.now();
+    const diffDays = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 35;
   });
 
   // Metrics
@@ -110,9 +162,16 @@ export default function Agenda({
 
   return (
     <div className="space-y-6" id="agenda-comercial-view">
+      {/* Feedback Alert */}
+      {feedbackMsg && (
+        <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-2xl flex items-center justify-between text-xs font-bold shadow-lg shadow-amber-500/5">
+          <span>{feedbackMsg}</span>
+          <button onClick={() => setFeedbackMsg(null)} className="text-amber-400 hover:text-white cursor-pointer">✕</button>
+        </div>
+      )}
       
       {/* Overview Indicator Row */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-3xs flex items-center space-x-4">
           <div className="p-3 bg-amber-50 text-amber-600 rounded-lg">
             <CalendarIcon className="w-5 h-5" />
@@ -144,21 +203,61 @@ export default function Agenda({
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-3xs flex items-center space-x-4">
-          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
-            <Flag className="w-5 h-5" />
+          <div className="p-3 bg-amber-50 text-amber-700 rounded-lg">
+            <Layers className="w-5 h-5" />
           </div>
           <div>
             <h4 className="text-xl font-bold font-mono text-gray-800">
-              {followUps.filter(f => f.prioridad === 'Alta' && f.estado === 'Pendiente').length}
+              {expiringContracts.length}
             </h4>
-            <p className="text-[10px] text-gray-400 font-bold uppercase">Pendientes de Alta Prioridad</p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase">Contratos por Vencer (30d)</p>
           </div>
         </div>
       </div>
 
+      {/* Automatic Contract Expiration Milestone Alerts */}
+      {expiringContracts.length > 0 && (
+        <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-2xl space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 text-amber-400 font-bold text-xs">
+              <AlertCircle className="w-4 h-4" />
+              <span>Hitos Automáticos OOH: {expiringContracts.length} contratos próximos a finalizar</span>
+            </div>
+            <span className="text-[10px] text-amber-500 font-bold uppercase">Acción Comercial Requerida</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {expiringContracts.map(c => (
+              <div key={c.id} className="bg-slate-900/80 p-3 rounded-xl border border-amber-500/20 flex flex-col justify-between text-xs space-y-2">
+                <div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-mono font-bold text-amber-400">{c.numero}</span>
+                    <span className="text-[10px] text-rose-400 font-bold">Vence: {c.fecha_fin}</span>
+                  </div>
+                  <p className="text-white font-semibold mt-1">{c.cliente_nombre}</p>
+                  <p className="text-slate-400 text-[11px] line-clamp-1">📍 {c.valla_nombre}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    const phone = (c.cliente_celular || '').replace(/\D/g, '');
+                    const targetPhone = phone.startsWith('591') ? phone : (phone ? `591${phone}` : '');
+                    const text = `*PROPUESTA DE RENOVACIÓN DE ESPACIO PUBLICITARIO OOH* 📢\n*PUBLI-X Cobertura Nacional*\n\nEstimado/a *${c.cliente_nombre}*:\nLe comunicamos que el contrato *${c.numero}* para la valla *${c.valla_nombre}* concluye el *${c.fecha_fin}*.\n\n¿Desea que reservemos la continuidad de su espacio para la siguiente temporada con tarifas preferenciales?`;
+                    const waUrl = targetPhone ? `https://api.whatsapp.com/send?phone=${targetPhone}&text=${encodeURIComponent(text)}` : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+                    window.open(waUrl, 'publix_whatsapp_tab');
+                  }}
+                  className="w-full py-1.5 px-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-[11px] flex items-center justify-center space-x-1 transition cursor-pointer"
+                >
+                  <Send className="w-3 h-3" />
+                  <span>Proponer Renovación WA</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Toolbar controls */}
       <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-2xs flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex-1 min-w-[280px] relative">
+        <div className="flex-1 min-w-[240px] relative">
           <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
@@ -167,6 +266,34 @@ export default function Agenda({
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:bg-white transition"
           />
+        </div>
+
+        {/* Category Tabs */}
+        <div className="flex items-center space-x-1 bg-gray-100 p-1 rounded-xl">
+          <button
+            onClick={() => setFilterCategory('TODOS')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${filterCategory === 'TODOS' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'}`}
+          >
+            Todas
+          </button>
+          <button
+            onClick={() => setFilterCategory('REUNIONES')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${filterCategory === 'REUNIONES' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'}`}
+          >
+            Reuniones & Contactos
+          </button>
+          <button
+            onClick={() => setFilterCategory('INSTALACION')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${filterCategory === 'INSTALACION' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'}`}
+          >
+            Instalaciones / OOH
+          </button>
+          <button
+            onClick={() => setFilterCategory('COBRANZA')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${filterCategory === 'COBRANZA' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'}`}
+          >
+            Cobranzas
+          </button>
         </div>
 
         <div className="flex items-center space-x-2">
@@ -219,7 +346,7 @@ export default function Agenda({
                 <h4 className="text-base font-bold text-gray-800 font-display">
                   Programar Recordatorio o Próximo Contacto
                 </h4>
-                <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
+                <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -248,7 +375,7 @@ export default function Agenda({
                   >
                     <option value="">-- Seleccionar --</option>
                     {clients.map(c => (
-                      <option key={c.id} value={c.id}>{c.nombre}</option>
+                      <option key={c.id} value={c.id}>{c.nombre} ({c.empresa})</option>
                     ))}
                   </select>
                 </div>
@@ -262,11 +389,11 @@ export default function Agenda({
                   >
                     <option value="WhatsApp">Mensaje WhatsApp</option>
                     <option value="Llamada">Llamada de Voz</option>
-                    <option value="Reunión">Reunión de Negocio</option>
-                    <option value="Envío cotización">Envío Cotización PDF</option>
-                    <option value="Envío catálogo">Envío Catálogo</option>
+                    <option value="Reunión">Reunión Comercial / Presentación</option>
+                    <option value="Envío cotización">Envío Cotización PDF / PPTX</option>
+                    <option value="Envío catálogo">Envío Catálogo OOH</option>
                     <option value="Correo">Correo Electrónico</option>
-                    <option value="Nota interna">Nota Interna</option>
+                    <option value="Nota interna">Inspección / Tensado de Lona / Mantenimiento</option>
                   </select>
                 </div>
 
@@ -299,7 +426,7 @@ export default function Agenda({
                   <textarea
                     value={nota}
                     onChange={(e) => setNota(e.target.value)}
-                    placeholder="Ej. Volver a llamar para negociar descuento del flete marítimo..."
+                    placeholder="Ej. Coordinar entrega de fotos testigo de tensado o confirmar firma de contrato..."
                     rows={2}
                     className="w-full px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 resize-none text-gray-700"
                     required
@@ -310,13 +437,13 @@ export default function Agenda({
                   <button
                     type="button"
                     onClick={() => setShowForm(false)}
-                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-xs font-bold transition"
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-xs font-bold transition cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition shadow-xs"
+                    className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
                   >
                     Programar
                   </button>
@@ -349,7 +476,7 @@ export default function Agenda({
                     <h5 className="font-extrabold text-sm text-gray-800 leading-tight">
                       {client ? client.nombre : 'Cliente Desconocido'}
                     </h5>
-                    <p className="text-[10px] text-gray-400 font-medium">Ubicación: {client ? client.ciudad : 'Bolivia'}</p>
+                    <p className="text-[10px] text-gray-400 font-medium">Empresa: {client?.empresa || 'Particular'} • {client?.ciudad || 'Bolivia'}</p>
                   </div>
 
                   <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold border ${
@@ -367,19 +494,28 @@ export default function Agenda({
               </div>
 
               {/* Footer details and controls */}
-              <div className="pt-3 border-t border-gray-50 flex items-center justify-between text-[11px]">
+              <div className="pt-3 border-t border-gray-50 flex items-center justify-between text-[11px] gap-2">
                 <span className="text-gray-400 font-mono flex items-center space-x-1">
                   <CalendarIcon className="w-3.5 h-3.5 text-gray-400" />
-                  <span>Agenda: {new Date(task.proximo_contacto).toLocaleDateString('es-ES')}</span>
+                  <span>{new Date(task.proximo_contacto).toLocaleDateString('es-ES')}</span>
                 </span>
 
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-1.5">
+                  {/* WhatsApp Reminder Button */}
+                  <button
+                    onClick={() => handleSendReminderWA(task)}
+                    className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-500 hover:text-white rounded-lg text-[10px] font-bold border border-emerald-100 transition cursor-pointer"
+                    title="Enviar Recordatorio por WhatsApp Web"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
+
                   {task.estado === 'Pendiente' ? (
                     <>
                       {/* Mark Completed Icon */}
                       <button
                         onClick={() => onUpdateFollowUpStatus(task.id, 'Realizado')}
-                        className="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-[10px] font-bold border border-emerald-100 transition"
+                        className="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-[10px] font-bold border border-emerald-100 transition cursor-pointer"
                         title="Marcar como Completado"
                       >
                         Completar
@@ -388,7 +524,7 @@ export default function Agenda({
                       {/* Cancel icon */}
                       <button
                         onClick={() => onUpdateFollowUpStatus(task.id, 'Cancelado')}
-                        className="p-1 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded"
+                        className="p-1 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded cursor-pointer"
                         title="Cancelar Actividad"
                       >
                         <XCircle className="w-4 h-4" />
@@ -402,7 +538,7 @@ export default function Agenda({
                       {/* Restore status to pending */}
                       <button
                         onClick={() => onUpdateFollowUpStatus(task.id, 'Pendiente')}
-                        className="p-1 text-gray-400 hover:text-gray-600"
+                        className="p-1 text-gray-400 hover:text-gray-600 cursor-pointer"
                         title="Reabrir Seguimiento"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
@@ -417,7 +553,7 @@ export default function Agenda({
                         onDeleteFollowUp(task.id);
                       }
                     }}
-                    className="p-1 text-gray-400 hover:text-gray-600"
+                    className="p-1 text-gray-400 hover:text-gray-600 cursor-pointer"
                     title="Eliminar de la agenda"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -428,13 +564,14 @@ export default function Agenda({
           );
         })}
 
-          {sortedFollowups.length === 0 && (
-            <div className="col-span-3 text-center py-16 text-gray-400 text-xs border border-dashed border-gray-100 rounded-xl bg-white">
-              No hay actividades programadas que coincidan con la búsqueda o filtro.
-            </div>
-          )}
+        {sortedFollowups.length === 0 && (
+          <div className="col-span-3 text-center py-16 text-gray-400 text-xs border border-dashed border-gray-100 rounded-xl bg-white">
+            No hay actividades programadas que coincidan con la búsqueda o filtro.
+          </div>
+        )}
       </div>
 
     </div>
   );
 }
+

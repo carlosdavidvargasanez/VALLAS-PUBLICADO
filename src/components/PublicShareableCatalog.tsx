@@ -88,14 +88,14 @@ export default function PublicShareableCatalog({
     const text = encodeURIComponent(
       `*CATÁLOGO DE VALLAS PUBLICITARIAS Y PANTALLAS LED - PUBLI-X BOLIVIA* 📢\n\nEstimado cliente, le compartimos nuestro catálogo interactivo con disponibilidad y ubicaciones estratégicas en tiempo real:\n\n🌐 Ver Catálogo en Línea: ${catalogUrl}\n\nQuedamos atentos a cualquier consulta.`
     );
-    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+    window.open(`https://api.whatsapp.com/send?text=${text}`, 'publix_whatsapp_tab');
   };
 
   const handleQuoteOnWhatsApp = (v: Vehicle) => {
     const text = encodeURIComponent(
       `¡Hola PUBLI-X Bolivia! 📢 Deseo consultar disponibilidad y cotización para el siguiente espacio publicitario:\n\n📍 *[${v.codigo || v.id}] ${v.tipo_valla || v.tipo} - ${v.ciudad}*\n🏢 *Ubicación:* ${v.avenida_calle || v.modelo}\n📐 *Medidas:* ${v.medidas || '10x4 m'} (${v.cara || 'Cara A'})\n💰 *Tarifa:* $${v.precio_usd} USD/mes (Bs. ${Math.round(v.precio_usd * exchangeRate).toLocaleString('es-BO')})\n\nPor favor envíenme más información y disponibilidad.`
     );
-    window.open(`https://api.whatsapp.com/send?phone=${companyPhone}&text=${text}`, '_blank');
+    window.open(`https://api.whatsapp.com/send?phone=${companyPhone}&text=${text}`, 'publix_whatsapp_tab');
   };
 
   return (

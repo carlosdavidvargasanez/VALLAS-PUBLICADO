@@ -748,9 +748,16 @@ export const generateFiscalInvoicePdf = async (
   onProgress?.('Generando Factura Fiscal Oficial...');
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const marginX = 14;
   const contentWidth = pageWidth - (marginX * 2);
   let currentY = 12;
+
+  const isAnulada = invoice.estado === 'Anulada' || invoice.estado_sin === 'Anulada';
+  const totalBob = invoice.total_bs ?? invoice.monto_total_bob ?? 0;
+  const clienteRazon = invoice.cliente_razon_social || invoice.razon_social || invoice.cliente_nombre || 'Cliente Particular';
+  const clienteNit = invoice.cliente_nit_ci || invoice.nit_ci || '0';
+  const codAutorizacion = invoice.codigo_autorizacion_sin || invoice.codigo_autorizacion || '4A8F93B27C10E';
 
   // Left: Company Info
   const logoData = settings.logo || (await getBase64ImageFromUrl(logoImg));
@@ -765,7 +772,7 @@ export const generateFiscalInvoicePdf = async (
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
-  doc.text(settings.nombre_comercial || 'Publi-X Cobertura Nacional Impacto Total', marginX, currentY + 18);
+  doc.text(settings.nombre_comercial || 'PUBLI-X Cobertura Nacional | Impacto Total', marginX, currentY + 18);
 
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(7);
@@ -774,13 +781,13 @@ export const generateFiscalInvoicePdf = async (
   doc.text(`Teléfono: ${settings.telefono || '+591 3 3559988'} • Santa Cruz - Bolivia`, marginX, currentY + 25.5);
 
   // Right: Fiscal Box (NIT / FACTURA N° / AUTORIZACIÓN)
-  const fiscalBoxWidth = 72;
+  const fiscalBoxWidth = 74;
   const fiscalBoxX = pageWidth - marginX - fiscalBoxWidth;
 
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(234, 88, 12);
   doc.setLineWidth(0.6);
-  doc.roundedRect(fiscalBoxX, currentY, fiscalBoxWidth, 26, 2, 2, 'FD');
+  doc.roundedRect(fiscalBoxX, currentY, fiscalBoxWidth, 27, 2, 2, 'FD');
 
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(8.5);
@@ -792,20 +799,25 @@ export const generateFiscalInvoicePdf = async (
   doc.text(`FACTURA N°: ${invoice.numero_factura}`, fiscalBoxX + (fiscalBoxWidth / 2), currentY + 12, { align: 'center' });
 
   doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(7);
+  doc.setFontSize(6.8);
   doc.setTextColor(71, 85, 105);
-  doc.text(`CÓD. AUTORIZACIÓN: ${invoice.codigo_autorizacion || '4A8F93B27C10E'}`, fiscalBoxX + (fiscalBoxWidth / 2), currentY + 18, { align: 'center' });
+  doc.text(`CÓD. AUTORIZACIÓN: ${codAutorizacion}`, fiscalBoxX + (fiscalBoxWidth / 2), currentY + 18, { align: 'center' });
   doc.text('ACTIVIDAD: PUBLICIDAD EXTERIOR OOH', fiscalBoxX + (fiscalBoxWidth / 2), currentY + 22.5, { align: 'center' });
 
   currentY += 32;
 
   // Title Banner
-  doc.setFillColor(15, 23, 42);
+  doc.setFillColor(isAnulada ? 185 : 15, isAnulada ? 28 : 23, isAnulada ? 28 : 42);
   doc.roundedRect(marginX, currentY, contentWidth, 6.5, 1, 1, 'F');
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(255, 255, 255);
-  doc.text('FACTURA (CON DERECHO A CRÉDITO FISCAL)', pageWidth / 2, currentY + 4.5, { align: 'center' });
+  doc.text(
+    isAnulada ? 'FACTURA ANULADA (SIN EFECTO TRIBUTARIO)' : 'FACTURA (CON DERECHO A CRÉDITO FISCAL)',
+    pageWidth / 2,
+    currentY + 4.5,
+    { align: 'center' }
+  );
 
   currentY += 10;
 
@@ -819,52 +831,60 @@ export const generateFiscalInvoicePdf = async (
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(15, 23, 42);
-  doc.text('Fecha:', marginX + 4, currentY + 5.5);
+  doc.text('Fecha de Emisión:', marginX + 4, currentY + 5.5);
   doc.setFont('Helvetica', 'normal');
-  doc.text(fechaFactura, marginX + 16, currentY + 5.5);
+  doc.text(fechaFactura, marginX + 32, currentY + 5.5);
 
   doc.setFont('Helvetica', 'bold');
   doc.text('Señor(es):', marginX + 4, currentY + 11.5);
   doc.setFont('Helvetica', 'normal');
-  doc.text(`${invoice.razon_social || invoice.cliente_nombre}`, marginX + 20, currentY + 11.5);
+  doc.text(clienteRazon, marginX + 20, currentY + 11.5);
 
   // Right
   doc.setFont('Helvetica', 'bold');
-  doc.text('NIT / CI:', pageWidth - marginX - 50, currentY + 5.5);
+  doc.text('NIT / CI:', pageWidth - marginX - 52, currentY + 5.5);
   doc.setFont('Helvetica', 'normal');
-  doc.text(`${invoice.nit_ci}`, pageWidth - marginX - 4, currentY + 5.5, { align: 'right' });
+  doc.text(clienteNit, pageWidth - marginX - 4, currentY + 5.5, { align: 'right' });
 
   doc.setFont('Helvetica', 'bold');
-  doc.text('Estado SIN:', pageWidth - marginX - 50, currentY + 11.5);
-  doc.setTextColor(234, 88, 12);
-  doc.text(`${invoice.estado_sin || 'Emitida / Válida'}`, pageWidth - marginX - 4, currentY + 11.5, { align: 'right' });
+  doc.text('Estado SIN:', pageWidth - marginX - 52, currentY + 11.5);
+  doc.setTextColor(isAnulada ? 185 : 234, isAnulada ? 28 : 88, isAnulada ? 28 : 12);
+  doc.text(isAnulada ? 'ANULADA' : `${invoice.estado || invoice.estado_sin || 'Válida / Emitida'}`, pageWidth - marginX - 4, currentY + 11.5, { align: 'right' });
 
   currentY += 22;
 
   // Items Table
-  const items = invoice.items || [
+  const rawItems = invoice.items && invoice.items.length > 0 ? invoice.items : [
     {
       id: '1',
       codigo: 'PUB-001',
-      descripcion: 'Alquiler de Espacio Publicitario OOH (Valla Unipolar)',
+      descripcion: invoice.concepto || 'Alquiler de Espacio Publicitario OOH (Valla Unipolar)',
       cantidad: 1,
-      unidad: 'MES',
-      precio_unitario_bob: invoice.monto_total_bob,
-      descuento_bob: 0,
-      subtotal_bob: invoice.monto_total_bob
+      medida_unidad: 'MES',
+      precio_unitario_bs: totalBob,
+      descuento_bs: 0,
+      subtotal_bs: totalBob
     }
   ];
 
-  const tableData = items.map((it, idx) => [
-    String(idx + 1),
-    it.codigo || `ITM-0${idx + 1}`,
-    it.descripcion,
-    String(it.cantidad),
-    it.unidad || 'UNI',
-    `Bs. ${it.precio_unitario_bob.toLocaleString('es-BO')}`,
-    it.descuento_bob > 0 ? `Bs. ${it.descuento_bob.toLocaleString('es-BO')}` : '-',
-    `Bs. ${it.subtotal_bob.toLocaleString('es-BO')}`
-  ]);
+  const tableData = rawItems.map((it: any, idx: number) => {
+    const pUnit = it.precio_unitario_bs ?? it.precio_unitario_bob ?? 0;
+    const desc = it.descuento_bs ?? it.descuento_bob ?? 0;
+    const sub = it.subtotal_bs ?? it.subtotal_bob ?? (pUnit * (it.cantidad || 1) - desc);
+    const code = it.codigo || (it.id && it.id.startsWith('L') ? 'PROD-LONA' : 'OOH-VALLA');
+    const unit = it.medida_unidad || it.unidad || 'GLB';
+
+    return [
+      String(idx + 1),
+      code,
+      it.descripcion,
+      String(it.cantidad || 1),
+      unit,
+      `Bs. ${Number(pUnit).toLocaleString('es-BO')}`,
+      desc > 0 ? `Bs. ${Number(desc).toLocaleString('es-BO')}` : '-',
+      `Bs. ${Number(sub).toLocaleString('es-BO')}`
+    ];
+  });
 
   autoTable(doc, {
     startY: currentY,
@@ -875,13 +895,13 @@ export const generateFiscalInvoicePdf = async (
     bodyStyles: { fontSize: 7.2, textColor: [30, 41, 59] },
     columnStyles: {
       0: { cellWidth: 7, halign: 'center' },
-      1: { cellWidth: 18, halign: 'center' },
-      2: { cellWidth: 72 },
+      1: { cellWidth: 20, halign: 'center' },
+      2: { cellWidth: 70 },
       3: { cellWidth: 12, halign: 'center' },
       4: { cellWidth: 15, halign: 'center' },
       5: { cellWidth: 22, halign: 'right' },
-      6: { cellWidth: 18, halign: 'right' },
-      7: { cellWidth: 24, halign: 'right', fontStyle: 'bold', textColor: [234, 88, 12] }
+      6: { cellWidth: 16, halign: 'right' },
+      7: { cellWidth: 26, halign: 'right', fontStyle: 'bold', textColor: [234, 88, 12] }
     },
     margin: { left: marginX, right: marginX }
   });
@@ -890,7 +910,7 @@ export const generateFiscalInvoicePdf = async (
   currentY = (doc as any).lastAutoTable.finalY + 6;
 
   // Literal in Words & Totals
-  const literal = invoice.monto_literal || numeroALetrasBolivianos(invoice.monto_total_bob);
+  const literal = invoice.total_literal_bs || invoice.monto_literal || numeroALetrasBolivianos(totalBob);
 
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
@@ -904,35 +924,59 @@ export const generateFiscalInvoicePdf = async (
   doc.text(literal, marginX + 14, currentY + 6);
 
   doc.setFont('Helvetica', 'bold');
-  doc.text('Concepto / Contrato:', marginX + 4, currentY + 12);
+  doc.text('Periodo / Observación:', marginX + 4, currentY + 12);
   doc.setFont('Helvetica', 'normal');
-  doc.text(invoice.concepto || 'Alquiler de Espacios Publicitarios OOH', marginX + 35, currentY + 12);
+  doc.text(invoice.periodo_facturado || invoice.observaciones || 'Arrendamiento Publicitario OOH', marginX + 36, currentY + 12);
 
   // Right Totals
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(10.5);
-  doc.setTextColor(234, 88, 12);
-  doc.text(`TOTAL FACTURADO: Bs. ${invoice.monto_total_bob.toLocaleString('es-BO')} BOB`, pageWidth - marginX - 4, currentY + 8, { align: 'right' });
+  doc.setTextColor(isAnulada ? 185 : 234, isAnulada ? 28 : 88, isAnulada ? 28 : 12);
+  doc.text(`TOTAL FACTURADO: Bs. ${totalBob.toLocaleString('es-BO')} BOB`, pageWidth - marginX - 4, currentY + 8, { align: 'right' });
 
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
-  doc.text(`IMPORTE BASE CRÉDITO FISCAL: Bs. ${invoice.monto_total_bob.toLocaleString('es-BO')} BOB`, pageWidth - marginX - 4, currentY + 14, { align: 'right' });
+  const baseFiscal = isAnulada ? 0 : totalBob;
+  doc.text(`IMPORTE BASE CRÉDITO FISCAL: Bs. ${baseFiscal.toLocaleString('es-BO')} BOB`, pageWidth - marginX - 4, currentY + 14, { align: 'right' });
 
   currentY += 28;
 
   // Fiscal Ley 453 & QR code section
   doc.setFillColor(254, 242, 242);
   doc.setDrawColor(254, 202, 202);
-  doc.roundedRect(marginX, currentY, contentWidth, 14, 1.5, 1.5, 'FD');
+  doc.roundedRect(marginX, currentY, contentWidth - 30, 16, 1.5, 1.5, 'FD');
 
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(6.8);
   doc.setTextColor(153, 27, 27);
-  doc.text('"ESTA FACTURA CONTRIBUYE AL DESARROLLO DEL PAÍS, EL USO ILÍCITO SERÁ SANCIONADO PENALMENTE DE ACUERDO A LEY"', pageWidth / 2, currentY + 4.5, { align: 'center' });
+  doc.text('"ESTA FACTURA CONTRIBUYE AL DESARROLLO DEL PAÍS, EL USO ILÍCITO SERÁ SANCIONADO PENALMENTE DE ACUERDO A LEY"', (marginX + contentWidth - 30) / 2, currentY + 4.8, { align: 'center' });
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(6.2);
   doc.setTextColor(100, 116, 139);
-  doc.text('Ley N° 453: El proveedor debe brindar información clara y oportuna sobre los servicios ofertados.', pageWidth / 2, currentY + 9, { align: 'center' });
+  doc.text('Ley N° 453: El proveedor debe brindar información clara y oportuna sobre los servicios ofertados.', (marginX + contentWidth - 30) / 2, currentY + 9.5, { align: 'center' });
+  doc.text(`Cód. Control: ${codAutorizacion.slice(0, 2)}-${codAutorizacion.slice(2, 4)}-${codAutorizacion.slice(4, 6)} • Modalidad: Computarizada en Línea SIAT`, (marginX + contentWidth - 30) / 2, currentY + 13.5, { align: 'center' });
 
-  doc.save(`Factura_${invoice.numero_factura}_${invoice.nit_ci}.pdf`);
+  // Draw QR Stamp box
+  const qrX = pageWidth - marginX - 26;
+  doc.setFillColor(241, 245, 249);
+  doc.setDrawColor(148, 163, 184);
+  doc.roundedRect(qrX, currentY, 26, 16, 1, 1, 'FD');
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(5.5);
+  doc.setTextColor(51, 65, 85);
+  doc.text('[ SIAT QR ]', qrX + 13, currentY + 6.5, { align: 'center' });
+  doc.setFontSize(4.8);
+  doc.setFont('Helvetica', 'normal');
+  doc.text('VALIDACIÓN SIN', qrX + 13, currentY + 10.5, { align: 'center' });
+  doc.text('Ley N° 453', qrX + 13, currentY + 13.5, { align: 'center' });
+
+  // Watermark if anulada
+  if (isAnulada) {
+    doc.setTextColor(220, 38, 38);
+    doc.setFontSize(48);
+    doc.setFont('Helvetica', 'bold');
+    doc.text('ANULADA', pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
+  }
+
+  doc.save(`Factura_${invoice.numero_factura}_${clienteNit}.pdf`);
 };

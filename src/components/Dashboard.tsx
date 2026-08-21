@@ -17,7 +17,11 @@ import {
   Inbox,
   Database,
   Sliders,
-  DollarSign
+  DollarSign,
+  Send,
+  PieChart,
+  Layers,
+  AlertCircle
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -47,15 +51,54 @@ export default function Dashboard({
   // Statistics calculations
   const totalClients = clients.length;
   const availableVehicles = vehicles.filter(v => v.estado === 'Disponible').length;
+  const occupiedVehicles = vehicles.filter(v => v.estado === 'Ocupada' || v.estado === 'Ocupado / Alquilado' || v.estado === 'Reservado' || v.estado === 'Reservada').length;
+  const totalVehiclesCount = vehicles.length;
+  const occupancyPercentage = totalVehiclesCount > 0 ? Math.round((occupiedVehicles / totalVehiclesCount) * 100) : 0;
+  
   const totalQuotations = quotations.length;
   const totalContracts = contracts.length;
+  const activeContracts = contracts.filter(c => c.estado === 'Vigente');
   
+  // Projected Monthly Revenue
+  const activeMonthlyRevenueUsd = activeContracts.reduce((sum, c) => sum + (c.total_neto_usd || 0), 0);
+  const activeMonthlyRevenueBob = activeContracts.reduce((sum, c) => sum + (c.total_neto_bob || (c.total_neto_usd * exchangeRate)), 0);
+
   // Messages calculation from audits
   const sentMessagesCount = auditLogs.filter(log => log.accion.toLowerCase().includes('whatsapp')).length || 12;
   
   // Pending followups
   const pendingFollowups = followUps.filter(f => f.estado === 'Pendiente');
   const pendingFollowupsCount = pendingFollowups.length;
+
+  // Regional breakdown
+  const citiesSummary = ['Santa Cruz', 'La Paz', 'Cochabamba', 'El Alto', 'Tarija', 'Sucre', 'Oruro', 'Potosí', 'Beni', 'Pando'].map(city => {
+    const cityVehicles = vehicles.filter(v => (v.ciudad || '').toLowerCase().includes(city.toLowerCase()));
+    const cityOccupied = cityVehicles.filter(v => v.estado === 'Ocupada' || v.estado === 'Ocupado / Alquilado' || v.estado === 'Reservado' || v.estado === 'Reservada').length;
+    return {
+      city,
+      total: cityVehicles.length,
+      occupied: cityOccupied,
+      available: cityVehicles.length - cityOccupied,
+      rate: cityVehicles.length > 0 ? Math.round((cityOccupied / cityVehicles.length) * 100) : 0
+    };
+  }).filter(c => c.total > 0);
+
+  // Reusable WhatsApp Tab Handler for Executive Summary
+  const handleSendExecutiveSummaryWhatsApp = () => {
+    const text = 
+      `*REPORTE EJECUTIVO COMERCIAL - PUBLI-X BOLIVIA* 📢\n\n` +
+      `📊 *ESTADO GENERAL DEL NEGOCIO OOH:*\n` +
+      `• *Tasa de Ocupación Nacional:* ${occupancyPercentage}% (${occupiedVehicles} de ${totalVehiclesCount} vallas activas)\n` +
+      `• *Espacios Disponibles:* ${availableVehicles} vallas listas para venta\n` +
+      `• *Contratos Vigentes:* ${activeContracts.length} contratos\n` +
+      `• *Ingresos Mensuales Proyectados:* $${activeMonthlyRevenueUsd.toLocaleString()} USD (Bs. ${activeMonthlyRevenueBob.toLocaleString('es-BO', { maximumFractionDigits: 0 })})\n` +
+      `• *Base de Clientes CRM:* ${totalClients} empresas\n` +
+      `• *Cotizaciones Emitidas:* ${totalQuotations} propuestas\n\n` +
+      `_Generado automáticamente por el Sistema Integral PUBLI-X Bolivia._`;
+
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(url, 'publix_whatsapp_tab');
+  };
 
   // Pipeline metrics
   const pipelineStates: { name: string; count: number; color: string; tabState?: string }[] = [
@@ -113,10 +156,10 @@ export default function Dashboard({
       tab: 'clientes' 
     },
     { 
-      title: 'CATÁLOGO VALLAS & LED', 
-      value: availableVehicles, 
-      desc: `${vehicles.length} espacios registrados`, 
-      icon: Presentation, 
+      title: 'OCUPACIÓN OOH', 
+      value: `${occupancyPercentage}%`, 
+      desc: `${occupiedVehicles} ocupadas / ${availableVehicles} libres`, 
+      icon: PieChart, 
       color: 'text-emerald-600 bg-emerald-50/70 border-emerald-100 hover:border-emerald-300 hover:bg-emerald-50', 
       tab: 'vehiculos' 
     },
@@ -129,15 +172,15 @@ export default function Dashboard({
       tab: 'cotizaciones' 
     },
     { 
-      title: 'CONTRATOS FIRMADOS', 
-      value: totalContracts, 
-      desc: 'Acuerdos comerciales vigentes', 
+      title: 'CONTRATOS ACTIVOS', 
+      value: activeContracts.length, 
+      desc: `$${activeMonthlyRevenueUsd.toLocaleString()} USD facturación`, 
       icon: FileCheck, 
       color: 'text-purple-600 bg-purple-50/70 border-purple-100 hover:border-purple-300 hover:bg-purple-50', 
       tab: 'contratos' 
     },
     { 
-      title: 'SEGUIMIENTOS & AGENDA', 
+      title: 'SEGUIMIENTOS', 
       value: pendingFollowupsCount, 
       desc: 'Actividades pendientes', 
       icon: Calendar, 
@@ -147,7 +190,7 @@ export default function Dashboard({
     { 
       title: 'WHATSAPP COMERCIAL', 
       value: sentMessagesCount, 
-      desc: 'Mensajes e interacciones', 
+      desc: 'Interacciones registradas', 
       icon: MessageSquare, 
       color: 'text-indigo-600 bg-indigo-50/70 border-indigo-100 hover:border-indigo-300 hover:bg-indigo-50', 
       tab: 'whatsapp' 
@@ -175,11 +218,12 @@ export default function Dashboard({
           </div>
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => onTabChange('clientes')}
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+              onClick={handleSendExecutiveSummaryWhatsApp}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+              title="Compartir Resumen Ejecutivo por WhatsApp Web (reutilizando pestaña)"
             >
-              <Users className="w-3.5 h-3.5" />
-              <span>+ Nuevo Cliente</span>
+              <Send className="w-3.5 h-3.5" />
+              <span>Enviar Resumen WA</span>
             </button>
             <button
               onClick={() => onTabChange('cotizaciones')}
@@ -199,7 +243,7 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* Cards Indicators Grid - 6 Fully Functional Module Cards */}
+      {/* Cards Indicators Grid - 6 Module Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {indicatorCards.map((card, idx) => (
           <motion.div
@@ -228,61 +272,73 @@ export default function Dashboard({
         ))}
       </div>
 
-      {/* Main Dashboard Charts Section */}
+      {/* Regional Occupancy & Pipeline Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Sales Funnel (Embudo de Ventas) */}
+        {/* Regional Occupancy Breakdown */}
         <motion.div variants={itemVariants} className="bg-white p-6 rounded-xl border border-gray-100 shadow-xs lg:col-span-2 flex flex-col justify-between">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center mb-5">
             <div>
-              <h3 className="text-lg font-bold font-display text-gray-800">Embudo de Conversión Comercial</h3>
-              <p className="text-xs text-gray-400">Progreso de prospectos en el pipeline de ventas (Haga clic en una etapa para abrir CRM Clientes)</p>
+              <h3 className="text-lg font-bold font-display text-gray-800">Ocupación de Espacios por Departamento</h3>
+              <p className="text-xs text-gray-400">Distribución de vallas ocupadas vs. disponibles a nivel nacional</p>
             </div>
             <button 
-              onClick={() => onTabChange('clientes')}
+              onClick={() => onTabChange('vehiculos')}
               className="p-1.5 bg-gray-50 hover:bg-gray-100 rounded-lg text-gray-600 transition"
-              title="Abrir CRM Clientes"
+              title="Abrir Inventario OOH"
             >
-              <TrendingUp className="w-5 h-5 text-gray-500" />
+              <MapPin className="w-5 h-5 text-gray-500" />
             </button>
           </div>
 
-          <div className="space-y-3">
-            {pipelineStates.map((state, idx) => {
-              const maxCount = Math.max(...pipelineStates.map(s => s.count)) || 1;
-              const percent = (state.count / maxCount) * 100;
-              return (
-                <div 
-                  key={idx} 
-                  onClick={() => onTabChange('clientes')}
-                  className="flex items-center group cursor-pointer hover:bg-gray-50/80 p-1 rounded-lg transition"
-                  title={`Ver clientes en estado "${state.name}"`}
-                >
-                  <div className="w-28 text-xs font-bold text-gray-700 truncate group-hover:text-amber-600 transition">{state.name}</div>
-                  <div className="flex-1 ml-3 bg-gray-50 h-7 rounded-md overflow-hidden relative border border-gray-100">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${percent}%` }}
-                      transition={{ duration: 0.8, delay: idx * 0.05 }}
-                      className={`h-full ${state.color} opacity-85 rounded-r`}
-                    />
-                    <span className="absolute inset-y-0 left-3 flex items-center text-xs font-semibold text-gray-700">
-                      {state.count} {state.count === 1 ? 'cliente' : 'clientes'}
+          <div className="space-y-3.5">
+            {citiesSummary.length > 0 ? (
+              citiesSummary.map((c, idx) => (
+                <div key={idx} className="space-y-1">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-bold text-gray-800 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-amber-500" />
+                      <span>{c.city}</span>
+                    </span>
+                    <span className="font-mono text-gray-600">
+                      <strong className="text-emerald-600">{c.occupied} ocupadas</strong> / {c.total} totales ({c.rate}%)
                     </span>
                   </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 ml-2 transition" />
+                  <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden flex">
+                    <div 
+                      className="bg-emerald-500 h-full transition-all duration-500"
+                      style={{ width: `${c.rate}%` }}
+                      title={`Ocupado: ${c.occupied} vallas`}
+                    />
+                    <div 
+                      className="bg-amber-400 h-full transition-all duration-500"
+                      style={{ width: `${100 - c.rate}%` }}
+                      title={`Disponible: ${c.available} vallas`}
+                    />
+                  </div>
                 </div>
-              );
-            })}
+              ))
+            ) : (
+              <div className="text-center py-6 text-gray-400 text-xs">
+                No hay vallas registradas para calcular distribución regional.
+              </div>
+            )}
           </div>
 
-          <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between text-xs text-gray-400">
-            <span>Bolivia Cobertura Nacional</span>
+          <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
+            <div className="flex items-center space-x-4">
+              <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> Ocupado
+              </span>
+              <span className="flex items-center gap-1.5 text-amber-700 font-bold">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" /> Disponible
+              </span>
+            </div>
             <button 
-              onClick={() => onTabChange('clientes')}
-              className="text-amber-600 font-bold hover:underline flex items-center gap-1"
+              onClick={() => onTabChange('vehiculos')}
+              className="text-amber-600 font-bold hover:underline flex items-center gap-1 cursor-pointer"
             >
-              <span>Ir a Cartera de Clientes</span>
+              <span>Ver Mapa OOH</span>
               <ArrowRight className="w-3 h-3" />
             </button>
           </div>
@@ -293,7 +349,7 @@ export default function Dashboard({
           <div className="flex justify-between items-center mb-6">
             <div>
               <h3 className="text-lg font-bold font-display text-gray-800">Espacios OOH Destacados</h3>
-              <p className="text-xs text-gray-400">Vallas y pantallas LED más consultadas</p>
+              <p className="text-xs text-gray-400">Vallas y pantallas LED más cotizadas</p>
             </div>
             <Presentation className="w-5 h-5 text-gray-400" />
           </div>
@@ -408,7 +464,7 @@ export default function Dashboard({
           </div>
 
           <button 
-            onClick={() => onTabChange('agenda')}
+            onClick={() => onTabChange('agenda')} 
             className="w-full mt-4 py-2 text-xs font-semibold text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 transition duration-150 border border-gray-200 cursor-pointer flex items-center justify-center gap-1.5"
           >
             <Calendar className="w-3.5 h-3.5" />

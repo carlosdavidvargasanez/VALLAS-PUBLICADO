@@ -414,6 +414,32 @@ export default function Clients({
 
       if (success) {
         setFormSuccess(`Cliente registrado con éxito. Usuario: @${creds.usuario_acceso} | Contraseña: ${creds.password_acceso}`);
+        const welcomeInfo = generateClientWelcomeMessage(fullName, formattedPhone, creds.usuario_acceso, creds.password_acceso);
+        const createdClient: Client = {
+          id: 'C' + Date.now().toString().slice(-4),
+          nombre: fullName,
+          nombres: cleanNombres,
+          apellidos: cleanApellidos,
+          empresa: empresa.trim(),
+          razon_social: razonSocial.trim(),
+          nit_ci: nitCi.trim(),
+          celular: formattedPhone,
+          ciudad: departamento,
+          departamento,
+          pais: 'Bolivia',
+          presupuesto_usd: parsedPresupuesto,
+          observaciones: observaciones.trim(),
+          estado,
+          correo: correo.trim(),
+          campania: campania.trim(),
+          usuario_acceso: creds.usuario_acceso,
+          password_acceso: creds.password_acceso,
+          usuario_habilitado: true,
+          acceso_bloqueado: false,
+          fecha_registro: new Date().toISOString(),
+          fecha_actualizacion: new Date().toISOString()
+        };
+        setWelcomeClientData({ client: createdClient, welcomeInfo });
         resetForm();
       } else {
         setFormError('Ya existe un cliente con este número de celular registrado.');

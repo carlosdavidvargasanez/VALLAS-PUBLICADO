@@ -19,6 +19,7 @@ export interface Client {
   empresa?: string;
   razon_social?: string;
   nit_ci?: string;
+  direccion?: string;
   usuario_acceso?: string;
   password_acceso?: string;
   usuario_habilitado?: boolean; // true = enabled, false = disabled/restricted

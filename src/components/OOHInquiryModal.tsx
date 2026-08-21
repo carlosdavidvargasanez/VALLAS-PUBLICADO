@@ -272,7 +272,7 @@ export default function OOHInquiryModal({
       `Quedo atento a su propuesta y presupuesto comercial. ¡Muchas gracias!`
     );
     try {
-      window.open(`https://wa.me/59170000000?text=${text}`, '_blank');
+      window.open(`https://api.whatsapp.com/send?phone=59170000000&text=${text}`, 'publix_whatsapp_tab');
     } catch (e) {
       console.error(e);
     }

@@ -1476,6 +1476,8 @@ export default function App() {
                 <Agenda
                   followUps={followUps}
                   clients={clients}
+                  contracts={contracts}
+                  vehicles={vehicles}
                   activeClient={activeClient}
                   onSelectActiveClient={setActiveClient}
                   onAddFollowUp={handleAddFollowUp}
