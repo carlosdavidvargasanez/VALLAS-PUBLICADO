@@ -471,25 +471,48 @@ export default function DocumentManager({
     setTimeout(() => setSaveToast(''), 4000);
   };
 
-  // WhatsApp Sender
+  // WhatsApp Sender (reutilizando pestaña fija publix_whatsapp_tab)
   const handleSendWhatsApp = () => {
     try {
-      const cell = (activeDocType === 'PROFORMA' ? proformaData.cliente_celular : contratoData.cliente_celular).replace(/[^\d]/g, '');
-      const docTitle = activeDocType === 'PROFORMA' ? `PROFORMA COMERCIAL N° ${proformaData.numero}` : `CONTRATO OOH N° ${contratoData.numero}`;
-      const total = activeDocType === 'PROFORMA' ? `$${totalProformaUSD.toLocaleString()} USD (Bs. ${totalProformaBOB.toLocaleString('es-BO')})` : `$${contratoData.total_neto_usd.toLocaleString()} USD (Bs. ${contratoData.total_neto_bob.toLocaleString('es-BO')})`;
-      const valla = activeDocType === 'PROFORMA' ? proformaData.valla_nombre : contratoData.vallas_lista[0]?.direccion || 'Espacios OOH';
+      const cell = (
+        activeDocType === 'PROFORMA' ? proformaData.cliente_celular : 
+        activeDocType === 'CONTRATO' ? contratoData.cliente_celular : 
+        clients.find(c => c.nombre === actaData.cliente_nombre)?.celular || ''
+      ).replace(/[^\d]/g, '');
 
-      const msg = encodeURIComponent(
-        `*PUBLI-X BOLIVIA | ${docTitle}* 📢\n\n` +
-        `Estimado(a) *${activeDocType === 'PROFORMA' ? proformaData.cliente_nombre : contratoData.cliente_nombre}*:\n` +
-        `Le compartimos la propuesta oficial para el espacio publicitario:\n` +
-        `📍 *Ubicación:* ${valla}\n` +
-        `💰 *Inversión Total:* ${total}\n` +
-        `✨ Incluye iluminación nocturna, confección de lona frontlight y mantenimiento.\n\n` +
-        `Quedamos a su disposición para formalizar la reserva.\n` +
-        `*${currentUserNombre}* • PUBLI-X BOLIVIA`
-      );
-      window.open(cell ? `https://wa.me/${cell}?text=${msg}` : `https://wa.me/?text=${msg}`, '_blank');
+      let msg = '';
+      if (activeDocType === 'ACTA_ENTREGA') {
+        msg = encodeURIComponent(
+          `*PUBLI-X BOLIVIA | ACTA DE INSTALACIÓN Y FOTO TESTIGO OOH* 📢\n\n` +
+          `Estimado(a) *${actaData.cliente_nombre}*:\n` +
+          `Le confirmamos la instalación y encendido de su campaña publicitaria:\n` +
+          `📍 *Ubicación:* ${actaData.valla_direccion}\n` +
+          `📅 *Fecha de Fijación:* ${actaData.fecha_instalacion} (Encendido: ${actaData.hora_encendido} hrs)\n` +
+          `💡 *Luminarias LED:* ${actaData.luminarias_funcionando}\n` +
+          `🛠️ *Estado Material:* ${actaData.estado_lona}\n` +
+          `📋 *Conformidad:* ${actaData.conformidad_cliente}\n\n` +
+          `Las fotos testigo diurnas y nocturnas se encuentran adjuntas al expediente.\n` +
+          `*${actaData.responsable_montaje}* • PUBLI-X BOLIVIA`
+        );
+      } else {
+        const docTitle = activeDocType === 'PROFORMA' ? `PROFORMA COMERCIAL N° ${proformaData.numero}` : `CONTRATO OOH N° ${contratoData.numero}`;
+        const total = activeDocType === 'PROFORMA' ? `$${totalProformaUSD.toLocaleString()} USD (Bs. ${totalProformaBOB.toLocaleString('es-BO')})` : `$${contratoData.total_neto_usd.toLocaleString()} USD (Bs. ${contratoData.total_neto_bob.toLocaleString('es-BO')})`;
+        const valla = activeDocType === 'PROFORMA' ? proformaData.valla_nombre : contratoData.vallas_lista[0]?.direccion || 'Espacios OOH';
+
+        msg = encodeURIComponent(
+          `*PUBLI-X BOLIVIA | ${docTitle}* 📢\n\n` +
+          `Estimado(a) *${activeDocType === 'PROFORMA' ? proformaData.cliente_nombre : contratoData.cliente_nombre}*:\n` +
+          `Le compartimos la documentación oficial para el espacio publicitario:\n` +
+          `📍 *Ubicación:* ${valla}\n` +
+          `💰 *Inversión Total:* ${total}\n` +
+          `✨ Incluye iluminación nocturna, confección de lona frontlight y mantenimiento.\n\n` +
+          `Quedamos a su disposición para cualquier consulta técnica o legal.\n` +
+          `*${currentUserNombre}* • PUBLI-X BOLIVIA`
+        );
+      }
+
+      const url = cell ? `https://api.whatsapp.com/send?phone=${cell}&text=${msg}` : `https://api.whatsapp.com/send?text=${msg}`;
+      window.open(url, 'publix_whatsapp_tab');
     } catch (e) {
       console.error(e);
     }

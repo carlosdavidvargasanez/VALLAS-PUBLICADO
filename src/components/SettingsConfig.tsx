@@ -611,9 +611,31 @@ export default function SettingsConfig({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-amber-700 mb-1">
-                    Cotización del Dólar de hoy (Bs. por 1 USD) *
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-amber-700">
+                      Cotización del Dólar de hoy (Bs. por 1 USD) *
+                    </label>
+                    {(isDueno || isJefe) && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setTipoCambio('6.96')}
+                          className="text-[10px] font-mono px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-bold transition cursor-pointer"
+                          title="Fijar tasa oficial BCB 6.96"
+                        >
+                          Oficial (6.96)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTipoCambio('10.10')}
+                          className="text-[10px] font-mono px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-bold transition cursor-pointer"
+                          title="Fijar tasa comercial 10.10"
+                        >
+                          Comercial (10.10)
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-mono text-xs font-bold">Bs.</span>
                     <input
@@ -628,7 +650,7 @@ export default function SettingsConfig({
                   </div>
                   <p className="text-[10px] text-gray-400 mt-1">
                     {isDueno || isJefe 
-                      ? 'Defina la tasa oficial (ej: 10.10). Se aplicará automáticamente a todos los precios en Bolivianos.'
+                      ? 'Defina la tasa oficial (ej: 6.96 o 10.10). Se aplicará automáticamente a todos los precios en Bolivianos y cotizaciones.'
                       : 'Protegido: Modificable únicamente por el Dueño o el Jefe.'}
                   </p>
                 </div>
@@ -679,11 +701,34 @@ export default function SettingsConfig({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">WhatsApp Oficial para Envíos</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-gray-500">WhatsApp Oficial para Envíos</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cleanPhone = (whatsapp || '+59170000000').replace(/[^\d]/g, '');
+                        const msg = encodeURIComponent(
+                          `*PRUEBA DE CONEXIÓN WHATSAPP - PUBLI-X BOLIVIA* 📢\n\n` +
+                          `✅ Canal oficial verificado correctamente.\n` +
+                          `🏢 *Empresa:* ${empresa}\n` +
+                          `👤 *Representante:* ${representanteLegal} (${representanteCargo})\n` +
+                          `💵 *Tipo de Cambio:* Bs. ${tipoCambio} / 1 USD\n\n` +
+                          `_Enviado desde el Módulo de Configuración PUBLI-X._`
+                        );
+                        const url = cleanPhone ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${msg}` : `https://api.whatsapp.com/send?text=${msg}`;
+                        window.open(url, 'publix_whatsapp_tab');
+                      }}
+                      className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1 transition cursor-pointer"
+                      title="Probar apertura en pestaña única de WhatsApp"
+                    >
+                      <span>Probar Conexión WA</span>
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={whatsapp}
                     onChange={(e) => setWhatsapp(e.target.value)}
+                    placeholder="+591 70000000"
                     className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 disabled:opacity-60 disabled:cursor-not-allowed"
                     disabled={!isDueno}
                   />
