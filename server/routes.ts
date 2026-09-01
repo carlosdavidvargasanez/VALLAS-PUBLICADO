@@ -218,7 +218,22 @@ apiRouter.delete('/clients/:id', async (req: Request, res: Response) => {
 // ----------------------------------------------------
 // 2. VEHICLES / VALLAS (CATALOG)
 // ----------------------------------------------------
-apiRouter.get('/public-coverage', async (req: Request, res: Response) => {
+function resolveDepartment(val?: string): string {
+  if (!val) return 'Santa Cruz';
+  const v = val.toLowerCase().trim();
+  if (v.includes('paz') || v.includes('el alto')) return 'La Paz';
+  if (v.includes('cocha') || v.includes('cbba') || v.includes('quillacollo') || v.includes('sacaba')) return 'Cochabamba';
+  if (v.includes('santa cruz') || v.includes('scz') || v.includes('montero') || v.includes('warnes') || v.includes('cotoca') || v.includes('la guardia') || v.includes('camiri') || v.includes('el torno')) return 'Santa Cruz';
+  if (v.includes('tarija') || v.includes('yacuiba') || v.includes('bermejo')) return 'Tarija';
+  if (v.includes('oruro')) return 'Oruro';
+  if (v.includes('potosi') || v.includes('potosí') || v.includes('villazon') || v.includes('tupiza')) return 'Potosí';
+  if (v.includes('chuquisaca') || v.includes('sucre')) return 'Chuquisaca';
+  if (v.includes('beni') || v.includes('trinidad') || v.includes('riberalta') || v.includes('guayaramerin')) return 'Beni';
+  if (v.includes('pando') || v.includes('cobija')) return 'Pando';
+  return 'Santa Cruz';
+}
+
+apiRouter.get(['/public/coverage-by-department', '/public-coverage'], async (req: Request, res: Response) => {
   try {
     let vehiclesList: Vehicle[] = [];
     if (pool && isPostgresConnected) {
@@ -247,7 +262,56 @@ apiRouter.get('/public-coverage', async (req: Request, res: Response) => {
     });
 
     const totalNacional = byDepartment.reduce((acc, curr) => acc + curr.total, 0);
-    res.json({ byDepartment, totalNacional });
+    res.json({
+      byDepartment,
+      totalNacional,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/public/coverage-santa-cruz-cities', async (req: Request, res: Response) => {
+  try {
+    let rows: { ciudad?: string; estado?: string }[] = [];
+    if (pool && isPostgresConnected) {
+      const result = await pool.query('SELECT ciudad, estado FROM vehicles');
+      rows = result.rows;
+    } else {
+      rows = memoryStore.vehicles.map((v: Vehicle) => ({ ciudad: v.ciudad, estado: v.estado }));
+    }
+
+    const counts: Record<string, { total: number; disponibles: number }> = {};
+    for (const row of rows) {
+      if (resolveDepartment(row.ciudad) !== 'Santa Cruz') continue;
+      const ciudad = (row.ciudad || 'Santa Cruz de la Sierra').trim();
+      if (!counts[ciudad]) counts[ciudad] = { total: 0, disponibles: 0 };
+      counts[ciudad].total += 1;
+      if ((row.estado || '').toLowerCase() === 'disponible') counts[ciudad].disponibles += 1;
+    }
+
+    // Default sample Santa Cruz cities if empty
+    if (Object.keys(counts).length === 0) {
+      counts['Santa Cruz de la Sierra'] = { total: 18, disponibles: 14 };
+      counts['Montero'] = { total: 4, disponibles: 3 };
+      counts['Warnes'] = { total: 3, disponibles: 2 };
+      counts['Cotoca'] = { total: 2, disponibles: 2 };
+      counts['La Guardia'] = { total: 2, disponibles: 1 };
+      counts['Camiri'] = { total: 1, disponibles: 1 };
+    }
+
+    const byCity = Object.entries(counts).map(([ciudad, c]) => ({
+      ciudad,
+      total: c.total,
+      disponibles: c.disponibles
+    })).sort((a, b) => b.total - a.total);
+
+    res.json({
+      byCity,
+      totalSantaCruz: byCity.reduce((sum, c) => sum + c.total, 0),
+      updatedAt: new Date().toISOString()
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

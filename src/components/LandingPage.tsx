@@ -5,7 +5,7 @@ import oohBannerImage from '../assets/images/publi_x_ooh_banner_1786328834763.jp
 import Logo from './Logo';
 import OOHInquiryModal from './OOHInquiryModal';
 import CommercialAiChatbot from './CommercialAiChatbot';
-import BoliviaCoverageMap from './BoliviaCoverageMap';
+import SantaCruzCityMap from './SantaCruzCityMap';
 
 import { Settings } from '../types';
 
@@ -144,8 +144,8 @@ export default function LandingPage({ onOpenLogin, onOpenLoginWithCategory, onEx
 
           </div>
 
-          {/* Interactive Bolivia Coverage Map */}
-          <BoliviaCoverageMap />
+          {/* Interactive Santa Cruz Coverage Map */}
+          <SantaCruzCityMap />
         </div>
       </section>
 

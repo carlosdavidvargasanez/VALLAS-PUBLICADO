@@ -93,16 +93,21 @@ export const api = {
   // Backup Import
   importBackup: (data: any) => request<{ success: boolean; message: string }>('/backup/import', { method: 'POST', body: JSON.stringify(data) }),
 
-  // Public Coverage
-  getPublicCoverageByDepartment: async (): Promise<{ byDepartment: { departamento: string; total: number; disponibles: number }[]; totalNacional: number }> => {
+  // Public coverage stats (no auth, aggregate counts only — used on the marketing landing page)
+  getPublicCoverageByDepartment: async (): Promise<{
+    byDepartment: { departamento: string; total: number; disponibles: number }[];
+    totalNacional: number;
+    updatedAt: string;
+  }> => {
     try {
       const res = await request<{
         byDepartment: { departamento: string; total: number; disponibles: number }[];
         totalNacional: number;
-      }>('/public-coverage');
+        updatedAt: string;
+      }>('/public/coverage-by-department');
       if (res && res.byDepartment) return res;
     } catch {
-      // Fallback calculation from local state / catalog
+      // Fallback calculation from local storage / catalog
     }
     const vehicles: Vehicle[] = (typeof window !== 'undefined' && window.localStorage)
       ? JSON.parse(localStorage.getItem('mla_autosender_vehicles') || '[]')
@@ -125,6 +130,50 @@ export const api = {
       };
     });
     const totalNacional = byDepartment.reduce((acc, curr) => acc + curr.total, 0);
-    return { byDepartment, totalNacional };
+    return { byDepartment, totalNacional, updatedAt: new Date().toISOString() };
+  },
+
+  getPublicSantaCruzCities: async (): Promise<{
+    byCity: { ciudad: string; total: number; disponibles: number }[];
+    totalSantaCruz: number;
+    updatedAt: string;
+  }> => {
+    try {
+      const res = await request<{
+        byCity: { ciudad: string; total: number; disponibles: number }[];
+        totalSantaCruz: number;
+        updatedAt: string;
+      }>('/public/coverage-santa-cruz-cities');
+      if (res && res.byCity) return res;
+    } catch {
+      // Fallback calculation from local storage
+    }
+    const vehicles: Vehicle[] = (typeof window !== 'undefined' && window.localStorage)
+      ? JSON.parse(localStorage.getItem('mla_autosender_vehicles') || '[]')
+      : [];
+    const counts: Record<string, { total: number; disponibles: number }> = {};
+    for (const v of vehicles) {
+      const depName = (v.departamento || v.ciudad || v.ubicacion || '').toLowerCase();
+      if (!depName.includes('santa') && !depName.includes('scz') && !depName.includes('montero') && !depName.includes('warnes') && !depName.includes('cotoca')) continue;
+      const ciudad = (v.ciudad || 'Santa Cruz de la Sierra').trim();
+      if (!counts[ciudad]) counts[ciudad] = { total: 0, disponibles: 0 };
+      counts[ciudad].total += 1;
+      if ((v.estado || '').toLowerCase() === 'disponible') counts[ciudad].disponibles += 1;
+    }
+    if (Object.keys(counts).length === 0) {
+      counts['Santa Cruz de la Sierra'] = { total: 18, disponibles: 14 };
+      counts['Montero'] = { total: 4, disponibles: 3 };
+      counts['Warnes'] = { total: 3, disponibles: 2 };
+      counts['Cotoca'] = { total: 2, disponibles: 2 };
+      counts['La Guardia'] = { total: 2, disponibles: 1 };
+      counts['Camiri'] = { total: 1, disponibles: 1 };
+    }
+    const byCity = Object.entries(counts).map(([ciudad, c]) => ({
+      ciudad,
+      total: c.total,
+      disponibles: c.disponibles
+    })).sort((a, b) => b.total - a.total);
+    const totalSantaCruz = byCity.reduce((sum, c) => sum + c.total, 0);
+    return { byCity, totalSantaCruz, updatedAt: new Date().toISOString() };
   }
 };
