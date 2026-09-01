@@ -60,6 +60,7 @@ export interface Vehicle {
   zona?: string;
   cara?: 'Cara A' | 'Cara B' | 'Ambas Caras' | string;
   ciudad?: string;
+  departamento?: string;
   avenida_calle?: string;
   provincia?: string;
   detalle?: string;

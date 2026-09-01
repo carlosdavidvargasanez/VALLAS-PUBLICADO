@@ -2,6 +2,7 @@ import { Client, Vehicle, Quotation, Contract, Invoice, FollowUp, MessageTemplat
 import { INITIAL_VEHICLES } from './initialVehicles';
 import { generateClientCredentials } from '../utils/credentials';
 import { api } from '../services/api';
+import { FirebaseSyncService, COLLECTIONS } from '../services/firebase';
 
 const DB_KEYS = {
   CLIENTS: 'mla_autosender_clients',
@@ -386,31 +387,111 @@ export const mockDb = {
   },
 
   /**
-   * Sync all data from PostgreSQL / Express Backend
+   * Sync all data from PostgreSQL / Express Backend & Firebase Firestore
    */
   async syncWithServer(): Promise<boolean> {
+    let synced = false;
     try {
       const data = await api.getBootstrap();
       if (data) {
-        if (Array.isArray(data.clients)) localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(data.clients));
-        if (Array.isArray(data.vehicles)) localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(data.vehicles));
-        if (Array.isArray(data.quotations)) localStorage.setItem(DB_KEYS.QUOTATIONS, JSON.stringify(data.quotations));
-        if (Array.isArray(data.contracts)) localStorage.setItem(DB_KEYS.CONTRACTS, JSON.stringify(data.contracts));
-        if (Array.isArray(data.followUps)) localStorage.setItem(DB_KEYS.FOLLOW_UPS, JSON.stringify(data.followUps));
-        if (Array.isArray(data.templates)) localStorage.setItem(DB_KEYS.TEMPLATES, JSON.stringify(data.templates));
+        if (Array.isArray(data.clients) && data.clients.length > 0) localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(data.clients));
+        if (Array.isArray(data.vehicles) && data.vehicles.length > 0) localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(data.vehicles));
+        if (Array.isArray(data.quotations) && data.quotations.length > 0) localStorage.setItem(DB_KEYS.QUOTATIONS, JSON.stringify(data.quotations));
+        if (Array.isArray(data.contracts) && data.contracts.length > 0) localStorage.setItem(DB_KEYS.CONTRACTS, JSON.stringify(data.contracts));
+        if (Array.isArray(data.followUps) && data.followUps.length > 0) localStorage.setItem(DB_KEYS.FOLLOW_UPS, JSON.stringify(data.followUps));
+        if (Array.isArray(data.templates) && data.templates.length > 0) localStorage.setItem(DB_KEYS.TEMPLATES, JSON.stringify(data.templates));
         if (data.settings) localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify(data.settings));
-        if (Array.isArray(data.users)) localStorage.setItem(DB_KEYS.USERS, JSON.stringify(data.users));
-        if (Array.isArray(data.auditLogs)) localStorage.setItem(DB_KEYS.AUDIT_LOGS, JSON.stringify(data.auditLogs));
-        if (Array.isArray(data.pendingRequests)) localStorage.setItem(DB_KEYS.PENDING_REQUESTS, JSON.stringify(data.pendingRequests));
-        
-        try {
-          window.dispatchEvent(new Event('publix_db_synced'));
-        } catch {}
-        return true;
+        if (Array.isArray(data.users) && data.users.length > 0) localStorage.setItem(DB_KEYS.USERS, JSON.stringify(data.users));
+        if (Array.isArray(data.auditLogs) && data.auditLogs.length > 0) localStorage.setItem(DB_KEYS.AUDIT_LOGS, JSON.stringify(data.auditLogs));
+        if (Array.isArray(data.pendingRequests) && data.pendingRequests.length > 0) localStorage.setItem(DB_KEYS.PENDING_REQUESTS, JSON.stringify(data.pendingRequests));
+        synced = true;
       }
-      return false;
     } catch (err) {
       console.warn('Sync with server error (using cache):', err);
+    }
+
+    try {
+      const firestoreSynced = await this.syncWithFirestore();
+      if (firestoreSynced) synced = true;
+    } catch (err) {
+      console.warn('Firestore sync check:', err);
+    }
+
+    if (synced) {
+      try {
+        window.dispatchEvent(new Event('publix_db_synced'));
+      } catch {}
+    }
+    return synced;
+  },
+
+  /**
+   * Sync directly with Firebase Firestore
+   */
+  async syncWithFirestore(): Promise<boolean> {
+    try {
+      if (!FirebaseSyncService.isAvailable()) return false;
+
+      // 1. Vehicles / Vallas
+      const cloudVehicles = await FirebaseSyncService.getCollectionItems<Vehicle>(COLLECTIONS.VEHICLES);
+      if (cloudVehicles && cloudVehicles.length > 0) {
+        localStorage.setItem(DB_KEYS.VEHICLES, JSON.stringify(cloudVehicles));
+      } else {
+        const localVehicles = this.getVehicles();
+        if (localVehicles.length > 0) {
+          await FirebaseSyncService.syncCollection(COLLECTIONS.VEHICLES, localVehicles);
+        }
+      }
+
+      // 2. Clients
+      const cloudClients = await FirebaseSyncService.getCollectionItems<Client>(COLLECTIONS.CLIENTS);
+      if (cloudClients && cloudClients.length > 0) {
+        localStorage.setItem(DB_KEYS.CLIENTS, JSON.stringify(cloudClients));
+      } else {
+        const localClients = this.getClients();
+        if (localClients.length > 0) {
+          await FirebaseSyncService.syncCollection(COLLECTIONS.CLIENTS, localClients);
+        }
+      }
+
+      // 3. Quotations
+      const cloudQuotations = await FirebaseSyncService.getCollectionItems<Quotation>(COLLECTIONS.QUOTATIONS);
+      if (cloudQuotations && cloudQuotations.length > 0) {
+        localStorage.setItem(DB_KEYS.QUOTATIONS, JSON.stringify(cloudQuotations));
+      } else {
+        const localQuotations = this.getQuotations();
+        if (localQuotations.length > 0) {
+          await FirebaseSyncService.syncCollection(COLLECTIONS.QUOTATIONS, localQuotations);
+        }
+      }
+
+      // 4. Contracts
+      const cloudContracts = await FirebaseSyncService.getCollectionItems<Contract>(COLLECTIONS.CONTRACTS);
+      if (cloudContracts && cloudContracts.length > 0) {
+        localStorage.setItem(DB_KEYS.CONTRACTS, JSON.stringify(cloudContracts));
+      }
+
+      // 5. Invoices
+      const cloudInvoices = await FirebaseSyncService.getCollectionItems<Invoice>(COLLECTIONS.INVOICES);
+      if (cloudInvoices && cloudInvoices.length > 0) {
+        localStorage.setItem(DB_KEYS.INVOICES, JSON.stringify(cloudInvoices));
+      }
+
+      // 6. Pending Requests
+      const cloudPendingRequests = await FirebaseSyncService.getCollectionItems<PendingQuotationRequest>(COLLECTIONS.PENDING_REQUESTS);
+      if (cloudPendingRequests && cloudPendingRequests.length > 0) {
+        localStorage.setItem(DB_KEYS.PENDING_REQUESTS, JSON.stringify(cloudPendingRequests));
+      }
+
+      // 7. Settings
+      const cloudSettings = await FirebaseSyncService.getCollectionItems<Settings>(COLLECTIONS.SETTINGS);
+      if (cloudSettings && cloudSettings.length > 0) {
+        localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify(cloudSettings[0]));
+      }
+
+      return true;
+    } catch (e) {
+      console.warn('[Firebase Sync Error]:', e);
       return false;
     }
   },
@@ -445,6 +526,7 @@ export const mockDb = {
     }
     this.saveClients(list);
     this.checkTriggerCriticalBackup(`Actualización de cliente: ${client.nombre}`);
+    FirebaseSyncService.saveDoc(COLLECTIONS.CLIENTS, client.id, client).catch(console.warn);
     try {
       await api.createClient(client);
     } catch (e) {
@@ -459,6 +541,7 @@ export const mockDb = {
       list[idx] = { ...list[idx], ...update, fecha_actualizacion: new Date().toISOString() };
       this.saveClients(list);
       this.checkTriggerCriticalBackup(`Modificación de cliente: ${list[idx].nombre}`);
+      FirebaseSyncService.saveDoc(COLLECTIONS.CLIENTS, id, list[idx]).catch(console.warn);
       try {
         await api.updateClient(id, update);
       } catch (e) {
@@ -471,6 +554,7 @@ export const mockDb = {
     const list = this.getClients().filter(c => c.id !== id);
     this.saveClients(list);
     this.checkTriggerCriticalBackup(`Eliminación de cliente ID ${id}`);
+    FirebaseSyncService.removeDoc(COLLECTIONS.CLIENTS, id).catch(console.warn);
     try {
       await api.deleteClient(id);
     } catch (e) {
@@ -508,6 +592,7 @@ export const mockDb = {
     }
     this.saveVehicles(list);
     this.checkTriggerCriticalBackup(`Nuevo soporte publicitario: ${vehicle.modelo || vehicle.marca}`);
+    FirebaseSyncService.saveDoc(COLLECTIONS.VEHICLES, vehicle.id, vehicle).catch(console.warn);
     try {
       await api.createVehicle(vehicle);
     } catch (e) {
@@ -522,6 +607,7 @@ export const mockDb = {
       list[idx] = { ...list[idx], ...update, fecha_actualizacion: new Date().toISOString() };
       this.saveVehicles(list);
       this.checkTriggerCriticalBackup(`Modificación de valla/soporte: ${list[idx].modelo || list[idx].marca}`);
+      FirebaseSyncService.saveDoc(COLLECTIONS.VEHICLES, id, list[idx]).catch(console.warn);
       try {
         await api.updateVehicle(id, update);
       } catch (e) {
@@ -534,6 +620,7 @@ export const mockDb = {
     const list = this.getVehicles().filter(v => v.id !== id);
     this.saveVehicles(list);
     this.checkTriggerCriticalBackup(`Eliminación de soporte publicitario ID ${id}`);
+    FirebaseSyncService.removeDoc(COLLECTIONS.VEHICLES, id).catch(console.warn);
     try {
       await api.deleteVehicle(id);
     } catch (e) {
@@ -571,6 +658,7 @@ export const mockDb = {
     }
     this.saveQuotations(list);
     this.checkTriggerCriticalBackup(`Nueva cotización emitida: ${q.numero}`);
+    FirebaseSyncService.saveDoc(COLLECTIONS.QUOTATIONS, q.id, q).catch(console.warn);
     try {
       await api.createQuotation(q);
     } catch (e) {
@@ -585,6 +673,7 @@ export const mockDb = {
       list[idx] = { ...list[idx], ...update };
       this.saveQuotations(list);
       this.checkTriggerCriticalBackup(`Modificación de cotización: ${list[idx].numero}`);
+      FirebaseSyncService.saveDoc(COLLECTIONS.QUOTATIONS, id, list[idx]).catch(console.warn);
       try {
         await api.createQuotation(list[idx]);
       } catch (e) {
@@ -597,6 +686,7 @@ export const mockDb = {
     const list = this.getQuotations().filter(q => q.id !== id);
     this.saveQuotations(list);
     this.checkTriggerCriticalBackup(`Eliminación de cotización ID ${id}`);
+    FirebaseSyncService.removeDoc(COLLECTIONS.QUOTATIONS, id).catch(console.warn);
     try {
       await api.deleteQuotation(id);
     } catch (e) {
@@ -634,6 +724,7 @@ export const mockDb = {
     }
     this.saveContracts(list);
     this.checkTriggerCriticalBackup(`Nuevo contrato generado: ${c.numero}`);
+    FirebaseSyncService.saveDoc(COLLECTIONS.CONTRACTS, c.id, c).catch(console.warn);
     try {
       await api.createContract(c);
     } catch (e) {
@@ -648,6 +739,7 @@ export const mockDb = {
       list[idx] = { ...list[idx], ...update };
       this.saveContracts(list);
       this.checkTriggerCriticalBackup(`Modificación de contrato: ${list[idx].numero}`);
+      FirebaseSyncService.saveDoc(COLLECTIONS.CONTRACTS, id, list[idx]).catch(console.warn);
       try {
         await api.createContract(list[idx]);
       } catch (e) {
@@ -659,6 +751,7 @@ export const mockDb = {
   async deleteContract(id: string) {
     const list = this.getContracts().filter(c => c.id !== id);
     this.saveContracts(list);
+    FirebaseSyncService.removeDoc(COLLECTIONS.CONTRACTS, id).catch(console.warn);
     try {
       await api.deleteContract(id);
     } catch (e) {
@@ -696,6 +789,7 @@ export const mockDb = {
     }
     this.saveInvoices(list);
     this.checkTriggerCriticalBackup(`Nueva factura emitida: ${inv.numero_factura}`);
+    FirebaseSyncService.saveDoc(COLLECTIONS.INVOICES, inv.id, inv).catch(console.warn);
   },
 
   async updateInvoice(id: string, update: Partial<Invoice>) {
@@ -705,12 +799,14 @@ export const mockDb = {
       list[idx] = { ...list[idx], ...update };
       this.saveInvoices(list);
       this.checkTriggerCriticalBackup(`Modificación de factura: ${list[idx].numero_factura}`);
+      FirebaseSyncService.saveDoc(COLLECTIONS.INVOICES, id, list[idx]).catch(console.warn);
     }
   },
 
   async deleteInvoice(id: string) {
     const list = this.getInvoices().filter(inv => inv.id !== id);
     this.saveInvoices(list);
+    FirebaseSyncService.removeDoc(COLLECTIONS.INVOICES, id).catch(console.warn);
   },
 
   getFollowUps(): FollowUp[] {
@@ -800,6 +896,7 @@ export const mockDb = {
   saveSettings(settings: Settings) {
     try {
       localStorage.setItem(DB_KEYS.SETTINGS, JSON.stringify(settings));
+      FirebaseSyncService.saveDoc(COLLECTIONS.SETTINGS, 'default', settings).catch(console.warn);
       api.saveSettings(settings).catch(e => console.warn('API saveSettings error:', e));
     } catch (e) {
       console.error(e);
@@ -1036,6 +1133,7 @@ export const mockDb = {
     const current = this.getPendingRequests();
     current.unshift(req);
     this.savePendingRequests(current);
+    FirebaseSyncService.saveDoc(COLLECTIONS.PENDING_REQUESTS, req.id, req).catch(console.warn);
     try {
       await api.createPendingRequest(req);
     } catch (e) {
@@ -1051,6 +1149,7 @@ export const mockDb = {
       const current = this.getPendingRequests();
       const updated = current.filter(r => r.id !== id);
       this.savePendingRequests(updated);
+      FirebaseSyncService.removeDoc(COLLECTIONS.PENDING_REQUESTS, id).catch(console.warn);
       await api.deletePendingRequest(id).catch(e => console.warn('API deletePendingRequest error:', e));
       try {
         window.dispatchEvent(new Event('publix_new_request'));

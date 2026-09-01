@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Permisos para vallas y catálogo público / administrativo
+    match /vehicles/{vehicleId} {
+      allow read, write: if true;
+    }
+    
+    // Directorio de Clientes y CRM
+    match /clients/{clientId} {
+      allow read, write: if true;
+    }
+    
+    // Cotizaciones OOH
+    match /quotations/{quotationId} {
+      allow read, write: if true;
+    }
+    
+    // Contratos de Publicidad Exterior
+    match /contracts/{contractId} {
+      allow read, write: if true;
+    }
+    
+    // Facturas y Cobranzas
+    match /invoices/{invoiceId} {
+      allow read, write: if true;
+    }
+    
+    // Solicitudes entrantes desde el Landing Page público
+    match /pending_requests/{requestId} {
+      allow read, write: if true;
+    }
+    
+    // Citas y Agenda comercial
+    match /follow_ups/{followUpId} {
+      allow read, write: if true;
+    }
+    
+    // Plantillas de mensajes WhatsApp
+    match /templates/{templateId} {
+      allow read, write: if true;
+    }
+    
+    // Usuarios y asesores
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+    
+    // Registro de auditoría
+    match /audit_logs/{logId} {
+      allow read, write: if true;
+    }
+    
+    // Parámetros y Configuración global
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
+  }
+}

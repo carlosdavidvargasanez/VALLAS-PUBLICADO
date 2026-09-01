@@ -5,6 +5,7 @@ import oohBannerImage from '../assets/images/publi_x_ooh_banner_1786328834763.jp
 import Logo from './Logo';
 import OOHInquiryModal from './OOHInquiryModal';
 import CommercialAiChatbot from './CommercialAiChatbot';
+import BoliviaCoverageMap from './BoliviaCoverageMap';
 
 import { Settings } from '../types';
 
@@ -116,9 +117,9 @@ export default function LandingPage({ onOpenLogin, onOpenLoginWithCategory, onEx
         </div>
       </section>
 
-      {/* STATS HIGHLIGHTS */}
+      {/* STATS HIGHLIGHTS & MAP */}
       <section id="cobertura" className="py-12 bg-[#0d182b] border-y border-[#0fa0e6]/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             
             <div className="p-5 bg-[#0a111e] rounded-2xl border border-[#0fa0e6]/30 shadow-md">
@@ -142,6 +143,9 @@ export default function LandingPage({ onOpenLogin, onOpenLoginWithCategory, onEx
             </div>
 
           </div>
+
+          {/* Interactive Bolivia Coverage Map */}
+          <BoliviaCoverageMap />
         </div>
       </section>
 

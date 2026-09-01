@@ -1492,6 +1492,8 @@ export default function App() {
                   onImportVehicles={handleImportVehicles}
                   clients={clients}
                   vehicles={vehicles}
+                  onDownloadBackup={handleDownloadBackup}
+                  onUploadBackup={handleUploadBackup}
                 />
               )}
 

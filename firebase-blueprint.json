@@ -1,0 +1,107 @@
+{
+  "entities": {
+    "vehicles": {
+      "title": "Vallas y Espacios Publicitarios OOH",
+      "description": "Catálogo nacional de vallas unipolares, pantallas LED, pasarelas y soportes publicitarios",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID del espacio publicitario" },
+        "marca": { "type": "string", "description": "Línea / Red de soporte (ej. PUBLI-X)" },
+        "modelo": { "type": "string", "description": "Ubicación / Avenida principal" },
+        "version": { "type": "string", "description": "Medidas y cara (ej. 10x4m - Cara A)" },
+        "anio": { "type": "number", "description": "Año de estructura" },
+        "tipo": { "type": "string", "description": "Tipo de soporte OOH" },
+        "precio_usd": { "type": "number", "description": "Tarifa mensual en USD" },
+        "precio_bs": { "type": "number", "description": "Tarifa mensual en Bolivianos" },
+        "estado": { "type": "string", "description": "Disponible, Ocupado, Reservado, Mantenimiento" },
+        "departamento": { "type": "string", "description": "Departamento de Bolivia" },
+        "ciudad": { "type": "string", "description": "Ciudad" },
+        "zona": { "type": "string", "description": "Zona urbana" },
+        "iluminacion": { "type": "string", "description": "Tipo de iluminación" },
+        "lat": { "type": "number", "description": "Latitud GPS" },
+        "lng": { "type": "number", "description": "Longitud GPS" },
+        "fotos": { "type": "array", "items": { "type": "string" }, "description": "URLs de fotografías" }
+      },
+      "required": ["id", "modelo", "tipo", "precio_usd"]
+    },
+    "clients": {
+      "title": "Clientes y Contactos Comerciales",
+      "description": "Directorio y CRM de clientes anunciantes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nombre": { "type": "string" },
+        "empresa": { "type": "string" },
+        "celular": { "type": "string" },
+        "ciudad": { "type": "string" },
+        "departamento": { "type": "string" },
+        "estado": { "type": "string" }
+      },
+      "required": ["id", "nombre", "celular"]
+    },
+    "quotations": {
+      "title": "Cotizaciones OOH",
+      "description": "Propuestas comerciales generadas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "numero": { "type": "string" },
+        "cliente_id": { "type": "string" },
+        "cliente_nombre": { "type": "string" },
+        "total_usd": { "type": "number" },
+        "total_bob": { "type": "number" },
+        "estado": { "type": "string" }
+      },
+      "required": ["id", "numero", "cliente_nombre"]
+    },
+    "contracts": {
+      "title": "Contratos Publicitarios OOH",
+      "description": "Contratos legales de alquiler de espacios publicitarios",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "numero": { "type": "string" },
+        "cliente_nombre": { "type": "string" },
+        "total_neto_usd": { "type": "number" },
+        "estado": { "type": "string" }
+      },
+      "required": ["id", "numero"]
+    },
+    "invoices": {
+      "title": "Facturas Fiscales SIN",
+      "description": "Facturas emitidas y registro contable",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "numero_factura": { "type": "string" },
+        "cliente_razon_social": { "type": "string" },
+        "total_bob": { "type": "number" },
+        "estado_pago": { "type": "string" }
+      },
+      "required": ["id", "numero_factura"]
+    },
+    "pending_requests": {
+      "title": "Solicitudes Web Landing Page",
+      "description": "Leads y pedidos de cotización recibidos desde la página pública",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nombre_contacto": { "type": "string" },
+        "empresa": { "type": "string" },
+        "celular": { "type": "string" },
+        "estado": { "type": "string" }
+      },
+      "required": ["id", "nombre_contacto", "celular"]
+    },
+    "settings": {
+      "title": "Configuración General",
+      "description": "Parámetros de empresa, tipo de cambio y términos",
+      "type": "object",
+      "properties": {
+        "nombre_empresa": { "type": "string" },
+        "nit": { "type": "string" },
+        "tipo_cambio": { "type": "number" }
+      }
+    }
+  }
+}
