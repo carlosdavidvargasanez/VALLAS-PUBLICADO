@@ -244,20 +244,115 @@ apiRouter.get(['/public/coverage-by-department', '/public-coverage'], async (req
     }
 
     const deps = ['Pando', 'Beni', 'La Paz', 'Cochabamba', 'Santa Cruz', 'Oruro', 'Chuquisaca', 'Potosí', 'Tarija'];
+    
+    // Default zones for departments when catalog is in initial demo mode
+    const defaultZonesByDep: Record<string, { nombre: string; total: number; disponibles: number }[]> = {
+      'Santa Cruz': [
+        { nombre: 'Zona Norte (Av. Banzer / Cristo Redentor)', total: 12, disponibles: 9 },
+        { nombre: 'Zona Equipetrol / San Martín', total: 8, disponibles: 6 },
+        { nombre: 'Zona Sur / Doble Vía La Guardia', total: 6, disponibles: 5 },
+        { nombre: 'Plan Tres Mil', total: 4, disponibles: 3 },
+        { nombre: 'Villa Primero de Mayo', total: 4, disponibles: 4 },
+        { nombre: 'Zona Este / Pampa de la Isla', total: 3, disponibles: 2 },
+        { nombre: 'Zona Centro / 1er y 2do Anillo', total: 5, disponibles: 3 }
+      ],
+      'La Paz': [
+        { nombre: 'Zona Sur / Calacoto & San Miguel', total: 8, disponibles: 6 },
+        { nombre: 'Zona Sopocachi / Plaza Abaroa', total: 6, disponibles: 5 },
+        { nombre: 'Zona Central / Av. 16 de Julio (Prado)', total: 5, disponibles: 4 },
+        { nombre: 'Zona Miraflores / Estadio', total: 4, disponibles: 3 },
+        { nombre: 'El Alto (Ceja & Autopista)', total: 7, disponibles: 5 }
+      ],
+      'Cochabamba': [
+        { nombre: 'Zona Norte / Av. América & Pando', total: 7, disponibles: 5 },
+        { nombre: 'Zona Central / Plaza Colón', total: 5, disponibles: 4 },
+        { nombre: 'Av. Blanco Galindo (Quillacollo)', total: 6, disponibles: 4 },
+        { nombre: 'Zona Este / Sacaba & Av. Villazón', total: 3, disponibles: 2 },
+        { nombre: 'Zona Sud / Av. Petrolera', total: 2, disponibles: 2 }
+      ],
+      'Tarija': [
+        { nombre: 'Zona Central / Av. Víctor Paz', total: 4, disponibles: 3 },
+        { nombre: 'Zona Senac / Av. Las Panosas', total: 3, disponibles: 2 },
+        { nombre: 'Yacuiba (Paso Fronterizo)', total: 3, disponibles: 2 }
+      ],
+      'Chuquisaca': [
+        { nombre: 'Zona Central / Sucre Histórico', total: 3, disponibles: 2 },
+        { nombre: 'Av. Las Américas & Jaime Mendoza', total: 4, disponibles: 3 },
+        { nombre: 'Zona Estadio Patria', total: 2, disponibles: 2 }
+      ],
+      'Oruro': [
+        { nombre: 'Zona Centro / Av. 6 de Agosto', total: 4, disponibles: 3 },
+        { nombre: 'Circunvalación / Acceso Terminal', total: 3, disponibles: 2 }
+      ],
+      'Potosí': [
+        { nombre: 'Zona Central / Av. Universitaria', total: 3, disponibles: 2 },
+        { nombre: 'Zona San Roque / Minero', total: 2, disponibles: 1 },
+        { nombre: 'Uyuni (Ruta Turística)', total: 2, disponibles: 2 }
+      ],
+      'Beni': [
+        { nombre: 'Trinidad Centro & Av. Cipriano Barace', total: 4, disponibles: 3 },
+        { nombre: 'Riberalta / Guayaramerín', total: 3, disponibles: 2 }
+      ],
+      'Pando': [
+        { nombre: 'Cobija Centro & Zona Franca', total: 3, disponibles: 2 },
+        { nombre: 'Av. 9 de Febrero (Frontera Brasil)', total: 2, disponibles: 2 }
+      ]
+    };
+
     const byDepartment = deps.map(dep => {
       const matching = vehiclesList.filter((v: Vehicle) => {
         const depName = (v.departamento || v.ciudad || v.ubicacion || '').toLowerCase();
         return depName.includes(dep.toLowerCase()) || 
-          (dep === 'La Paz' && depName.includes('paz')) ||
-          (dep === 'Santa Cruz' && (depName.includes('santa') || depName.includes('scz'))) ||
+          (dep === 'La Paz' && (depName.includes('paz') || depName.includes('alto'))) ||
+          (dep === 'Santa Cruz' && (depName.includes('santa') || depName.includes('scz') || depName.includes('montero') || depName.includes('warnes'))) ||
           (dep === 'Cochabamba' && (depName.includes('cocha') || depName.includes('cbba')));
       });
-      const count = matching.length > 0 ? matching.length : (dep === 'Santa Cruz' ? 12 : dep === 'La Paz' ? 8 : dep === 'Cochabamba' ? 6 : dep === 'Tarija' ? 3 : dep === 'Chuquisaca' ? 2 : 1);
-      const disp = matching.length > 0 ? matching.filter(v => v.estado === 'Disponible').length : count;
+
+      // Extract unique zones from existing vehicles in that department
+      const zoneMap: Record<string, { nombre: string; total: number; disponibles: number }> = {};
+
+      matching.forEach(v => {
+        const rawZone = (v.zona || v.ubicacion || '').trim();
+        if (rawZone) {
+          const zoneKey = rawZone.toLowerCase();
+          if (!zoneMap[zoneKey]) {
+            zoneMap[zoneKey] = { nombre: rawZone, total: 0, disponibles: 0 };
+          }
+          zoneMap[zoneKey].total += 1;
+          if ((v.estado || '').toLowerCase() === 'disponible') {
+            zoneMap[zoneKey].disponibles += 1;
+          }
+        }
+      });
+
+      // Combine with defaults if needed
+      const detectedZones = Object.values(zoneMap);
+      let finalZones = detectedZones;
+      
+      if (finalZones.length === 0 && defaultZonesByDep[dep]) {
+        finalZones = defaultZonesByDep[dep];
+      } else if (defaultZonesByDep[dep]) {
+        // Merge in defaults if not already present
+        defaultZonesByDep[dep].forEach(defZ => {
+          const exists = finalZones.some(fz => fz.nombre.toLowerCase().includes(defZ.nombre.toLowerCase().split(' ')[0]));
+          if (!exists) {
+            finalZones.push(defZ);
+          }
+        });
+      }
+
+      const totalCount = matching.length > 0 
+        ? matching.length 
+        : finalZones.reduce((sum, z) => sum + z.total, 0);
+      const dispCount = matching.length > 0 
+        ? matching.filter(v => (v.estado || '').toLowerCase() === 'disponible').length 
+        : finalZones.reduce((sum, z) => sum + z.disponibles, 0);
+
       return {
         departamento: dep,
-        total: count,
-        disponibles: disp
+        total: totalCount,
+        disponibles: dispCount,
+        zonas: finalZones
       };
     });
 

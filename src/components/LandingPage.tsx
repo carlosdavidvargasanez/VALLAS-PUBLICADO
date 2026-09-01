@@ -5,7 +5,7 @@ import oohBannerImage from '../assets/images/publi_x_ooh_banner_1786328834763.jp
 import Logo from './Logo';
 import OOHInquiryModal from './OOHInquiryModal';
 import CommercialAiChatbot from './CommercialAiChatbot';
-import SantaCruzCityMap from './SantaCruzCityMap';
+import BoliviaInteractiveSvgMap from './BoliviaInteractiveSvgMap';
 
 import { Settings } from '../types';
 
@@ -144,8 +144,13 @@ export default function LandingPage({ onOpenLogin, onOpenLoginWithCategory, onEx
 
           </div>
 
-          {/* Interactive Santa Cruz Coverage Map */}
-          <SantaCruzCityMap />
+          {/* Interactive Bolivia Coverage SVG Map */}
+          <BoliviaInteractiveSvgMap
+            onRequestQuote={(deptName, zoneName) => {
+              const title = zoneName ? `Disponibilidad de Vallas en ${zoneName} (${deptName})` : `Disponibilidad de Vallas en ${deptName}`;
+              handleOpenInquiry(title, `Catálogo OOH - ${deptName}${zoneName ? ' - ' + zoneName : ''}`);
+            }}
+          />
         </div>
       </section>
 

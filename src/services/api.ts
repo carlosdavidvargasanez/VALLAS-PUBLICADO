@@ -94,14 +94,17 @@ export const api = {
   importBackup: (data: any) => request<{ success: boolean; message: string }>('/backup/import', { method: 'POST', body: JSON.stringify(data) }),
 
   // Public coverage stats (no auth, aggregate counts only — used on the marketing landing page)
+  getPublicCoverageMap: async () => {
+    return api.getPublicCoverageByDepartment();
+  },
   getPublicCoverageByDepartment: async (): Promise<{
-    byDepartment: { departamento: string; total: number; disponibles: number }[];
+    byDepartment: { departamento: string; total: number; disponibles: number; zonas?: { nombre: string; total: number; disponibles: number }[] }[];
     totalNacional: number;
     updatedAt: string;
   }> => {
     try {
       const res = await request<{
-        byDepartment: { departamento: string; total: number; disponibles: number }[];
+        byDepartment: { departamento: string; total: number; disponibles: number; zonas?: { nombre: string; total: number; disponibles: number }[] }[];
         totalNacional: number;
         updatedAt: string;
       }>('/public/coverage-by-department');
@@ -121,12 +124,25 @@ export const api = {
           (dep === 'Santa Cruz' && (depName.includes('santa') || depName.includes('scz'))) ||
           (dep === 'Cochabamba' && (depName.includes('cocha') || depName.includes('cbba')));
       });
+
+      const zoneMap: Record<string, { nombre: string; total: number; disponibles: number }> = {};
+      matching.forEach(v => {
+        const rawZone = (v.zona || v.ubicacion || '').trim();
+        if (rawZone) {
+          const zoneKey = rawZone.toLowerCase();
+          if (!zoneMap[zoneKey]) zoneMap[zoneKey] = { nombre: rawZone, total: 0, disponibles: 0 };
+          zoneMap[zoneKey].total += 1;
+          if ((v.estado || '').toLowerCase() === 'disponible') zoneMap[zoneKey].disponibles += 1;
+        }
+      });
+
       const count = matching.length > 0 ? matching.length : (dep === 'Santa Cruz' ? 12 : dep === 'La Paz' ? 8 : dep === 'Cochabamba' ? 6 : dep === 'Tarija' ? 3 : dep === 'Chuquisaca' ? 2 : 1);
       const disp = matching.length > 0 ? matching.filter(v => v.estado === 'Disponible').length : count;
       return {
         departamento: dep,
         total: count,
-        disponibles: disp
+        disponibles: disp,
+        zonas: Object.values(zoneMap)
       };
     });
     const totalNacional = byDepartment.reduce((acc, curr) => acc + curr.total, 0);
