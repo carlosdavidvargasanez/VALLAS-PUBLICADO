@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Loader2, Navigation, Compass, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { MapPin, Loader2, Navigation, Compass, ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../services/api';
-import { BOLIVIA_DEPARTMENT_PATHS, SVG_ID_TO_DEPARTMENT_NAME } from '../assets/maps/boliviaMapData';
+import { BOLIVIA_DEPARTMENT_PATHS, SVG_ID_TO_DEPARTMENT_NAME, DEPARTMENT_TONES } from '../assets/maps/boliviaMapData';
 
 interface ZoneItem {
   nombre: string;
@@ -50,6 +50,7 @@ export default function BoliviaCoverageMap({ onRequestQuote }: BoliviaCoverageMa
 
   const getCount = (dep: string) => stats?.find((s: DepartmentStat) => s.departamento === dep)?.total ?? 0;
   const getDisponibles = (dep: string) => stats?.find((s: DepartmentStat) => s.departamento === dep)?.disponibles ?? 0;
+  
   const getZonas = (dep: string): ZoneItem[] => {
     const found = stats?.find((s: DepartmentStat) => s.departamento === dep);
     if (found?.zonas && found.zonas.length > 0) return found.zonas;
@@ -84,49 +85,75 @@ export default function BoliviaCoverageMap({ onRequestQuote }: BoliviaCoverageMa
     ];
   };
 
-  const maxCount = stats && stats.length > 0 ? Math.max(1, ...stats.map((s: DepartmentStat) => s.total)) : 1;
-
+  // Color functions respecting custom distinct blues and custom distinct oranges per department
   const getFill = (dep: string) => {
+    const tones = DEPARTMENT_TONES[dep] || {
+      blueColor: '#0284c7',
+      blueHover: '#38bdf8',
+      orangeColor: '#ff8c00',
+      orangeGlow: 'rgba(255, 140, 0, 0.6)'
+    };
+
     if (selectedDept === dep) {
-      return '#ff8c00'; // Brand Orange on active select
+      return tones.orangeColor;
     }
-    const count = getCount(dep);
-    if (count === 0) return 'rgba(255,255,255,0.06)';
-    const intensity = count / maxCount; // 0..1
-    const alpha = 0.35 + intensity * 0.55;
-    return intensity > 0.6
-      ? `rgba(255,140,0,${alpha})`   // #ff8c00 brand orange
-      : `rgba(15,160,230,${alpha})`; // #0fa0e6 brand blue
+    if (hovered === dep) {
+      return tones.blueHover;
+    }
+    return tones.blueColor;
   };
 
   const currentDisplayDept = hovered || selectedDept;
+  const currentTones = DEPARTMENT_TONES[currentDisplayDept] || {
+    blueColor: '#0284c7',
+    blueHover: '#38bdf8',
+    orangeColor: '#ff8c00',
+    orangeGlow: 'rgba(255, 140, 0, 0.6)'
+  };
   const currentZones = getZonas(currentDisplayDept);
   const activeZoneData = selectedZone ? currentZones.find(z => z.nombre === selectedZone) : null;
 
   return (
     <div className="bg-[#0a111e] border border-[#0fa0e6]/30 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden" id="mapa-bolivia-cobertura">
-      {/* Glow effects */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-[#ff8c00]/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#0fa0e6]/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Dynamic Glow effects tailored to active department */}
+      <div
+        className="absolute top-0 right-0 w-96 h-96 rounded-full blur-3xl pointer-events-none transition-colors duration-500 opacity-25"
+        style={{ backgroundColor: currentTones.orangeColor }}
+      />
+      <div
+        className="absolute bottom-0 left-0 w-96 h-96 rounded-full blur-3xl pointer-events-none transition-colors duration-500 opacity-20"
+        style={{ backgroundColor: currentTones.blueColor }}
+      />
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3 relative z-10">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full bg-[#ff8c00]/20 border border-[#ff8c00]/40 text-[#ff8c00] text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#ff8c00] animate-ping" />
-              MAPA OFICIAL DE BOLIVIA
+            <span
+              className="px-2.5 py-0.5 rounded-full border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-colors duration-300"
+              style={{
+                backgroundColor: `${currentTones.orangeColor}20`,
+                borderColor: `${currentTones.orangeColor}50`,
+                color: currentTones.orangeColor
+              }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full animate-ping"
+                style={{ backgroundColor: currentTones.orangeColor }}
+              />
+              MAPA OFICIAL DE BOLIVIA &bull; 9 DEPARTAMENTOS
             </span>
           </div>
           <h3 className="text-lg sm:text-2xl font-black text-white uppercase tracking-wide">
-            Cobertura por <span className="text-[#ff8c00]">Departamento</span>
+            Cobertura por <span style={{ color: currentTones.orangeColor }}>Departamento</span>
           </h3>
           <p className="text-xs text-gray-400 mt-1">
-            Haga clic en cualquier departamento en el mapa geográfico para explorar sus zonas comerciales disponibles.
+            Cada departamento cuenta con su tono de azul distintivo. Haga clic en cualquiera para activarlo en su tonalidad naranja exclusiva y explorar sus zonas comerciales.
           </p>
         </div>
         {!loading && !error && (
-          <span className="bg-[#0fa0e6]/15 text-[#0fa0e6] border border-[#0fa0e6]/40 text-xs font-black px-4 py-2 rounded-full uppercase tracking-wider shadow-md">
+          <span className="bg-[#0fa0e6]/15 text-[#0fa0e6] border border-[#0fa0e6]/40 text-xs font-black px-4 py-2 rounded-full uppercase tracking-wider shadow-md flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-[#ff8c00]" />
             {totalNacional}+ Espacios a Nivel Nacional
           </span>
         )}
@@ -149,15 +176,15 @@ export default function BoliviaCoverageMap({ onRequestQuote }: BoliviaCoverageMa
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative z-10">
           {/* Left Column: Official Simplemaps Bolivia SVG Map (ViewBox 0 0 1000 1000) */}
           <div className="lg:col-span-6 flex flex-col items-center justify-center">
-            <div className="relative w-full max-w-[480px] aspect-square flex items-center justify-center p-3 bg-[#0d182b]/90 border border-[#0fa0e6]/25 rounded-3xl shadow-inner backdrop-blur-xs">
+            <div className="relative w-full max-w-[480px] aspect-square flex items-center justify-center p-3 bg-[#0d182b]/95 border border-[#0fa0e6]/25 rounded-3xl shadow-inner backdrop-blur-xs">
               <svg
                 viewBox="0 0 1000 1000"
-                className="w-full h-full filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.7)] select-none"
+                className="w-full h-full filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.75)] select-none"
                 style={{ maxHeight: '460px' }}
               >
                 <defs>
                   <filter id="glow-dept-active" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="6" result="blur" />
+                    <feGaussianBlur stdDeviation="8" result="blur" />
                     <feComposite in="SourceGraphic" in2="blur" operator="over" />
                   </filter>
                 </defs>
@@ -166,19 +193,20 @@ export default function BoliviaCoverageMap({ onRequestQuote }: BoliviaCoverageMa
                 <g pointerEvents="none" opacity="0.85">
                   <path
                     d="M 98 345 Q 125 365 145 355 Q 125 385 100 375 Z"
-                    fill="#00bcd4"
+                    fill="#38bdf8"
                     stroke="#ffffff"
                     strokeWidth="1.5"
                   />
-                  <text x="50" y="360" fontSize="13" fill="#38bdf8" fontWeight="bold">Lago Titicaca</text>
+                  <text x="48" y="360" fontSize="12" fill="#7dd3fc" fontWeight="bold">Lago Titicaca</text>
                 </g>
 
-                {/* 9 Department Paths */}
+                {/* 9 Department Paths with distinct individual Blue and Orange tones */}
                 {BOLIVIA_DEPARTMENT_PATHS.map(dep => {
                   const deptName = SVG_ID_TO_DEPARTMENT_NAME[dep.id] || dep.name;
                   const isSelected = selectedDept === deptName;
                   const isHovered = hovered === deptName;
                   const count = getCount(deptName);
+                  const tone = DEPARTMENT_TONES[deptName] || dep;
 
                   return (
                     <g key={dep.id} className="group">
@@ -192,12 +220,12 @@ export default function BoliviaCoverageMap({ onRequestQuote }: BoliviaCoverageMa
                         onMouseEnter={() => setHovered(deptName)}
                         onMouseLeave={() => setHovered(null)}
                         fill={getFill(deptName)}
-                        stroke={isSelected ? '#ff8c00' : isHovered ? '#ffffff' : 'rgba(15,160,230,0.4)'}
+                        stroke={isSelected ? '#ffffff' : isHovered ? '#ffffff' : 'rgba(255,255,255,0.45)'}
                         strokeWidth={isSelected ? 4 : isHovered ? 2.5 : 1.2}
                         strokeLinejoin="round"
                         strokeLinecap="round"
                         filter={isSelected ? 'url(#glow-dept-active)' : undefined}
-                        className="cursor-pointer transition-colors duration-200 hover:brightness-110"
+                        className="cursor-pointer transition-all duration-300 hover:brightness-115"
                       />
 
                       {/* Text Label & Badge */}
@@ -207,16 +235,17 @@ export default function BoliviaCoverageMap({ onRequestQuote }: BoliviaCoverageMa
                       >
                         <circle
                           r={isSelected ? 18 : 14}
-                          fill={isSelected ? '#ffffff' : isHovered ? '#ff8c00' : '#0a111e'}
-                          stroke={isSelected ? '#ff8c00' : '#ffffff'}
-                          strokeWidth={2}
+                          fill={isSelected ? '#ffffff' : isHovered ? tone.orangeColor : '#0a111e'}
+                          stroke={isSelected ? tone.orangeColor : '#ffffff'}
+                          strokeWidth={isSelected ? 3 : 1.8}
+                          className="transition-all duration-300"
                         />
                         <text
                           textAnchor="middle"
                           dy="4.5"
                           fontSize={isSelected ? "13" : "11"}
                           fontWeight="900"
-                          fill={isSelected ? '#0a111e' : '#ffffff'}
+                          fill={isSelected ? tone.orangeColor : '#ffffff'}
                           fontFamily="monospace"
                         >
                           {count}
@@ -226,10 +255,11 @@ export default function BoliviaCoverageMap({ onRequestQuote }: BoliviaCoverageMa
                           dy={isSelected ? "32" : "28"}
                           fontSize={isSelected ? "15" : "13"}
                           fontWeight="900"
-                          fill={isSelected ? '#ffffff' : '#e2e8f0'}
+                          fill={isSelected ? '#ffffff' : '#f1f5f9'}
                           style={{
-                            textShadow: '0 2px 8px rgba(0,0,0,0.95), 0 0 4px #000',
-                            textTransform: 'uppercase'
+                            textShadow: '0 2px 8px rgba(0,0,0,0.98), 0 0 4px #000',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.02em'
                           }}
                         >
                           {deptName}
@@ -241,18 +271,23 @@ export default function BoliviaCoverageMap({ onRequestQuote }: BoliviaCoverageMa
               </svg>
 
               {/* Interactive notice badge */}
-              <div className="absolute bottom-3 left-3 bg-[#0a111e]/90 border border-[#0fa0e6]/30 px-3 py-1.5 rounded-xl backdrop-blur-md flex items-center gap-2 text-[11px] text-gray-200">
-                <span className="w-2 h-2 rounded-full bg-[#ff8c00] animate-pulse" />
-                <span>Toque cualquier departamento para iluminarlo</span>
+              <div className="absolute bottom-3 left-3 bg-[#0a111e]/90 border border-[#0fa0e6]/30 px-3 py-1.5 rounded-xl backdrop-blur-md flex items-center gap-2 text-[11px] text-gray-200 shadow-md">
+                <span
+                  className="w-2 h-2 rounded-full animate-pulse"
+                  style={{ backgroundColor: currentTones.orangeColor }}
+                />
+                <span>Toque un departamento para iluminarlo en naranja</span>
               </div>
             </div>
 
-            {/* Quick department selection chips */}
+            {/* Quick department selection chips with matching colors */}
             <div className="flex flex-wrap items-center justify-center gap-1.5 mt-3.5 w-full max-w-[480px]">
               {BOLIVIA_DEPARTMENT_PATHS.map(dep => {
                 const deptName = SVG_ID_TO_DEPARTMENT_NAME[dep.id] || dep.name;
                 const isSelected = selectedDept === deptName;
                 const count = getCount(deptName);
+                const tone = DEPARTMENT_TONES[deptName] || dep;
+
                 return (
                   <button
                     key={dep.id}
@@ -262,16 +297,29 @@ export default function BoliviaCoverageMap({ onRequestQuote }: BoliviaCoverageMa
                     }}
                     onMouseEnter={() => setHovered(deptName)}
                     onMouseLeave={() => setHovered(null)}
+                    style={{
+                      backgroundColor: isSelected ? tone.orangeColor : '#0d182b',
+                      borderColor: isSelected ? '#ffffff' : `${tone.blueColor}60`,
+                      color: isSelected ? '#000000' : '#e2e8f0'
+                    }}
                     className={`px-2.5 py-1 rounded-xl text-[11px] font-bold uppercase transition-all duration-200 flex items-center gap-1.5 cursor-pointer border ${
                       isSelected
-                        ? 'bg-[#ff8c00] text-gray-950 border-[#ff8c00] shadow-md shadow-[#ff8c00]/30 font-black scale-105'
-                        : 'bg-[#0d182b] text-gray-300 border-[#0fa0e6]/25 hover:border-[#ff8c00] hover:text-white'
+                        ? 'shadow-md font-black scale-105'
+                        : 'hover:border-white hover:text-white'
                     }`}
                   >
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: isSelected ? '#000000' : tone.blueColor }}
+                    />
                     <span>{deptName}</span>
-                    <span className={`px-1 py-0.2 rounded text-[9px] font-mono font-bold ${
-                      isSelected ? 'bg-gray-950/20 text-gray-950' : 'bg-[#0fa0e6]/20 text-[#0fa0e6]'
-                    }`}>
+                    <span
+                      style={{
+                        backgroundColor: isSelected ? 'rgba(0,0,0,0.2)' : `${tone.blueColor}30`,
+                        color: isSelected ? '#000000' : '#38bdf8'
+                      }}
+                      className="px-1 py-0.2 rounded text-[9px] font-mono font-bold"
+                    >
                       {count}
                     </span>
                   </button>
@@ -289,12 +337,19 @@ export default function BoliviaCoverageMap({ onRequestQuote }: BoliviaCoverageMa
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2 }}
-                className="bg-gradient-to-br from-[#0d182b] to-[#0a111e] border-2 border-[#ff8c00] rounded-3xl p-5 sm:p-6 shadow-xl space-y-5"
+                style={{
+                  borderColor: currentTones.orangeColor,
+                  boxShadow: `0 10px 30px ${currentTones.orangeGlow}`
+                }}
+                className="bg-gradient-to-br from-[#0d182b] to-[#0a111e] border-2 rounded-3xl p-5 sm:p-6 shadow-xl space-y-5"
               >
                 {/* Department Header Info */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#0fa0e6]/20">
                   <div>
-                    <div className="flex items-center gap-2 text-[#ff8c00] font-black uppercase text-xs">
+                    <div
+                      className="flex items-center gap-2 font-black uppercase text-xs"
+                      style={{ color: currentTones.orangeColor }}
+                    >
                       <MapPin className="w-4 h-4" />
                       <span>DEPARTAMENTO SELECCIONADO</span>
                     </div>
@@ -307,9 +362,17 @@ export default function BoliviaCoverageMap({ onRequestQuote }: BoliviaCoverageMa
                       <span className="text-[10px] text-gray-400 font-bold uppercase block">Total OOH</span>
                       <span className="text-base font-black text-white font-mono">{getCount(currentDisplayDept)}</span>
                     </div>
-                    <div className="px-3.5 py-1.5 bg-[#0a111e] border border-[#ff8c00]/30 rounded-xl text-center">
+                    <div
+                      className="px-3.5 py-1.5 bg-[#0a111e] border rounded-xl text-center"
+                      style={{ borderColor: `${currentTones.orangeColor}60` }}
+                    >
                       <span className="text-[10px] text-gray-400 font-bold uppercase block">Disponibles</span>
-                      <span className="text-base font-black text-[#ff8c00] font-mono">{getDisponibles(currentDisplayDept)}</span>
+                      <span
+                        className="text-base font-black font-mono"
+                        style={{ color: currentTones.orangeColor }}
+                      >
+                        {getDisponibles(currentDisplayDept)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -318,7 +381,7 @@ export default function BoliviaCoverageMap({ onRequestQuote }: BoliviaCoverageMa
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
                     <div className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-                      <Compass className="w-4 h-4 text-[#ff8c00]" />
+                      <Compass className="w-4 h-4" style={{ color: currentTones.orangeColor }} />
                       <span>Zonas Comerciales en {currentDisplayDept}</span>
                     </div>
                     <span className="text-[11px] text-gray-400 font-semibold">
@@ -330,16 +393,30 @@ export default function BoliviaCoverageMap({ onRequestQuote }: BoliviaCoverageMa
                     {/* All department button */}
                     <button
                       onClick={() => setSelectedZone(null)}
+                      style={
+                        selectedZone === null
+                          ? {
+                              backgroundColor: currentTones.orangeColor,
+                              borderColor: currentTones.orangeColor,
+                              color: '#000000'
+                            }
+                          : {}
+                      }
                       className={`px-3 py-2 rounded-xl text-xs font-bold text-left transition-all duration-200 flex items-center justify-between border cursor-pointer ${
                         selectedZone === null
-                          ? 'bg-[#ff8c00] text-gray-950 border-[#ff8c00] shadow-md font-black'
-                          : 'bg-[#132742]/80 text-gray-300 border-[#0fa0e6]/25 hover:border-[#ff8c00] hover:text-white'
+                          ? 'shadow-md font-black'
+                          : 'bg-[#132742]/80 text-gray-300 border-[#0fa0e6]/25 hover:border-white hover:text-white'
                       }`}
                     >
                       <span className="truncate">Todo {currentDisplayDept}</span>
-                      <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ml-2 ${
-                        selectedZone === null ? 'bg-gray-950/20 text-gray-950' : 'bg-[#0a111e] text-[#0fa0e6]'
-                      }`}>
+                      <span
+                        style={
+                          selectedZone === null
+                            ? { backgroundColor: 'rgba(0,0,0,0.2)', color: '#000000' }
+                            : { backgroundColor: '#0a111e', color: '#0fa0e6' }
+                        }
+                        className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ml-2"
+                      >
                         {getCount(currentDisplayDept)}
                       </span>
                     </button>
@@ -351,19 +428,33 @@ export default function BoliviaCoverageMap({ onRequestQuote }: BoliviaCoverageMa
                         <button
                           key={idx}
                           onClick={() => setSelectedZone(zone.nombre)}
+                          style={
+                            isZoneActive
+                              ? {
+                                  backgroundColor: currentTones.orangeColor,
+                                  borderColor: currentTones.orangeColor,
+                                  color: '#000000'
+                                }
+                              : {}
+                          }
                           className={`px-3 py-2 rounded-xl text-xs font-bold text-left transition-all duration-200 flex items-center justify-between border cursor-pointer ${
                             isZoneActive
-                              ? 'bg-[#ff8c00] text-gray-950 border-[#ff8c00] shadow-md font-black'
-                              : 'bg-[#0a111e] text-gray-300 border-[#0fa0e6]/25 hover:border-[#ff8c00] hover:text-white'
+                              ? 'shadow-md font-black'
+                              : 'bg-[#0a111e] text-gray-300 border-[#0fa0e6]/25 hover:border-white hover:text-white'
                           }`}
                         >
                           <span className="flex items-center gap-1.5 truncate">
-                            <Navigation className={`w-3.5 h-3.5 shrink-0 ${isZoneActive ? 'text-gray-950' : 'text-[#0fa0e6]'}`} />
+                            <Navigation className={`w-3.5 h-3.5 shrink-0 ${isZoneActive ? 'text-black' : 'text-[#0fa0e6]'}`} />
                             <span className="truncate">{zone.nombre}</span>
                           </span>
-                          <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ml-2 shrink-0 ${
-                            isZoneActive ? 'bg-gray-950/20 text-gray-950' : 'bg-[#132742] text-[#ff8c00]'
-                          }`}>
+                          <span
+                            style={
+                              isZoneActive
+                                ? { backgroundColor: 'rgba(0,0,0,0.2)', color: '#000000' }
+                                : { backgroundColor: '#132742', color: currentTones.orangeColor }
+                            }
+                            className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ml-2 shrink-0"
+                          >
                             {zone.total}
                           </span>
                         </button>
@@ -378,9 +469,12 @@ export default function BoliviaCoverageMap({ onRequestQuote }: BoliviaCoverageMa
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-[#ff8c00] animate-ping" />
+                          <span
+                            className="w-2 h-2 rounded-full animate-ping"
+                            style={{ backgroundColor: currentTones.orangeColor }}
+                          />
                           <span className="text-xs font-black text-white uppercase">
-                            Zona: <span className="text-[#ff8c00]">{activeZoneData.nombre}</span>
+                            Zona: <span style={{ color: currentTones.orangeColor }}>{activeZoneData.nombre}</span>
                           </span>
                         </div>
                         <span className="text-[11px] font-mono text-[#0fa0e6] font-bold">
@@ -406,7 +500,7 @@ export default function BoliviaCoverageMap({ onRequestQuote }: BoliviaCoverageMa
                   ) : (
                     <div>
                       <div className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
-                        <CheckCircle2 className="w-4 h-4 text-[#ff8c00]" />
+                        <CheckCircle2 className="w-4 h-4" style={{ color: currentTones.orangeColor }} />
                         Cobertura en {currentDisplayDept}:
                       </div>
                       <p className="text-xs text-gray-400">
@@ -426,7 +520,11 @@ export default function BoliviaCoverageMap({ onRequestQuote }: BoliviaCoverageMa
                       if (el) el.scrollIntoView({ behavior: 'smooth' });
                     }
                   }}
-                  className="w-full py-3.5 bg-gradient-to-r from-[#ff8c00] to-[#e65100] hover:from-[#ff991a] hover:to-[#f57c00] text-gray-950 font-black rounded-2xl text-xs uppercase tracking-wider transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-[#ff8c00]/25 cursor-pointer"
+                  style={{
+                    backgroundImage: `linear-gradient(to right, ${currentTones.orangeColor}, #e65100)`,
+                    boxShadow: `0 8px 20px ${currentTones.orangeGlow}`
+                  }}
+                  className="w-full py-3.5 hover:brightness-110 text-gray-950 font-black rounded-2xl text-xs uppercase tracking-wider transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>
                     {selectedZone
